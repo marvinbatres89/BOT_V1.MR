@@ -290,7 +290,25 @@ window.addEventListener(
   }
 );
 
+/* ==========================================
+   IDENTIFICAR ORIGEN DE LA SEÑAL
+   ========================================== */
 
+window.addEventListener(
+  "bot:signal-source",
+  (evento) => {
+
+    const origen =
+      evento.detail?.origen ||
+      "desconocido";
+
+    registrarActividad(
+      `Señal recibida desde ${origen}`,
+      "correcto"
+    );
+
+  }
+);
 /* ==========================================
    EVENTOS DE ERROR
    ========================================== */
