@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>BOT V1 MR</title>
+
+  <link
+    rel="stylesheet"
+    href="./bot.css"
+  >
+</head>
+
+<body>
+
+  <main class="app">
+
+    <!-- ==========================================
+         ENCABEZADO
+         ========================================== -->
+
+    <header class="hero">
+
+      <div>
+
+        <p class="eyebrow">
+          TRADING ANALYZER · BOT SINCRONIZADO
+        </p>
+
+        <h1>
+          BOT V1 <span>MR</span>
+        </h1>
+
+        <p class="subtitulo">
+          Trading Analyzer decide · El bot ejecuta
+        </p>
+
+      </div>
+
+      <div
+        id="estadoBot"
+        class="estado-bot apagado"
+      >
+        BOT OFF
+      </div>
+
+    </header>
+
+
+    <!-- ==========================================
+         SINCRONIZACIÓN
+         ========================================== -->
+
+    <section class="tarjeta">
+
+      <h2>Sincronización</h2>
+
+      <div class="datos-grid">
+
+        <div class="dato">
+          <small>Mercado</small>
+          <strong id="mercado">
+            --
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Estrategia</small>
+          <strong id="estrategia">
+            --
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Dirección</small>
+          <strong id="direccion">
+            --
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Confianza</small>
+          <strong id="confianza">
+            --
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Momento de entrada</small>
+          <strong id="entrada">
+            --
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Precio</small>
+          <strong id="precio">
+            --
+          </strong>
+        </div>
+
+      </div>
+
+
+      <!-- BOTONES -->
+
+      <div class="botones">
+
+        <button
+          id="botonConectar"
+          class="boton conectar"
+        >
+          CONECTAR PUENTE
+        </button>
+
+        <button
+          id="botonPausar"
+          class="boton pausar"
+          disabled
+        >
+          PAUSAR
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <!-- ==========================================
+         MODO DE PRUEBA
+         ========================================== -->
+
+    <section class="tarjeta">
+
+      <h2>Modo de prueba</h2>
+
+      <p class="descripcion">
+        Esta primera versión comprobará la
+        sincronización entre Trading Analyzer
+        y el bot.
+      </p>
+
+      <p class="aviso">
+        En esta fase no se realizarán
+        operaciones con dinero real.
+      </p>
+
+      <button
+        id="botonProbar"
+        class="boton probar"
+      >
+        PROBAR SEÑAL DEMO
+      </button>
+
+    </section>
+
+
+    <!-- ==========================================
+         ÚLTIMA SEÑAL
+         ========================================== -->
+
+    <section class="tarjeta">
+
+      <h2>Última señal recibida</h2>
+
+      <div
+        id="ultimaSenal"
+        class="ultima-senal"
+      >
+        Esperando señal de Trading Analyzer...
+      </div>
+
+    </section>
+
+
+    <!-- ==========================================
+         REGISTRO
+         ========================================== -->
+
+    <section class="tarjeta">
+
+      <h2>Registro del bot</h2>
+
+      <div
+        id="registroBot"
+        class="registro"
+      >
+        <p>
+          BOT V1 MR preparado.
+        </p>
+      </div>
+
+    </section>
+
+
+    <!-- ==========================================
+         PIE
+         ========================================== -->
+
+    <footer>
+
+      <p>
+        BOT V1 MR · Sistema sincronizado
+      </p>
+
+      <small>
+        Trading Analyzer → Señal → Bot
+      </small>
+
+    </footer>
+
+  </main>
+
+
+  <!-- ============================================
+       CONTROLADOR PRINCIPAL
+       ============================================ -->
+
+  <script
+    type="module"
+    src="./bot.js"
+  ></script>
+
+</body>
+
+</html>
