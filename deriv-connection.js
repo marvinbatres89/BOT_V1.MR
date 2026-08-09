@@ -1,7 +1,7 @@
 /* ==========================================
    BOT V1 MR
    CONEXIÓN AUTENTICADA CON DERIV
-   FASE 1: CUENTA DEMO
+   PAT + DETECCIÓN AUTOMÁTICA DE CUENTA DEMO
    SIN COMPRAS
    ========================================== */
 
@@ -17,10 +17,13 @@ class DerivConnection {
     this.accountId = null;
     this.appId = null;
 
+    this.accountInfo = null;
+
     this.listeners = {
       state: new Set(),
       message: new Set(),
-      error: new Set()
+      error: new Set(),
+      account: new Set()
     };
 
   }
@@ -42,6 +45,7 @@ class DerivConnection {
       );
 
     }
+
 
     return () => {
 
@@ -93,12 +97,220 @@ class DerivConnection {
     this.connecting =
       estado === "connecting";
 
+
     this.emitir(
       "state",
       {
         estado,
         mensaje
       }
+    );
+
+  }
+
+
+  /* ========================================
+     HEADERS AUTENTICADOS
+     ======================================== */
+
+  crearHeaders(
+    token,
+    appId
+  ) {
+
+    return {
+
+      "Authorization":
+        `Bearer ${token}`,
+
+      "Deriv-App-ID":
+        String(appId),
+
+      "Content-Type":
+        "application/json"
+
+    };
+
+  }
+
+
+  /* ========================================
+     OBTENER TODAS LAS CUENTAS OPTIONS
+     ======================================== */
+
+  async obtenerCuentas({
+    token,
+    appId
+  }) {
+
+    if (!token) {
+
+      throw new Error(
+        "Falta el token PAT."
+      );
+
+    }
+
+
+    if (!appId) {
+
+      throw new Error(
+        "Falta el Deriv App ID."
+      );
+
+    }
+
+
+    const respuesta =
+      await fetch(
+        "https://api.derivws.com/trading/v1/options/accounts",
+        {
+          method:
+            "GET",
+
+          headers:
+            this.crearHeaders(
+              token,
+              appId
+            )
+        }
+      );
+
+
+    let datos = null;
+
+
+    try {
+
+      datos =
+        await respuesta.json();
+
+    } catch {
+
+      throw new Error(
+        `Deriv respondió HTTP ${respuesta.status}.`
+      );
+
+    }
+
+
+    if (!respuesta.ok) {
+
+      const mensaje =
+        datos?.errors?.[0]?.message ||
+        datos?.message ||
+        `Error HTTP ${respuesta.status}`;
+
+      throw new Error(
+        mensaje
+      );
+
+    }
+
+
+    /*
+      Deriv puede devolver la colección
+      dentro de data o directamente como array.
+    */
+
+    const cuentas =
+      Array.isArray(datos)
+        ? datos
+        : Array.isArray(datos?.data)
+          ? datos.data
+          : Array.isArray(datos?.data?.accounts)
+            ? datos.data.accounts
+            : Array.isArray(datos?.accounts)
+              ? datos.accounts
+              : [];
+
+
+    if (!cuentas.length) {
+
+      throw new Error(
+        "No se encontraron cuentas Options para este token."
+      );
+
+    }
+
+
+    return cuentas;
+
+  }
+
+
+  /* ========================================
+     IDENTIFICAR CUENTA DEMO
+     ======================================== */
+
+  encontrarCuentaDemo(
+    cuentas
+  ) {
+
+    if (
+      !Array.isArray(cuentas)
+    ) {
+
+      return null;
+
+    }
+
+
+    /*
+      Consideramos varias formas posibles
+      en las que Deriv puede etiquetar una demo.
+    */
+
+    return cuentas.find(
+      (cuenta) => {
+
+        const tipo =
+          String(
+            cuenta.account_type ??
+            cuenta.type ??
+            cuenta.environment ??
+            ""
+          )
+          .toLowerCase();
+
+
+        const id =
+          String(
+            cuenta.id ??
+            cuenta.account_id ??
+            cuenta.loginid ??
+            ""
+          )
+          .toUpperCase();
+
+
+        return (
+          tipo === "demo" ||
+          tipo.includes("demo") ||
+          id.startsWith("VRTC") ||
+          id.startsWith("DOT")
+        );
+
+      }
+    ) || null;
+
+  }
+
+
+  /* ========================================
+     OBTENER ID DE CUENTA
+     ======================================== */
+
+  obtenerIdCuenta(
+    cuenta
+  ) {
+
+    return (
+      cuenta?.id ??
+      cuenta?.account_id ??
+      cuenta?.accountId ??
+      cuenta?.loginid ??
+      null
     );
 
   }
@@ -114,22 +326,12 @@ class DerivConnection {
     appId
   }) {
 
-    if (!token) {
-      throw new Error(
-        "Falta el token PAT."
-      );
-    }
-
     if (!accountId) {
+
       throw new Error(
         "Falta el ID de cuenta DEMO."
       );
-    }
 
-    if (!appId) {
-      throw new Error(
-        "Falta el Deriv App ID."
-      );
     }
 
 
@@ -144,21 +346,30 @@ class DerivConnection {
           method:
             "POST",
 
-          headers: {
-
-            "Authorization":
-              `Bearer ${token}`,
-
-            "Deriv-App-ID":
-              String(appId)
-
-          }
+          headers:
+            this.crearHeaders(
+              token,
+              appId
+            )
         }
       );
 
 
-    const datos =
-      await respuesta.json();
+    let datos = null;
+
+
+    try {
+
+      datos =
+        await respuesta.json();
+
+    } catch {
+
+      throw new Error(
+        `Deriv respondió HTTP ${respuesta.status} al solicitar OTP.`
+      );
+
+    }
 
 
     if (!respuesta.ok) {
@@ -194,12 +405,11 @@ class DerivConnection {
 
 
   /* ========================================
-     CONECTAR CUENTA DEMO
+     CONECTAR CUENTA DEMO AUTOMÁTICAMENTE
      ======================================== */
 
   async conectarDemo({
     token,
-    accountId,
     appId
   }) {
 
@@ -219,23 +429,90 @@ class DerivConnection {
 
     this.cambiarEstado(
       "connecting",
-      "Solicitando acceso DEMO a Deriv..."
+      "Buscando cuenta DEMO de Deriv..."
     );
 
 
     try {
 
-      this.accountId =
-        accountId;
-
       this.appId =
         appId;
 
 
-      /*
-        PASO 1
-        Obtener URL autenticada OTP
-      */
+      /* ======================================
+         PASO 1
+         OBTENER CUENTAS
+         ====================================== */
+
+      const cuentas =
+        await this.obtenerCuentas({
+          token,
+          appId
+        });
+
+
+      /* ======================================
+         PASO 2
+         ENCONTRAR DEMO
+         ====================================== */
+
+      const cuentaDemo =
+        this.encontrarCuentaDemo(
+          cuentas
+        );
+
+
+      if (!cuentaDemo) {
+
+        throw new Error(
+          "No se encontró una cuenta DEMO de Options."
+        );
+
+      }
+
+
+      const accountId =
+        this.obtenerIdCuenta(
+          cuentaDemo
+        );
+
+
+      if (!accountId) {
+
+        throw new Error(
+          "La cuenta DEMO no tiene un ID reconocible."
+        );
+
+      }
+
+
+      this.accountId =
+        accountId;
+
+      this.accountInfo =
+        cuentaDemo;
+
+
+      this.emitir(
+        "account",
+        {
+          accountId,
+          account:
+            cuentaDemo
+        }
+      );
+
+
+      this.cambiarEstado(
+        "connecting",
+        `Cuenta DEMO encontrada: ${accountId}`
+      );
+
+
+      /* ======================================
+         PASO 3
+         PEDIR OTP
+         ====================================== */
 
       const wsUrl =
         await this.obtenerWebSocketUrl({
@@ -246,9 +523,15 @@ class DerivConnection {
 
 
       /*
-        PASO 2
-        Abrir WebSocket autenticado
+        El OTP dura poco tiempo,
+        por eso conectamos inmediatamente.
       */
+
+
+      /* ======================================
+         PASO 4
+         ABRIR WEBSOCKET DEMO
+         ====================================== */
 
       this.socket =
         new WebSocket(
@@ -261,7 +544,7 @@ class DerivConnection {
 
           this.cambiarEstado(
             "connected",
-            "Cuenta DEMO conectada con Deriv."
+            `Cuenta DEMO conectada · ${accountId}`
           );
 
         };
@@ -271,6 +554,7 @@ class DerivConnection {
         (evento) => {
 
           let datos = null;
+
 
           try {
 
@@ -315,6 +599,7 @@ class DerivConnection {
           this.socket =
             null;
 
+
           this.cambiarEstado(
             "disconnected",
             `Conexión Deriv cerrada · código ${evento.code}`
@@ -324,9 +609,15 @@ class DerivConnection {
 
 
       return {
-        ok: true,
+
+        ok:
+          true,
+
         mensaje:
-          "Conexión DEMO iniciada."
+          "Conexión DEMO iniciada.",
+
+        accountId
+
       };
 
 
@@ -334,6 +625,7 @@ class DerivConnection {
 
       this.socket =
         null;
+
 
       this.cambiarEstado(
         "error",
@@ -351,9 +643,13 @@ class DerivConnection {
 
 
       return {
-        ok: false,
+
+        ok:
+          false,
+
         mensaje:
           error.message
+
       };
 
     }
@@ -365,7 +661,9 @@ class DerivConnection {
      ENVIAR MENSAJE WEBSOCKET
      ======================================== */
 
-  enviar(datos) {
+  enviar(
+    datos
+  ) {
 
     if (
       !this.socket ||
@@ -374,9 +672,13 @@ class DerivConnection {
     ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
+
         mensaje:
           "Deriv no está conectado."
+
       };
 
     }
@@ -392,16 +694,23 @@ class DerivConnection {
 
 
       return {
-        ok: true
+
+        ok:
+          true
+
       };
 
 
     } catch (error) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
+
         mensaje:
           error.message
+
       };
 
     }
@@ -424,6 +733,13 @@ class DerivConnection {
 
     this.socket =
       null;
+
+    this.connected =
+      false;
+
+    this.connecting =
+      false;
+
 
     this.cambiarEstado(
       "disconnected",
@@ -449,6 +765,9 @@ class DerivConnection {
 
       accountId:
         this.accountId,
+
+      accountInfo:
+        this.accountInfo,
 
       appId:
         this.appId,
