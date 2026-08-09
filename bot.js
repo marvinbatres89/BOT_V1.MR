@@ -260,8 +260,6 @@ signalBridge.onSenal(
     "aviso"
   );
 
-}
-
     }
 
   }
