@@ -2,6 +2,7 @@
 <html lang="es">
 
 <head>
+
   <meta charset="UTF-8">
 
   <meta
@@ -9,17 +10,22 @@
     content="width=device-width, initial-scale=1.0"
   >
 
-  <title>BOT V1 MR</title>
+  <title>
+    BOT V1 MR
+  </title>
 
   <link
     rel="stylesheet"
     href="./bot.css"
   >
+
 </head>
+
 
 <body>
 
   <main class="app">
+
 
     <!-- ==========================================
          ENCABEZADO
@@ -43,6 +49,7 @@
 
       </div>
 
+
       <div
         id="estadoBot"
         class="estado-bot apagado"
@@ -53,62 +60,101 @@
     </header>
 
 
+
     <!-- ==========================================
-         SINCRONIZACIÓN
+         SINCRONIZACIÓN CON TRADING ANALYZER
          ========================================== -->
 
     <section class="tarjeta">
 
-      <h2>Sincronización</h2>
+      <h2>
+        Sincronización
+      </h2>
+
 
       <div class="datos-grid">
 
+
         <div class="dato">
-          <small>Mercado</small>
+
+          <small>
+            Mercado
+          </small>
+
           <strong id="mercado">
             --
           </strong>
+
         </div>
 
+
         <div class="dato">
-          <small>Estrategia</small>
+
+          <small>
+            Estrategia
+          </small>
+
           <strong id="estrategia">
             --
           </strong>
+
         </div>
 
+
         <div class="dato">
-          <small>Dirección</small>
+
+          <small>
+            Dirección
+          </small>
+
           <strong id="direccion">
             --
           </strong>
+
         </div>
 
+
         <div class="dato">
-          <small>Confianza</small>
+
+          <small>
+            Confianza
+          </small>
+
           <strong id="confianza">
             --
           </strong>
+
         </div>
 
+
         <div class="dato">
-          <small>Momento de entrada</small>
+
+          <small>
+            Momento de entrada
+          </small>
+
           <strong id="entrada">
             --
           </strong>
+
         </div>
 
+
         <div class="dato">
-          <small>Precio</small>
+
+          <small>
+            Precio
+          </small>
+
           <strong id="precio">
             --
           </strong>
+
         </div>
+
 
       </div>
 
-
-      <!-- BOTONES -->
 
       <div class="botones">
 
@@ -118,6 +164,7 @@
         >
           CONECTAR PUENTE
         </button>
+
 
         <button
           id="botonPausar"
@@ -132,24 +179,192 @@
     </section>
 
 
+
+    <!-- ==========================================
+         CONEXIÓN DERIV DEMO
+         ========================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Deriv DEMO
+      </h2>
+
+
+      <p class="descripcion">
+        Esta sección conecta el BOT V1 MR
+        con una cuenta DEMO de Deriv.
+      </p>
+
+
+      <p class="aviso">
+        En esta fase no se realizarán compras
+        automáticas ni operaciones con dinero real.
+      </p>
+
+
+      <!-- ESTADO DERIV -->
+
+      <div
+        id="estadoDeriv"
+        class="ultima-senal"
+      >
+        Deriv desconectado.
+      </div>
+
+
+      <br>
+
+
+      <!-- APP ID -->
+
+      <div class="dato">
+
+        <small>
+          Deriv App ID
+        </small>
+
+        <input
+          id="derivAppId"
+          type="text"
+          inputmode="numeric"
+          placeholder="Ejemplo: 12345"
+          autocomplete="off"
+        >
+
+      </div>
+
+
+      <br>
+
+
+      <!-- ID CUENTA DEMO -->
+
+      <div class="dato">
+
+        <small>
+          ID cuenta DEMO
+        </small>
+
+        <input
+          id="derivAccountId"
+          type="text"
+          placeholder="Ejemplo: VRTC1234567"
+          autocomplete="off"
+        >
+
+      </div>
+
+
+      <br>
+
+
+      <!-- TOKEN PAT -->
+
+      <div class="dato">
+
+        <small>
+          Token PAT
+        </small>
+
+        <input
+          id="derivToken"
+          type="password"
+          placeholder="Pegue aquí su token"
+          autocomplete="off"
+        >
+
+      </div>
+
+
+      <p class="descripcion">
+        El token se utilizará únicamente durante
+        esta sesión. No debe escribirse directamente
+        dentro de los archivos del proyecto.
+      </p>
+
+
+      <div class="botones">
+
+        <button
+          id="botonConectarDeriv"
+          class="boton conectar"
+        >
+          CONECTAR DERIV DEMO
+        </button>
+
+
+        <button
+          id="botonDesconectarDeriv"
+          class="boton pausar"
+          disabled
+        >
+          DESCONECTAR
+        </button>
+
+      </div>
+
+
+      <br>
+
+
+      <div class="datos-grid">
+
+
+        <div class="dato">
+
+          <small>
+            Cuenta
+          </small>
+
+          <strong id="derivCuenta">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Estado
+          </small>
+
+          <strong id="derivConexion">
+            OFF
+          </strong>
+
+        </div>
+
+
+      </div>
+
+    </section>
+
+
+
     <!-- ==========================================
          MODO DE PRUEBA
          ========================================== -->
 
     <section class="tarjeta">
 
-      <h2>Modo de prueba</h2>
+      <h2>
+        Modo de prueba
+      </h2>
+
 
       <p class="descripcion">
-        Esta primera versión comprobará la
-        sincronización entre Trading Analyzer
-        y el bot.
+        Esta versión comprueba la sincronización
+        entre Trading Analyzer y el BOT V1 MR.
       </p>
 
+
       <p class="aviso">
-        En esta fase no se realizarán
-        operaciones con dinero real.
+        Por ahora las propuestas siguen
+        trabajando en modo simulación.
       </p>
+
 
       <button
         id="botonProbar"
@@ -161,13 +376,17 @@
     </section>
 
 
+
     <!-- ==========================================
          ÚLTIMA SEÑAL
          ========================================== -->
 
     <section class="tarjeta">
 
-      <h2>Última señal recibida</h2>
+      <h2>
+        Última señal recibida
+      </h2>
+
 
       <div
         id="ultimaSenal"
@@ -179,24 +398,75 @@
     </section>
 
 
+
     <!-- ==========================================
-         REGISTRO
+         ÚLTIMO CONTRATO
          ========================================== -->
 
     <section class="tarjeta">
 
-      <h2>Registro del bot</h2>
+      <h2>
+        Contrato preparado
+      </h2>
+
+
+      <div
+        id="ultimoContrato"
+        class="ultima-senal"
+      >
+        Esperando una señal válida...
+      </div>
+
+    </section>
+
+
+
+    <!-- ==========================================
+         PROPUESTA SIMULADA
+         ========================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Propuesta simulada
+      </h2>
+
+
+      <div
+        id="ultimaPropuesta"
+        class="ultima-senal"
+      >
+        Todavía no existe una propuesta.
+      </div>
+
+    </section>
+
+
+
+    <!-- ==========================================
+         REGISTRO DEL BOT
+         ========================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Registro del bot
+      </h2>
+
 
       <div
         id="registroBot"
         class="registro"
       >
+
         <p>
           BOT V1 MR preparado.
         </p>
+
       </div>
 
     </section>
+
 
 
     <!-- ==========================================
@@ -210,12 +480,14 @@
       </p>
 
       <small>
-        Trading Analyzer → Señal → Bot
+        Trading Analyzer → Señal → BOT → Deriv
       </small>
 
     </footer>
 
+
   </main>
+
 
 
   <!-- ============================================
@@ -226,6 +498,7 @@
     type="module"
     src="./bot.js"
   ></script>
+
 
 </body>
 
