@@ -118,7 +118,58 @@ class SignalBridge {
   conectar() {
 
     this.conectado = true;
+     
+/* ========================================
+   RECUPERAR ÚLTIMA SEÑAL GUARDADA
+   ======================================== */
 
+try {
+
+  const guardada =
+    localStorage.getItem(
+      STORAGE_SIGNAL_KEY
+    );
+
+  if (guardada) {
+
+    const datos =
+      JSON.parse(guardada);
+
+    const antiguedad =
+      Date.now() -
+      Number(datos.timestamp || 0);
+
+    /*
+      Solo recuperar una señal reciente.
+      Evita utilizar señales antiguas.
+    */
+
+    if (
+      antiguedad >= 0 &&
+      antiguedad <= 15000
+    ) {
+
+      setTimeout(() => {
+
+        this.recibirSenalExterna(
+          datos,
+          "localStorage-recuperada"
+        );
+
+      }, 150);
+
+    }
+
+  }
+
+} catch (error) {
+
+  console.error(
+    "No se pudo recuperar la última señal:",
+    error
+  );
+
+}
     window.dispatchEvent(
       new CustomEvent(
         "bot:estado",
