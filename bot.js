@@ -1,73 +1,117 @@
 /* ==========================================
    BOT V1 MR
    CONTROLADOR PRINCIPAL
+   SINCRONIZACIÓN + SIMULACIÓN + DERIV DEMO
    ========================================== */
 
 import { signalBridge } from "./signal-bridge.js";
 import { botEngine } from "./bot-engine.js";
+import { derivConnection } from "./deriv-connection.js";
 
 
 /* ==========================================
    ELEMENTOS DE LA INTERFAZ
    ========================================== */
 
+const $ =
+  (id) => document.getElementById(id);
+
+
 const estadoBot =
-  document.getElementById("estadoBot");
+  $("estadoBot");
 
 const mercado =
-  document.getElementById("mercado");
+  $("mercado");
 
 const estrategia =
-  document.getElementById("estrategia");
+  $("estrategia");
 
 const direccion =
-  document.getElementById("direccion");
+  $("direccion");
 
 const confianza =
-  document.getElementById("confianza");
+  $("confianza");
 
 const entrada =
-  document.getElementById("entrada");
+  $("entrada");
 
 const precio =
-  document.getElementById("precio");
+  $("precio");
+
 
 const botonConectar =
-  document.getElementById("botonConectar");
+  $("botonConectar");
 
 const botonPausar =
-  document.getElementById("botonPausar");
+  $("botonPausar");
 
 const botonProbar =
-  document.getElementById("botonProbar");
+  $("botonProbar");
+
 
 const ultimaSenal =
-  document.getElementById("ultimaSenal");
+  $("ultimaSenal");
+
+const ultimoContrato =
+  $("ultimoContrato");
+
+const ultimaPropuesta =
+  $("ultimaPropuesta");
 
 const registroBot =
-  document.getElementById("registroBot");
+  $("registroBot");
 
 
 /* ==========================================
-   OBTENER HORA
+   ELEMENTOS DERIV DEMO
+   ========================================== */
+
+const estadoDeriv =
+  $("estadoDeriv");
+
+const derivAppId =
+  $("derivAppId");
+
+const derivAccountId =
+  $("derivAccountId");
+
+const derivToken =
+  $("derivToken");
+
+const botonConectarDeriv =
+  $("botonConectarDeriv");
+
+const botonDesconectarDeriv =
+  $("botonDesconectarDeriv");
+
+const derivCuenta =
+  $("derivCuenta");
+
+const derivConexion =
+  $("derivConexion");
+
+
+/* ==========================================
+   HORA
    ========================================== */
 
 function obtenerHora() {
 
-  return new Date().toLocaleTimeString(
-    "es-SV",
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
-    }
-  );
+  return new Date()
+    .toLocaleTimeString(
+      "es-SV",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      }
+    );
 
 }
 
 
 /* ==========================================
-   REGISTRAR ACTIVIDAD
+   REGISTRO
    ========================================== */
 
 function registrarActividad(
@@ -75,34 +119,57 @@ function registrarActividad(
   tipo = "normal"
 ) {
 
+  if (!registroBot) {
+    return;
+  }
+
+
   const linea =
     document.createElement("p");
+
 
   linea.textContent =
     `[${obtenerHora()}] ${mensaje}`;
 
+
   if (tipo === "correcto") {
-    linea.style.color = "#79f3c2";
+
+    linea.style.color =
+      "#79f3c2";
+
   }
+
 
   if (tipo === "aviso") {
-    linea.style.color = "#ffd37a";
+
+    linea.style.color =
+      "#ffd37a";
+
   }
+
 
   if (tipo === "error") {
-    linea.style.color = "#ff9fb4";
+
+    linea.style.color =
+      "#ff9fb4";
+
   }
 
-  registroBot.prepend(linea);
+
+  registroBot.prepend(
+    linea
+  );
 
 }
 
 
 /* ==========================================
-   MOSTRAR SEÑAL EN PANTALLA
+   MOSTRAR SEÑAL
    ========================================== */
 
-function mostrarSenal(senal) {
+function mostrarSenal(
+  senal
+) {
 
   mercado.textContent =
     senal.mercado || "--";
@@ -116,6 +183,7 @@ function mostrarSenal(senal) {
   confianza.textContent =
     `${senal.confianza}%`;
 
+
   if (
     senal.segundosEntrada !== null &&
     senal.segundosEntrada !== undefined
@@ -126,9 +194,11 @@ function mostrarSenal(senal) {
 
   } else {
 
-    entrada.textContent = "--";
+    entrada.textContent =
+      "--";
 
   }
+
 
   if (
     senal.precio !== null &&
@@ -140,12 +210,14 @@ function mostrarSenal(senal) {
 
   } else {
 
-    precio.textContent = "--";
+    precio.textContent =
+      "--";
 
   }
 
 
   ultimaSenal.innerHTML = `
+
     <strong>Mercado:</strong>
     ${senal.mercado}
     <br><br>
@@ -184,81 +256,200 @@ function mostrarSenal(senal) {
 
     <strong>Entrada:</strong>
     ${
-      senal.segundosEntrada !== null
+      senal.segundosEntrada !== null &&
+      senal.segundosEntrada !== undefined
         ? senal.segundosEntrada + " segundos"
         : "--"
     }
+
   `;
 
 }
 
 
 /* ==========================================
-   RECIBIR SEÑAL DEL PUENTE
+   MOSTRAR CONTRATO
+   ========================================== */
+
+function mostrarContrato(
+  contrato
+) {
+
+  if (!contrato) {
+
+    ultimoContrato.textContent =
+      "Esperando una señal válida...";
+
+    return;
+
+  }
+
+
+  const barrera =
+    contrato.barrier !== null &&
+    contrato.barrier !== undefined
+      ? contrato.barrier
+      : "--";
+
+
+  ultimoContrato.innerHTML = `
+
+    <strong>Mercado:</strong>
+    ${contrato.symbol}
+    <br><br>
+
+    <strong>Contrato Deriv:</strong>
+    ${contrato.contractType}
+    <br>
+
+    <strong>Dirección:</strong>
+    ${contrato.direction}
+    <br>
+
+    <strong>Barrera:</strong>
+    ${barrera}
+    <br>
+
+    <strong>Confianza:</strong>
+    ${contrato.confidence}%
+    <br>
+
+    <strong>Segundo:</strong>
+    ${contrato.executionSecond ?? "--"}
+
+  `;
+
+}
+
+
+/* ==========================================
+   MOSTRAR PROPUESTA
+   ========================================== */
+
+function mostrarPropuesta(
+  propuesta
+) {
+
+  if (!propuesta) {
+
+    ultimaPropuesta.textContent =
+      "Todavía no existe una propuesta.";
+
+    return;
+
+  }
+
+
+  ultimaPropuesta.innerHTML = `
+
+    <strong>Modo:</strong>
+    ${propuesta.modo}
+    <br><br>
+
+    <strong>Contrato:</strong>
+    ${propuesta.contractType}
+    <br>
+
+    <strong>Monto:</strong>
+    ${propuesta.amount}
+    ${propuesta.currency}
+    <br>
+
+    <strong>Duración:</strong>
+    ${propuesta.duration}
+    ${propuesta.durationUnit}
+    <br>
+
+    <strong>Estado:</strong>
+    ${propuesta.status}
+    <br>
+
+    <strong>ID:</strong>
+    ${propuesta.id}
+
+  `;
+
+}
+
+
+/* ==========================================
+   RECIBIR SEÑAL DEL TRADING ANALYZER
    ========================================== */
 
 signalBridge.onSenal(
   (senal) => {
 
-    mostrarSenal(senal);
+    mostrarSenal(
+      senal
+    );
+
 
     const resultado =
-      botEngine.procesarSenal(senal);
+      botEngine.procesarSenal(
+        senal
+      );
 
 
-    if (resultado.aceptada) {
+    if (
+      resultado.aceptada
+    ) {
 
-  registrarActividad(
-    `SEÑAL ACEPTADA · ${senal.mercado} · ${senal.estrategia} · ${senal.direccion} · ${senal.confianza}%`,
-    "correcto"
-  );
-
-
-  /* ======================================
-     MOSTRAR CONTRATO PREPARADO
-     ====================================== */
-
-  const contrato =
-    resultado.contrato;
-
-  if (contrato) {
-
-    const barrera =
-      contrato.barrier !== null &&
-      contrato.barrier !== undefined
-        ? ` · BARRERA ${contrato.barrier}`
-        : "";
-
-    registrarActividad(
-      `CONTRATO → ${contrato.contractType}${barrera}`,
-      "correcto"
-    );
-
-  }
+      registrarActividad(
+        `SEÑAL ACEPTADA · ${senal.mercado} · ${senal.estrategia} · ${senal.direccion} · ${senal.confianza}%`,
+        "correcto"
+      );
 
 
-  /* ======================================
-     MOSTRAR PROPUESTA SIMULADA
-     ====================================== */
+      /* CONTRATO */
 
-  const propuesta =
-    resultado.propuesta;
+      if (
+        resultado.contrato
+      ) {
 
-  if (propuesta) {
+        mostrarContrato(
+          resultado.contrato
+        );
 
-    registrarActividad(
-      `SIMULACIÓN → ${propuesta.amount} ${propuesta.currency} · ${propuesta.duration}${propuesta.durationUnit} · ${propuesta.status}`,
-      "correcto"
-    );
 
-  }
+        const barrera =
+          resultado.contrato.barrier !== null &&
+          resultado.contrato.barrier !== undefined
+            ? ` · BARRERA ${resultado.contrato.barrier}`
+            : "";
 
-} else {
 
-  registrarActividad(
-    `Señal no procesada · ${resultado.etapa || "BOT"} · ${resultado.motivo}`,
-    "aviso"
-  );
+        registrarActividad(
+          `CONTRATO → ${resultado.contrato.contractType}${barrera}`,
+          "correcto"
+        );
+
+      }
+
+
+      /* PROPUESTA SIMULADA */
+
+      if (
+        resultado.propuesta
+      ) {
+
+        mostrarPropuesta(
+          resultado.propuesta
+        );
+
+
+        registrarActividad(
+          `SIMULACIÓN → ${resultado.propuesta.amount} ${resultado.propuesta.currency} · ${resultado.propuesta.duration}${resultado.propuesta.durationUnit} · ${resultado.propuesta.status}`,
+          "correcto"
+        );
+
+      }
+
+    } else {
+
+      registrarActividad(
+        `Señal no procesada · ${resultado.etapa || "BOT"} · ${resultado.motivo}`,
+        "aviso"
+      );
 
     }
 
@@ -267,7 +458,7 @@ signalBridge.onSenal(
 
 
 /* ==========================================
-   EVENTO ESTADO DEL PUENTE
+   ESTADO DEL PUENTE
    ========================================== */
 
 window.addEventListener(
@@ -277,24 +468,32 @@ window.addEventListener(
     const datos =
       evento.detail;
 
-    if (datos.conectado) {
+
+    if (
+      datos.conectado
+    ) {
 
       estadoBot.textContent =
         "BOT SYNC";
+
 
       estadoBot.classList.remove(
         "apagado"
       );
 
+
       estadoBot.classList.add(
         "encendido"
       );
 
+
       botonConectar.disabled =
         true;
 
+
       botonPausar.disabled =
         false;
+
 
       registrarActividad(
         datos.mensaje,
@@ -306,19 +505,24 @@ window.addEventListener(
       estadoBot.textContent =
         "BOT OFF";
 
+
       estadoBot.classList.remove(
         "encendido"
       );
+
 
       estadoBot.classList.add(
         "apagado"
       );
 
+
       botonConectar.disabled =
         false;
 
+
       botonPausar.disabled =
         true;
+
 
       registrarActividad(
         datos.mensaje,
@@ -330,8 +534,9 @@ window.addEventListener(
   }
 );
 
+
 /* ==========================================
-   IDENTIFICAR ORIGEN DE LA SEÑAL
+   ORIGEN DE LA SEÑAL
    ========================================== */
 
 window.addEventListener(
@@ -342,6 +547,7 @@ window.addEventListener(
       evento.detail?.origen ||
       "desconocido";
 
+
     registrarActividad(
       `Señal recibida desde ${origen}`,
       "correcto"
@@ -349,8 +555,10 @@ window.addEventListener(
 
   }
 );
+
+
 /* ==========================================
-   EVENTOS DE ERROR
+   ERRORES DEL PUENTE
    ========================================== */
 
 window.addEventListener(
@@ -368,7 +576,7 @@ window.addEventListener(
 
 
 /* ==========================================
-   BOTÓN CONECTAR
+   BOTÓN CONECTAR PUENTE
    ========================================== */
 
 botonConectar.addEventListener(
@@ -377,8 +585,10 @@ botonConectar.addEventListener(
 
     signalBridge.conectar();
 
+
     const resultado =
       botEngine.iniciar();
+
 
     registrarActividad(
       resultado.mensaje,
@@ -390,7 +600,7 @@ botonConectar.addEventListener(
 
 
 /* ==========================================
-   BOTÓN PAUSAR / REANUDAR
+   PAUSAR / REANUDAR
    ========================================== */
 
 botonPausar.addEventListener(
@@ -401,13 +611,17 @@ botonPausar.addEventListener(
       botEngine.obtenerEstado();
 
 
-    if (!estado.pausado) {
+    if (
+      !estado.pausado
+    ) {
 
       const resultado =
         botEngine.pausar();
 
+
       botonPausar.textContent =
         "REANUDAR";
+
 
       registrarActividad(
         resultado.mensaje,
@@ -419,8 +633,10 @@ botonPausar.addEventListener(
       const resultado =
         botEngine.reanudar();
 
+
       botonPausar.textContent =
         "PAUSAR";
+
 
       registrarActividad(
         resultado.mensaje,
@@ -434,7 +650,7 @@ botonPausar.addEventListener(
 
 
 /* ==========================================
-   BOTÓN PRUEBA DE SEÑAL
+   SEÑAL DEMO
    ========================================== */
 
 botonProbar.addEventListener(
@@ -442,7 +658,7 @@ botonProbar.addEventListener(
   () => {
 
     registrarActividad(
-      "Enviando señal DEMO desde Trading Analyzer..."
+      "Enviando señal DEMO..."
     );
 
 
@@ -452,7 +668,7 @@ botonProbar.addEventListener(
         "1HZ100V",
 
       estrategia:
-        "RISE/FALL",
+        "rise_fall",
 
       direccion:
         "RISE",
@@ -473,15 +689,306 @@ botonProbar.addEventListener(
         61.4,
 
       momentum:
-        0.72,
+        "ALCISTA",
 
       volatilidad:
-        1.38,
+        "MEDIA",
 
       segundosEntrada:
         3
 
     });
+
+  }
+);
+
+
+/* ==========================================
+   DERIV
+   ESTADO DE CONEXIÓN
+   ========================================== */
+
+derivConnection.on(
+  "state",
+  ({
+    estado,
+    mensaje
+  }) => {
+
+    estadoDeriv.textContent =
+      mensaje;
+
+
+    if (
+      estado === "connected"
+    ) {
+
+      derivConexion.textContent =
+        "DEMO CONECTADO";
+
+
+      derivCuenta.textContent =
+        derivAccountId.value || "--";
+
+
+      botonConectarDeriv.disabled =
+        true;
+
+
+      botonDesconectarDeriv.disabled =
+        false;
+
+
+      derivAppId.disabled =
+        true;
+
+
+      derivAccountId.disabled =
+        true;
+
+
+      derivToken.disabled =
+        true;
+
+
+      registrarActividad(
+        "Deriv DEMO conectado.",
+        "correcto"
+      );
+
+    }
+
+
+    else if (
+      estado === "connecting"
+    ) {
+
+      derivConexion.textContent =
+        "CONECTANDO";
+
+
+      botonConectarDeriv.disabled =
+        true;
+
+
+      registrarActividad(
+        mensaje,
+        "aviso"
+      );
+
+    }
+
+
+    else {
+
+      derivConexion.textContent =
+        "OFF";
+
+
+      derivCuenta.textContent =
+        "--";
+
+
+      botonConectarDeriv.disabled =
+        false;
+
+
+      botonDesconectarDeriv.disabled =
+        true;
+
+
+      derivAppId.disabled =
+        false;
+
+
+      derivAccountId.disabled =
+        false;
+
+
+      derivToken.disabled =
+        false;
+
+
+      if (
+        estado === "error"
+      ) {
+
+        registrarActividad(
+          `Deriv: ${mensaje}`,
+          "error"
+        );
+
+      }
+
+    }
+
+  }
+);
+
+
+/* ==========================================
+   ERRORES DERIV
+   ========================================== */
+
+derivConnection.on(
+  "error",
+  ({
+    mensaje
+  }) => {
+
+    registrarActividad(
+      `DERIV ERROR → ${mensaje}`,
+      "error"
+    );
+
+  }
+);
+
+
+/* ==========================================
+   MENSAJES DERIV
+   ========================================== */
+
+derivConnection.on(
+  "message",
+  (datos) => {
+
+    console.log(
+      "Mensaje Deriv:",
+      datos
+    );
+
+  }
+);
+
+
+/* ==========================================
+   CONECTAR DERIV DEMO
+   ========================================== */
+
+botonConectarDeriv.addEventListener(
+  "click",
+  async () => {
+
+    const appId =
+      derivAppId.value.trim();
+
+    const accountId =
+      derivAccountId.value.trim();
+
+    const token =
+      derivToken.value.trim();
+
+
+    if (!appId) {
+
+      registrarActividad(
+        "Falta Deriv App ID.",
+        "aviso"
+      );
+
+      derivAppId.focus();
+
+      return;
+
+    }
+
+
+    if (!accountId) {
+
+      registrarActividad(
+        "Falta ID de cuenta DEMO.",
+        "aviso"
+      );
+
+      derivAccountId.focus();
+
+      return;
+
+    }
+
+
+    if (!token) {
+
+      registrarActividad(
+        "Falta Token PAT.",
+        "aviso"
+      );
+
+      derivToken.focus();
+
+      return;
+
+    }
+
+
+    registrarActividad(
+      "Iniciando conexión con Deriv DEMO...",
+      "aviso"
+    );
+
+
+    const resultado =
+      await derivConnection.conectarDemo({
+        token,
+        accountId,
+        appId
+      });
+
+
+    if (
+      !resultado.ok
+    ) {
+
+      registrarActividad(
+        `No se pudo conectar: ${resultado.mensaje}`,
+        "error"
+      );
+
+    }
+
+  }
+);
+
+
+/* ==========================================
+   DESCONECTAR DERIV
+   ========================================== */
+
+botonDesconectarDeriv.addEventListener(
+  "click",
+  () => {
+
+    derivConnection.desconectar();
+
+
+    /*
+      Borrar token del campo cuando
+      desconectamos.
+    */
+
+    derivToken.value =
+      "";
+
+
+    registrarActividad(
+      "Deriv DEMO desconectado.",
+      "aviso"
+    );
+
+  }
+);
+
+
+/* ==========================================
+   CIERRE DE PÁGINA
+   ========================================== */
+
+window.addEventListener(
+  "beforeunload",
+  () => {
+
+    derivConnection.desconectar();
 
   }
 );
@@ -495,6 +1002,12 @@ registrarActividad(
   "BOT V1 MR preparado."
 );
 
+
 registrarActividad(
   "Esperando conexión con Trading Analyzer."
+);
+
+
+registrarActividad(
+  "Deriv DEMO todavía desconectado."
 );
