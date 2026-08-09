@@ -1,21 +1,39 @@
 /* ==========================================
    BOT V1 MR
    CONTROLADOR PRINCIPAL
-   SINCRONIZACIÓN + SIMULACIÓN + DERIV DEMO
+
+   TRADING ANALYZER
+   +
+   SIMULACIÓN
+   +
+   DERIV DEMO PAT
    ========================================== */
 
-import { signalBridge } from "./signal-bridge.js";
-import { botEngine } from "./bot-engine.js";
-import { derivConnection } from "./deriv-connection.js";
+import {
+  signalBridge
+} from "./signal-bridge.js";
+
+import {
+  botEngine
+} from "./bot-engine.js";
+
+import {
+  derivConnection
+} from "./deriv-connection.js";
 
 
 /* ==========================================
-   ELEMENTOS DE LA INTERFAZ
+   AYUDANTE DOM
    ========================================== */
 
 const $ =
-  (id) => document.getElementById(id);
+  (id) =>
+    document.getElementById(id);
 
+
+/* ==========================================
+   ELEMENTOS PRINCIPALES
+   ========================================== */
 
 const estadoBot =
   $("estadoBot");
@@ -38,7 +56,6 @@ const entrada =
 const precio =
   $("precio");
 
-
 const botonConectar =
   $("botonConectar");
 
@@ -47,7 +64,6 @@ const botonPausar =
 
 const botonProbar =
   $("botonProbar");
-
 
 const ultimaSenal =
   $("ultimaSenal");
@@ -63,7 +79,7 @@ const registroBot =
 
 
 /* ==========================================
-   ELEMENTOS DERIV DEMO
+   ELEMENTOS DERIV
    ========================================== */
 
 const estadoDeriv =
@@ -92,7 +108,20 @@ const derivConexion =
 
 
 /* ==========================================
-   HORA
+   CONFIGURACIÓN
+   ========================================== */
+
+/*
+  No colocamos aquí el App ID
+  ni el token.
+
+  El usuario los introduce
+  directamente desde la pantalla.
+*/
+
+
+/* ==========================================
+   OBTENER HORA
    ========================================== */
 
 function obtenerHora() {
@@ -101,9 +130,14 @@ function obtenerHora() {
     .toLocaleTimeString(
       "es-SV",
       {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
+        hour:
+          "2-digit",
+
+        minute:
+          "2-digit",
+
+        second:
+          "2-digit"
       }
     );
 
@@ -125,14 +159,18 @@ function registrarActividad(
 
 
   const linea =
-    document.createElement("p");
+    document.createElement(
+      "p"
+    );
 
 
   linea.textContent =
     `[${obtenerHora()}] ${mensaje}`;
 
 
-  if (tipo === "correcto") {
+  if (
+    tipo === "correcto"
+  ) {
 
     linea.style.color =
       "#79f3c2";
@@ -140,7 +178,9 @@ function registrarActividad(
   }
 
 
-  if (tipo === "aviso") {
+  if (
+    tipo === "aviso"
+  ) {
 
     linea.style.color =
       "#ffd37a";
@@ -148,7 +188,9 @@ function registrarActividad(
   }
 
 
-  if (tipo === "error") {
+  if (
+    tipo === "error"
+  ) {
 
     linea.style.color =
       "#ff9fb4";
@@ -172,13 +214,19 @@ function mostrarSenal(
 ) {
 
   mercado.textContent =
-    senal.mercado || "--";
+    senal.mercado ||
+    "--";
+
 
   estrategia.textContent =
-    senal.estrategia || "--";
+    senal.estrategia ||
+    "--";
+
 
   direccion.textContent =
-    senal.direccion || "--";
+    senal.direccion ||
+    "--";
+
 
   confianza.textContent =
     `${senal.confianza}%`;
@@ -258,7 +306,8 @@ function mostrarSenal(
     ${
       senal.segundosEntrada !== null &&
       senal.segundosEntrada !== undefined
-        ? senal.segundosEntrada + " segundos"
+        ? senal.segundosEntrada +
+          " segundos"
         : "--"
     }
 
@@ -373,7 +422,7 @@ function mostrarPropuesta(
 
 
 /* ==========================================
-   RECIBIR SEÑAL DEL TRADING ANALYZER
+   RECIBIR SEÑAL
    ========================================== */
 
 signalBridge.onSenal(
@@ -400,7 +449,9 @@ signalBridge.onSenal(
       );
 
 
-      /* CONTRATO */
+      /* --------------------------------------
+         CONTRATO
+         -------------------------------------- */
 
       if (
         resultado.contrato
@@ -426,7 +477,9 @@ signalBridge.onSenal(
       }
 
 
-      /* PROPUESTA SIMULADA */
+      /* --------------------------------------
+         PROPUESTA SIMULADA
+         -------------------------------------- */
 
       if (
         resultado.propuesta
@@ -536,7 +589,7 @@ window.addEventListener(
 
 
 /* ==========================================
-   ORIGEN DE LA SEÑAL
+   ORIGEN DE SEÑAL
    ========================================== */
 
 window.addEventListener(
@@ -558,7 +611,7 @@ window.addEventListener(
 
 
 /* ==========================================
-   ERRORES DEL PUENTE
+   ERROR DE SINCRONIZACIÓN
    ========================================== */
 
 window.addEventListener(
@@ -576,7 +629,7 @@ window.addEventListener(
 
 
 /* ==========================================
-   BOTÓN CONECTAR PUENTE
+   CONECTAR PUENTE
    ========================================== */
 
 botonConectar.addEventListener(
@@ -705,7 +758,42 @@ botonProbar.addEventListener(
 
 /* ==========================================
    DERIV
-   ESTADO DE CONEXIÓN
+   CUENTA DEMO DETECTADA
+   ========================================== */
+
+derivConnection.on(
+  "account",
+  ({
+    accountId
+  }) => {
+
+    if (
+      derivAccountId
+    ) {
+
+      derivAccountId.value =
+        accountId;
+
+    }
+
+
+    derivCuenta.textContent =
+      accountId ||
+      "--";
+
+
+    registrarActividad(
+      `Cuenta DEMO detectada · ${accountId}`,
+      "correcto"
+    );
+
+  }
+);
+
+
+/* ==========================================
+   DERIV
+   ESTADO
    ========================================== */
 
 derivConnection.on(
@@ -728,7 +816,9 @@ derivConnection.on(
 
 
       derivCuenta.textContent =
-        derivAccountId.value || "--";
+        derivConnection.obtenerEstado()
+          .accountId ||
+        "--";
 
 
       botonConectarDeriv.disabled =
@@ -752,7 +842,7 @@ derivConnection.on(
 
 
       registrarActividad(
-        "Deriv DEMO conectado.",
+        "Deriv DEMO conectado correctamente.",
         "correcto"
       );
 
@@ -771,6 +861,10 @@ derivConnection.on(
         true;
 
 
+      botonDesconectarDeriv.disabled =
+        true;
+
+
       registrarActividad(
         mensaje,
         "aviso"
@@ -785,10 +879,6 @@ derivConnection.on(
         "OFF";
 
 
-      derivCuenta.textContent =
-        "--";
-
-
       botonConectarDeriv.disabled =
         false;
 
@@ -801,13 +891,14 @@ derivConnection.on(
         false;
 
 
-      derivAccountId.disabled =
-        false;
-
-
       derivToken.disabled =
         false;
 
+
+      /*
+        El ID detectado puede mantenerse
+        visible como referencia.
+      */
 
       if (
         estado === "error"
@@ -827,7 +918,8 @@ derivConnection.on(
 
 
 /* ==========================================
-   ERRORES DERIV
+   DERIV
+   ERRORES
    ========================================== */
 
 derivConnection.on(
@@ -846,7 +938,8 @@ derivConnection.on(
 
 
 /* ==========================================
-   MENSAJES DERIV
+   DERIV
+   MENSAJES WEBSOCKET
    ========================================== */
 
 derivConnection.on(
@@ -873,8 +966,6 @@ botonConectarDeriv.addEventListener(
     const appId =
       derivAppId.value.trim();
 
-    const accountId =
-      derivAccountId.value.trim();
 
     const token =
       derivToken.value.trim();
@@ -887,21 +978,8 @@ botonConectarDeriv.addEventListener(
         "aviso"
       );
 
+
       derivAppId.focus();
-
-      return;
-
-    }
-
-
-    if (!accountId) {
-
-      registrarActividad(
-        "Falta ID de cuenta DEMO.",
-        "aviso"
-      );
-
-      derivAccountId.focus();
 
       return;
 
@@ -915,6 +993,7 @@ botonConectarDeriv.addEventListener(
         "aviso"
       );
 
+
       derivToken.focus();
 
       return;
@@ -922,8 +1001,26 @@ botonConectarDeriv.addEventListener(
     }
 
 
+    /*
+      Ya NO pedimos ID manual.
+      El módulo lo buscará automáticamente.
+    */
+
+    if (
+      derivAccountId
+    ) {
+
+      derivAccountId.value =
+        "Buscando automáticamente...";
+
+      derivAccountId.disabled =
+        true;
+
+    }
+
+
     registrarActividad(
-      "Iniciando conexión con Deriv DEMO...",
+      "Buscando cuenta DEMO y conectando con Deriv...",
       "aviso"
     );
 
@@ -931,7 +1028,6 @@ botonConectarDeriv.addEventListener(
     const resultado =
       await derivConnection.conectarDemo({
         token,
-        accountId,
         appId
       });
 
@@ -939,6 +1035,19 @@ botonConectarDeriv.addEventListener(
     if (
       !resultado.ok
     ) {
+
+      if (
+        derivAccountId
+      ) {
+
+        derivAccountId.value =
+          "";
+
+        derivAccountId.disabled =
+          false;
+
+      }
+
 
       registrarActividad(
         `No se pudo conectar: ${resultado.mensaje}`,
@@ -963,12 +1072,22 @@ botonDesconectarDeriv.addEventListener(
 
 
     /*
-      Borrar token del campo cuando
-      desconectamos.
+      Por seguridad borramos
+      el token del campo.
     */
 
     derivToken.value =
       "";
+
+
+    if (
+      derivAccountId
+    ) {
+
+      derivAccountId.disabled =
+        false;
+
+    }
 
 
     registrarActividad(
@@ -981,7 +1100,7 @@ botonDesconectarDeriv.addEventListener(
 
 
 /* ==========================================
-   CIERRE DE PÁGINA
+   CERRAR PÁGINA
    ========================================== */
 
 window.addEventListener(
@@ -997,6 +1116,19 @@ window.addEventListener(
 /* ==========================================
    ESTADO INICIAL
    ========================================== */
+
+if (
+  derivAccountId
+) {
+
+  derivAccountId.value =
+    "Se detectará automáticamente";
+
+  derivAccountId.disabled =
+    true;
+
+}
+
 
 registrarActividad(
   "BOT V1 MR preparado."
