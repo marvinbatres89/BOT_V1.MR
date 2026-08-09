@@ -208,17 +208,59 @@ signalBridge.onSenal(
 
     if (resultado.aceptada) {
 
-      registrarActividad(
-        `SEÑAL ACEPTADA · ${senal.mercado} · ${senal.estrategia} · ${senal.direccion} · ${senal.confianza}%`,
-        "correcto"
-      );
+  registrarActividad(
+    `SEÑAL ACEPTADA · ${senal.mercado} · ${senal.estrategia} · ${senal.direccion} · ${senal.confianza}%`,
+    "correcto"
+  );
 
-    } else {
 
-      registrarActividad(
-        `Señal no procesada: ${resultado.motivo}`,
-        "aviso"
-      );
+  /* ======================================
+     MOSTRAR CONTRATO PREPARADO
+     ====================================== */
+
+  const contrato =
+    resultado.contrato;
+
+  if (contrato) {
+
+    const barrera =
+      contrato.barrier !== null &&
+      contrato.barrier !== undefined
+        ? ` · BARRERA ${contrato.barrier}`
+        : "";
+
+    registrarActividad(
+      `CONTRATO → ${contrato.contractType}${barrera}`,
+      "correcto"
+    );
+
+  }
+
+
+  /* ======================================
+     MOSTRAR PROPUESTA SIMULADA
+     ====================================== */
+
+  const propuesta =
+    resultado.propuesta;
+
+  if (propuesta) {
+
+    registrarActividad(
+      `SIMULACIÓN → ${propuesta.amount} ${propuesta.currency} · ${propuesta.duration}${propuesta.durationUnit} · ${propuesta.status}`,
+      "correcto"
+    );
+
+  }
+
+} else {
+
+  registrarActividad(
+    `Señal no procesada · ${resultado.etapa || "BOT"} · ${resultado.motivo}`,
+    "aviso"
+  );
+
+}
 
     }
 
