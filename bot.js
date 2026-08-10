@@ -1202,4 +1202,62 @@ botonDesconectarDeriv.addEventListener(
       derivAccountId
     ) {
 
-     
+      derivAccountId.disabled =
+        false;
+
+    }
+
+
+    registrarActividad(
+      "Deriv DEMO desconectado.",
+      "aviso"
+    );
+
+  }
+);
+
+
+/* ==========================================
+   CERRAR PÁGINA
+   ========================================== */
+
+window.addEventListener(
+  "beforeunload",
+  () => {
+
+    derivConnection.desconectar();
+
+  }
+);
+
+
+/* ==========================================
+   ESTADO INICIAL
+   ========================================== */
+
+if (
+  derivAccountId
+) {
+
+  derivAccountId.value =
+    "Se detectará automáticamente";
+
+  derivAccountId.disabled =
+    true;
+
+}
+
+
+registrarActividad(
+  "BOT V1 MR preparado."
+);
+
+
+registrarActividad(
+  "Esperando conexión con Trading Analyzer."
+);
+
+
+registrarActividad(
+  "Deriv DEMO todavía desconectado."
+);
