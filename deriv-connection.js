@@ -1,8 +1,8 @@
 /* ==========================================
    BOT V1 MR
-   CONEXIÓN AUTENTICADA CON DERIV
-   PAT + DETECCIÓN AUTOMÁTICA DE CUENTA DEMO
-   SIN COMPRAS
+   DERIV CONNECTION
+   CUENTA DEMO
+   V2 - CONEXIÓN MÁS ESTABLE
    ========================================== */
 
 class DerivConnection {
@@ -17,13 +17,19 @@ class DerivConnection {
     this.accountId = null;
     this.appId = null;
 
-    this.accountInfo = null;
+    this.wsUrl = null;
+
+    this.cierreManual = false;
+
+    this.intentosReconexion = 0;
+    this.maxIntentosReconexion = 3;
+
+    this.temporizadorReconexion = null;
 
     this.listeners = {
       state: new Set(),
       message: new Set(),
-      error: new Set(),
-      account: new Set()
+      error: new Set()
     };
 
   }
@@ -40,18 +46,13 @@ class DerivConnection {
       typeof callback === "function"
     ) {
 
-      this.listeners[tipo].add(
-        callback
-      );
+      this.listeners[tipo].add(callback);
 
     }
 
-
     return () => {
 
-      this.listeners[tipo]?.delete(
-        callback
-      );
+      this.listeners[tipo]?.delete(callback);
 
     };
 
@@ -102,7 +103,9 @@ class DerivConnection {
       "state",
       {
         estado,
-        mensaje
+        mensaje,
+        accountId: this.accountId,
+        appId: this.appId
       }
     );
 
@@ -110,36 +113,12 @@ class DerivConnection {
 
 
   /* ========================================
-     HEADERS AUTENTICADOS
+     OBTENER URL WEBSOCKET AUTENTICADA
      ======================================== */
 
-  crearHeaders(
+  async obtenerWebSocketUrl({
     token,
-    appId
-  ) {
-
-    return {
-
-      "Authorization":
-        `Bearer ${token}`,
-
-      "Deriv-App-ID":
-        String(appId),
-
-      "Content-Type":
-        "application/json"
-
-    };
-
-  }
-
-
-  /* ========================================
-     OBTENER TODAS LAS CUENTAS OPTIONS
-     ======================================== */
-
-  async obtenerCuentas({
-    token,
+    accountId,
     appId
   }) {
 
@@ -147,6 +126,15 @@ class DerivConnection {
 
       throw new Error(
         "Falta el token PAT."
+      );
+
+    }
+
+
+    if (!accountId) {
+
+      throw new Error(
+        "Falta el ID de cuenta DEMO."
       );
 
     }
@@ -161,180 +149,6 @@ class DerivConnection {
     }
 
 
-    const respuesta =
-      await fetch(
-        "https://api.derivws.com/trading/v1/options/accounts",
-        {
-          method:
-            "GET",
-
-          headers:
-            this.crearHeaders(
-              token,
-              appId
-            )
-        }
-      );
-
-
-    let datos = null;
-
-
-    try {
-
-      datos =
-        await respuesta.json();
-
-    } catch {
-
-      throw new Error(
-        `Deriv respondió HTTP ${respuesta.status}.`
-      );
-
-    }
-
-
-    if (!respuesta.ok) {
-
-      const mensaje =
-        datos?.errors?.[0]?.message ||
-        datos?.message ||
-        `Error HTTP ${respuesta.status}`;
-
-      throw new Error(
-        mensaje
-      );
-
-    }
-
-
-    /*
-      Deriv puede devolver la colección
-      dentro de data o directamente como array.
-    */
-
-    const cuentas =
-      Array.isArray(datos)
-        ? datos
-        : Array.isArray(datos?.data)
-          ? datos.data
-          : Array.isArray(datos?.data?.accounts)
-            ? datos.data.accounts
-            : Array.isArray(datos?.accounts)
-              ? datos.accounts
-              : [];
-
-
-    if (!cuentas.length) {
-
-      throw new Error(
-        "No se encontraron cuentas Options para este token."
-      );
-
-    }
-
-
-    return cuentas;
-
-  }
-
-
-  /* ========================================
-     IDENTIFICAR CUENTA DEMO
-     ======================================== */
-
-  encontrarCuentaDemo(
-    cuentas
-  ) {
-
-    if (
-      !Array.isArray(cuentas)
-    ) {
-
-      return null;
-
-    }
-
-
-    /*
-      Consideramos varias formas posibles
-      en las que Deriv puede etiquetar una demo.
-    */
-
-    return cuentas.find(
-      (cuenta) => {
-
-        const tipo =
-          String(
-            cuenta.account_type ??
-            cuenta.type ??
-            cuenta.environment ??
-            ""
-          )
-          .toLowerCase();
-
-
-        const id =
-          String(
-            cuenta.id ??
-            cuenta.account_id ??
-            cuenta.loginid ??
-            ""
-          )
-          .toUpperCase();
-
-
-        return (
-          tipo === "demo" ||
-          tipo.includes("demo") ||
-          id.startsWith("VRTC") ||
-          id.startsWith("DOT")
-        );
-
-      }
-    ) || null;
-
-  }
-
-
-  /* ========================================
-     OBTENER ID DE CUENTA
-     ======================================== */
-
-  obtenerIdCuenta(
-    cuenta
-  ) {
-
-    return (
-      cuenta?.id ??
-      cuenta?.account_id ??
-      cuenta?.accountId ??
-      cuenta?.loginid ??
-      null
-    );
-
-  }
-
-
-  /* ========================================
-     SOLICITAR URL WEBSOCKET AUTENTICADA
-     ======================================== */
-
-  async obtenerWebSocketUrl({
-    token,
-    accountId,
-    appId
-  }) {
-
-    if (!accountId) {
-
-      throw new Error(
-        "Falta el ID de cuenta DEMO."
-      );
-
-    }
-
-
     const url =
       `https://api.derivws.com/trading/v1/options/accounts/${encodeURIComponent(accountId)}/otp`;
 
@@ -343,14 +157,20 @@ class DerivConnection {
       await fetch(
         url,
         {
-          method:
-            "POST",
+          method: "POST",
 
-          headers:
-            this.crearHeaders(
-              token,
-              appId
-            )
+          headers: {
+
+            "Authorization":
+              `Bearer ${token}`,
+
+            "Deriv-App-ID":
+              String(appId),
+
+            "Content-Type":
+              "application/json"
+
+          }
         }
       );
 
@@ -366,7 +186,7 @@ class DerivConnection {
     } catch {
 
       throw new Error(
-        `Deriv respondió HTTP ${respuesta.status} al solicitar OTP.`
+        "Deriv devolvió una respuesta no válida."
       );
 
     }
@@ -376,8 +196,10 @@ class DerivConnection {
 
       const mensaje =
         datos?.errors?.[0]?.message ||
+        datos?.error?.message ||
         datos?.message ||
         `Error HTTP ${respuesta.status}`;
+
 
       throw new Error(
         mensaje
@@ -393,7 +215,7 @@ class DerivConnection {
     if (!wsUrl) {
 
       throw new Error(
-        "Deriv no devolvió una URL WebSocket."
+        "Deriv no devolvió la URL WebSocket."
       );
 
     }
@@ -405,11 +227,224 @@ class DerivConnection {
 
 
   /* ========================================
-     CONECTAR CUENTA DEMO AUTOMÁTICAMENTE
+     ABRIR WEBSOCKET
+     ======================================== */
+
+  abrirWebSocket(wsUrl) {
+
+    return new Promise(
+      (resolve, reject) => {
+
+        let terminado = false;
+
+
+        try {
+
+          this.socket =
+            new WebSocket(wsUrl);
+
+
+          const timeout =
+            setTimeout(
+              () => {
+
+                if (terminado) {
+                  return;
+                }
+
+                terminado = true;
+
+
+                try {
+
+                  this.socket?.close();
+
+                } catch {}
+
+
+                reject(
+                  new Error(
+                    "Tiempo de conexión con Deriv agotado."
+                  )
+                );
+
+              },
+              15000
+            );
+
+
+          this.socket.onopen =
+            () => {
+
+              if (terminado) {
+                return;
+              }
+
+
+              terminado = true;
+
+              clearTimeout(timeout);
+
+
+              this.connected = true;
+              this.connecting = false;
+
+              this.intentosReconexion = 0;
+
+
+              this.cambiarEstado(
+                "connected",
+                "Cuenta DEMO conectada con Deriv."
+              );
+
+
+              resolve({
+                ok: true
+              });
+
+            };
+
+
+          this.socket.onmessage =
+            (evento) => {
+
+              let datos = null;
+
+
+              try {
+
+                datos =
+                  JSON.parse(
+                    evento.data
+                  );
+
+              } catch {
+
+                datos =
+                  evento.data;
+
+              }
+
+
+              this.emitir(
+                "message",
+                datos
+              );
+
+            };
+
+
+          this.socket.onerror =
+            () => {
+
+              this.emitir(
+                "error",
+                {
+                  mensaje:
+                    "Error temporal en WebSocket de Deriv."
+                }
+              );
+
+
+              /*
+                No rechazamos inmediatamente.
+
+                Algunos navegadores móviles pueden
+                lanzar onerror justo antes de onclose.
+
+                Dejamos que onclose determine
+                el estado final.
+              */
+
+            };
+
+
+          this.socket.onclose =
+            (evento) => {
+
+              clearTimeout(timeout);
+
+
+              const estabaConectado =
+                this.connected;
+
+
+              this.socket = null;
+
+              this.connected = false;
+              this.connecting = false;
+
+
+              if (
+                !terminado &&
+                !estabaConectado
+              ) {
+
+                terminado = true;
+
+
+                reject(
+                  new Error(
+                    `Deriv cerró la conexión · código ${evento.code}`
+                  )
+                );
+
+                return;
+
+              }
+
+
+              this.cambiarEstado(
+                "disconnected",
+                `Conexión Deriv cerrada · código ${evento.code}`
+              );
+
+
+              /*
+                Si nosotros pulsamos DESCONECTAR,
+                no intentamos reconectar.
+              */
+
+              if (this.cierreManual) {
+
+                return;
+
+              }
+
+
+              /*
+                Reconexión únicamente si ya
+                existía una conexión válida.
+              */
+
+              if (estabaConectado) {
+
+                this.programarReconexion();
+
+              }
+
+            };
+
+
+        } catch (error) {
+
+          reject(error);
+
+        }
+
+      }
+    );
+
+  }
+
+
+  /* ========================================
+     CONECTAR CUENTA DEMO
      ======================================== */
 
   async conectarDemo({
     token,
+    accountId,
     appId
   }) {
 
@@ -427,204 +462,64 @@ class DerivConnection {
     }
 
 
+    this.cierreManual = false;
+
+
     this.cambiarEstado(
       "connecting",
-      "Buscando cuenta DEMO de Deriv..."
+      "Solicitando acceso DEMO a Deriv..."
     );
 
 
     try {
 
-      this.appId =
-        appId;
-
-
-      /* ======================================
-         PASO 1
-         OBTENER CUENTAS
-         ====================================== */
-
-      const cuentas =
-        await this.obtenerCuentas({
-          token,
-          appId
-        });
-
-
-      /* ======================================
-         PASO 2
-         ENCONTRAR DEMO
-         ====================================== */
-
-      const cuentaDemo =
-        this.encontrarCuentaDemo(
-          cuentas
-        );
-
-
-      if (!cuentaDemo) {
-
-        throw new Error(
-          "No se encontró una cuenta DEMO de Options."
-        );
-
-      }
-
-
-      const accountId =
-        this.obtenerIdCuenta(
-          cuentaDemo
-        );
-
-
-      if (!accountId) {
-
-        throw new Error(
-          "La cuenta DEMO no tiene un ID reconocible."
-        );
-
-      }
-
-
       this.accountId =
-        accountId;
+        String(accountId).trim();
 
-      this.accountInfo =
-        cuentaDemo;
-
-
-      this.emitir(
-        "account",
-        {
-          accountId,
-          account:
-            cuentaDemo
-        }
-      );
+      this.appId =
+        String(appId).trim();
 
 
-      this.cambiarEstado(
-        "connecting",
-        `Cuenta DEMO encontrada: ${accountId}`
-      );
+      /*
+        PASO 1
+        Solicitar OTP / WebSocket URL
+      */
 
-
-      /* ======================================
-         PASO 3
-         PEDIR OTP
-         ====================================== */
-
-      const wsUrl =
+      this.wsUrl =
         await this.obtenerWebSocketUrl({
           token,
-          accountId,
-          appId
+          accountId:
+            this.accountId,
+          appId:
+            this.appId
         });
 
 
       /*
-        El OTP dura poco tiempo,
-        por eso conectamos inmediatamente.
+        PASO 2
+        Abrir WebSocket
       */
 
-
-      /* ======================================
-         PASO 4
-         ABRIR WEBSOCKET DEMO
-         ====================================== */
-
-      this.socket =
-        new WebSocket(
-          wsUrl
-        );
-
-
-      this.socket.onopen =
-        () => {
-
-          this.cambiarEstado(
-            "connected",
-            `Cuenta DEMO conectada · ${accountId}`
-          );
-
-        };
-
-
-      this.socket.onmessage =
-        (evento) => {
-
-          let datos = null;
-
-
-          try {
-
-            datos =
-              JSON.parse(
-                evento.data
-              );
-
-          } catch {
-
-            datos =
-              evento.data;
-
-          }
-
-
-          this.emitir(
-            "message",
-            datos
-          );
-
-        };
-
-
-      this.socket.onerror =
-        () => {
-
-          this.emitir(
-            "error",
-            {
-              mensaje:
-                "Error en WebSocket de Deriv."
-            }
-          );
-
-        };
-
-
-      this.socket.onclose =
-        (evento) => {
-
-          this.socket =
-            null;
-
-
-          this.cambiarEstado(
-            "disconnected",
-            `Conexión Deriv cerrada · código ${evento.code}`
-          );
-
-        };
+      await this.abrirWebSocket(
+        this.wsUrl
+      );
 
 
       return {
-
-        ok:
-          true,
-
+        ok: true,
         mensaje:
-          "Conexión DEMO iniciada.",
-
-        accountId
-
+          "Cuenta DEMO conectada correctamente.",
+        accountId:
+          this.accountId
       };
 
 
     } catch (error) {
 
-      this.socket =
-        null;
+      this.socket = null;
+
+      this.connected = false;
+      this.connecting = false;
 
 
       this.cambiarEstado(
@@ -643,13 +538,9 @@ class DerivConnection {
 
 
       return {
-
-        ok:
-          false,
-
+        ok: false,
         mensaje:
           error.message
-
       };
 
     }
@@ -658,12 +549,91 @@ class DerivConnection {
 
 
   /* ========================================
-     ENVIAR MENSAJE WEBSOCKET
+     RECONEXIÓN
      ======================================== */
 
-  enviar(
-    datos
-  ) {
+  programarReconexion() {
+
+    if (
+      this.cierreManual ||
+      !this.wsUrl
+    ) {
+
+      return;
+
+    }
+
+
+    if (
+      this.intentosReconexion >=
+      this.maxIntentosReconexion
+    ) {
+
+      this.cambiarEstado(
+        "error",
+        "No fue posible restablecer la conexión con Deriv."
+      );
+
+      return;
+
+    }
+
+
+    this.intentosReconexion += 1;
+
+
+    const intento =
+      this.intentosReconexion;
+
+
+    this.cambiarEstado(
+      "connecting",
+      `Reconectando con Deriv · intento ${intento}/${this.maxIntentosReconexion}`
+    );
+
+
+    clearTimeout(
+      this.temporizadorReconexion
+    );
+
+
+    this.temporizadorReconexion =
+      setTimeout(
+        async () => {
+
+          try {
+
+            await this.abrirWebSocket(
+              this.wsUrl
+            );
+
+          } catch (error) {
+
+            this.emitir(
+              "error",
+              {
+                mensaje:
+                  `Reintento ${intento}: ${error.message}`
+              }
+            );
+
+
+            this.programarReconexion();
+
+          }
+
+        },
+        2000
+      );
+
+  }
+
+
+  /* ========================================
+     ENVIAR MENSAJE
+     ======================================== */
+
+  enviar(datos) {
 
     if (
       !this.socket ||
@@ -672,13 +642,9 @@ class DerivConnection {
     ) {
 
       return {
-
-        ok:
-          false,
-
+        ok: false,
         mensaje:
-          "Deriv no está conectado."
-
+          "Deriv DEMO no está conectado."
       };
 
     }
@@ -687,33 +653,37 @@ class DerivConnection {
     try {
 
       this.socket.send(
-        JSON.stringify(
-          datos
-        )
+        JSON.stringify(datos)
       );
 
 
       return {
-
-        ok:
-          true
-
+        ok: true
       };
 
 
     } catch (error) {
 
       return {
-
-        ok:
-          false,
-
+        ok: false,
         mensaje:
           error.message
-
       };
 
     }
+
+  }
+
+
+  /* ========================================
+     PING
+     ======================================== */
+
+  ping() {
+
+    return this.enviar({
+      ping: 1
+    });
 
   }
 
@@ -724,21 +694,32 @@ class DerivConnection {
 
   desconectar() {
 
+    this.cierreManual = true;
+
+
+    clearTimeout(
+      this.temporizadorReconexion
+    );
+
+
+    this.temporizadorReconexion =
+      null;
+
+
     try {
 
-      this.socket?.close();
+      this.socket?.close(
+        1000,
+        "Desconexión manual"
+      );
 
     } catch {}
 
 
-    this.socket =
-      null;
+    this.socket = null;
 
-    this.connected =
-      false;
-
-    this.connecting =
-      false;
+    this.connected = false;
+    this.connecting = false;
 
 
     this.cambiarEstado(
@@ -766,11 +747,11 @@ class DerivConnection {
       accountId:
         this.accountId,
 
-      accountInfo:
-        this.accountInfo,
-
       appId:
         this.appId,
+
+      intentosReconexion:
+        this.intentosReconexion,
 
       socketReadyState:
         this.socket?.readyState
