@@ -1,7 +1,8 @@
 /* ==========================================
    BOT V1 MR
    MOTOR PRINCIPAL DEL BOT
-   FASE 2: CONTRATO + PROPUESTA SIMULADA
+   FASE 3:
+   CONTRATO + SIMULACIÓN + PROPUESTA REAL DEMO
    ========================================== */
 
 import {
@@ -11,6 +12,10 @@ import {
 import {
   proposalSimulator
 } from "./proposal-simulator.js";
+
+import {
+  derivProposal
+} from "./deriv-proposal.js";
 
 
 class BotEngine {
@@ -22,14 +27,11 @@ class BotEngine {
 
     this.ultimaSenalProcesada = null;
 
-    this.modo = "SIMULACION";
+    this.modo = "SIMULACION + DERIV DEMO";
 
     this.ultimoContrato = null;
     this.ultimaPropuesta = null;
-
-    /* --------------------------------------
-       CONFIGURACIÓN TEMPORAL DE PRUEBA
-       -------------------------------------- */
+    this.ultimaPropuestaDeriv = null;
 
     this.configuracion = {
 
@@ -50,73 +52,45 @@ class BotEngine {
   }
 
 
-  /* ========================================
-     INICIAR BOT
-     ======================================== */
-
   iniciar() {
 
     this.activo = true;
     this.pausado = false;
 
     return {
-
-      ok:
-        true,
-
+      ok: true,
       mensaje:
-        "Bot iniciado en modo simulación"
-
+        "Bot iniciado."
     };
 
   }
 
-
-  /* ========================================
-     PAUSAR BOT
-     ======================================== */
 
   pausar() {
 
     this.pausado = true;
 
     return {
-
-      ok:
-        true,
-
+      ok: true,
       mensaje:
-        "Bot pausado"
-
+        "Bot pausado."
     };
 
   }
 
-
-  /* ========================================
-     REANUDAR BOT
-     ======================================== */
 
   reanudar() {
 
     this.pausado = false;
 
     return {
-
-      ok:
-        true,
-
+      ok: true,
       mensaje:
-        "Bot reanudado"
-
+        "Bot reanudado."
     };
 
   }
 
-
-  /* ========================================
-     DETENER BOT
-     ======================================== */
 
   detener() {
 
@@ -124,34 +98,22 @@ class BotEngine {
     this.pausado = false;
 
     return {
-
-      ok:
-        true,
-
+      ok: true,
       mensaje:
-        "Bot detenido"
-
+        "Bot detenido."
     };
 
   }
 
-
-  /* ========================================
-     VALIDAR ESTADO
-     ======================================== */
 
   puedeProcesar() {
 
     if (!this.activo) {
 
       return {
-
-        ok:
-          false,
-
+        ok: false,
         motivo:
-          "El bot está apagado"
-
+          "El bot está apagado."
       };
 
     }
@@ -160,31 +122,20 @@ class BotEngine {
     if (this.pausado) {
 
       return {
-
-        ok:
-          false,
-
+        ok: false,
         motivo:
-          "El bot está pausado"
-
+          "El bot está pausado."
       };
 
     }
 
 
     return {
-
-      ok:
-        true
-
+      ok: true
     };
 
   }
 
-
-  /* ========================================
-     CONFIGURACIÓN
-     ======================================== */
 
   configurar(opciones = {}) {
 
@@ -196,6 +147,7 @@ class BotEngine {
         Number(
           opciones.monto
         );
+
 
       if (
         Number.isFinite(monto) &&
@@ -232,6 +184,7 @@ class BotEngine {
           opciones.duracion
         );
 
+
       if (
         Number.isFinite(duracion) &&
         duracion > 0
@@ -257,8 +210,7 @@ class BotEngine {
 
     return {
 
-      ok:
-        true,
+      ok: true,
 
       configuracion:
         {
@@ -272,9 +224,10 @@ class BotEngine {
 
   /* ========================================
      PROCESAR SEÑAL
+     AHORA ES ASÍNCRONO
      ======================================== */
 
-  procesarSenal(senal) {
+  async procesarSenal(senal) {
 
     const estado =
       this.puedeProcesar();
@@ -295,10 +248,6 @@ class BotEngine {
     }
 
 
-    /* --------------------------------------
-       EVITAR DUPLICADOS
-       -------------------------------------- */
-
     if (
       this.ultimaSenalProcesada ===
       senal.id
@@ -310,23 +259,16 @@ class BotEngine {
           false,
 
         motivo:
-          "Señal duplicada"
+          "Señal duplicada."
 
       };
 
     }
 
 
-    /*
-      Todavía NO marcamos la señal como
-      procesada hasta comprobar que puede
-      traducirse correctamente.
-    */
-
-
     /* ======================================
        PASO 1
-       TRADUCIR SEÑAL A CONTRATO DERIV
+       MAPEAR A CONTRATO
        ====================================== */
 
     const contrato =
@@ -359,10 +301,10 @@ class BotEngine {
 
     /* ======================================
        PASO 2
-       CREAR PROPUESTA SIMULADA
+       PROPUESTA SIMULADA LOCAL
        ====================================== */
 
-    const propuesta =
+    const propuestaSimulada =
       proposalSimulator.crearPropuesta(
         contrato,
         {
@@ -381,7 +323,7 @@ class BotEngine {
       );
 
 
-    if (!propuesta.ok) {
+    if (!propuestaSimulada.ok) {
 
       return {
 
@@ -392,22 +334,57 @@ class BotEngine {
           "PROPOSAL_SIMULATOR",
 
         motivo:
-          propuesta.error
+          propuestaSimulada.error
 
       };
 
     }
 
 
+    this.ultimaPropuesta =
+      propuestaSimulada;
+
+
     /* ======================================
-       SEÑAL PROCESADA CORRECTAMENTE
+       PASO 3
+       PROPUESTA REAL DERIV DEMO
+       ====================================== */
+
+    const propuestaDeriv =
+      await derivProposal.solicitar(
+        contrato,
+        {
+          monto:
+            this.configuracion.monto,
+
+          moneda:
+            this.configuracion.moneda,
+
+          duracion:
+            this.configuracion.duracion,
+
+          unidadDuracion:
+            this.configuracion.unidadDuracion
+        }
+      );
+
+
+    if (
+      propuestaDeriv.ok
+    ) {
+
+      this.ultimaPropuestaDeriv =
+        propuestaDeriv;
+
+    }
+
+
+    /* ======================================
+       MARCAR COMO PROCESADA
        ====================================== */
 
     this.ultimaSenalProcesada =
       senal.id;
-
-    this.ultimaPropuesta =
-      propuesta;
 
 
     return {
@@ -433,23 +410,22 @@ class BotEngine {
       segundoEntrada:
         senal.segundosEntrada,
 
-      contrato:
-        contrato,
+      contrato,
 
       propuesta:
-        propuesta,
+        propuestaSimulada,
+
+      propuestaDeriv,
 
       mensaje:
-        `SIMULACIÓN PREPARADA · ${contrato.contractType}`
+        propuestaDeriv.ok
+          ? `PROPUESTA DERIV DEMO RECIBIDA · ${contrato.contractType}`
+          : `SIMULACIÓN OK · DERIV DEMO: ${propuestaDeriv.error}`
 
     };
 
   }
 
-
-  /* ========================================
-     ÚLTIMO CONTRATO
-     ======================================== */
 
   obtenerUltimoContrato() {
 
@@ -458,10 +434,6 @@ class BotEngine {
   }
 
 
-  /* ========================================
-     ÚLTIMA PROPUESTA
-     ======================================== */
-
   obtenerUltimaPropuesta() {
 
     return this.ultimaPropuesta;
@@ -469,9 +441,12 @@ class BotEngine {
   }
 
 
-  /* ========================================
-     ESTADO ACTUAL
-     ======================================== */
+  obtenerUltimaPropuestaDeriv() {
+
+    return this.ultimaPropuestaDeriv;
+
+  }
+
 
   obtenerEstado() {
 
@@ -494,6 +469,9 @@ class BotEngine {
 
       ultimaPropuesta:
         this.ultimaPropuesta,
+
+      ultimaPropuestaDeriv:
+        this.ultimaPropuestaDeriv,
 
       configuracion:
         {
