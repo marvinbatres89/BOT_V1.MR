@@ -4,9 +4,14 @@
 
    TRADING ANALYZER
    +
+   CONTRATO
+   +
    SIMULACIÓN
    +
-   DERIV DEMO PAT
+   PROPUESTA REAL DERIV DEMO
+
+   IMPORTANTE:
+   NO COMPRA CONTRATOS
    ========================================== */
 
 import {
@@ -105,19 +110,6 @@ const derivCuenta =
 
 const derivConexion =
   $("derivConexion");
-
-
-/* ==========================================
-   CONFIGURACIÓN
-   ========================================== */
-
-/*
-  No colocamos aquí el App ID
-  ni el token.
-
-  El usuario los introduce
-  directamente desde la pantalla.
-*/
 
 
 /* ==========================================
@@ -372,20 +364,15 @@ function mostrarContrato(
 
 
 /* ==========================================
-   MOSTRAR PROPUESTA
+   MOSTRAR PROPUESTA SIMULADA
    ========================================== */
 
-function mostrarPropuesta(
+function mostrarPropuestaSimulada(
   propuesta
 ) {
 
   if (!propuesta) {
-
-    ultimaPropuesta.textContent =
-      "Todavía no existe una propuesta.";
-
     return;
-
   }
 
 
@@ -413,7 +400,7 @@ function mostrarPropuesta(
     ${propuesta.status}
     <br>
 
-    <strong>ID:</strong>
+    <strong>ID simulación:</strong>
     ${propuesta.id}
 
   `;
@@ -422,26 +409,134 @@ function mostrarPropuesta(
 
 
 /* ==========================================
+   MOSTRAR PROPUESTA REAL DERIV
+   ========================================== */
+
+function mostrarPropuestaDeriv(
+  propuesta,
+  contrato
+) {
+
+  if (
+    !propuesta ||
+    !propuesta.ok
+  ) {
+
+    return;
+
+  }
+
+
+  const askPrice =
+    Number.isFinite(
+      Number(propuesta.askPrice)
+    )
+      ? Number(
+          propuesta.askPrice
+        )
+      : "--";
+
+
+  const payout =
+    Number.isFinite(
+      Number(propuesta.payout)
+    )
+      ? Number(
+          propuesta.payout
+        )
+      : "--";
+
+
+  ultimaPropuesta.innerHTML = `
+
+    <strong>Modo:</strong>
+    DERIV DEMO REAL
+    <br><br>
+
+    <strong>Mercado:</strong>
+    ${contrato?.symbol ?? "--"}
+    <br>
+
+    <strong>Contrato:</strong>
+    ${contrato?.contractType ?? "--"}
+    <br>
+
+    <strong>ID propuesta Deriv:</strong>
+    ${propuesta.id ?? "--"}
+    <br><br>
+
+    <strong>Precio solicitado:</strong>
+    ${askPrice}
+    <br>
+
+    <strong>Pago potencial:</strong>
+    ${payout}
+    <br>
+
+    <strong>Spot:</strong>
+    ${propuesta.spot ?? "--"}
+    <br>
+
+    <strong>Descripción:</strong>
+    ${propuesta.longcode || "--"}
+    <br><br>
+
+    <strong>Estado:</strong>
+    COTIZACIÓN REAL RECIBIDA
+    <br>
+
+    <strong>Compra:</strong>
+    BLOQUEADA
+
+  `;
+
+}
+
+
+/* ==========================================
    RECIBIR SEÑAL
+   AHORA ES ASÍNCRONO
    ========================================== */
 
 signalBridge.onSenal(
-  (senal) => {
+  async (senal) => {
 
     mostrarSenal(
       senal
     );
 
 
-    const resultado =
-      botEngine.procesarSenal(
-        senal
-      );
+    registrarActividad(
+      "Procesando señal y solicitando cotización...",
+      "aviso"
+    );
 
 
-    if (
-      resultado.aceptada
-    ) {
+    try {
+
+      const resultado =
+        await botEngine.procesarSenal(
+          senal
+        );
+
+
+      if (
+        !resultado.aceptada
+      ) {
+
+        registrarActividad(
+          `Señal no procesada · ${resultado.etapa || "BOT"} · ${resultado.motivo}`,
+          "aviso"
+        );
+
+        return;
+
+      }
+
+
+      /* ======================================
+         SEÑAL ACEPTADA
+         ====================================== */
 
       registrarActividad(
         `SEÑAL ACEPTADA · ${senal.mercado} · ${senal.estrategia} · ${senal.direccion} · ${senal.confianza}%`,
@@ -449,9 +544,9 @@ signalBridge.onSenal(
       );
 
 
-      /* --------------------------------------
+      /* ======================================
          CONTRATO
-         -------------------------------------- */
+         ====================================== */
 
       if (
         resultado.contrato
@@ -477,31 +572,67 @@ signalBridge.onSenal(
       }
 
 
-      /* --------------------------------------
-         PROPUESTA SIMULADA
-         -------------------------------------- */
+      /* ======================================
+         RESPALDO SIMULADO
+         ====================================== */
 
       if (
         resultado.propuesta
       ) {
 
-        mostrarPropuesta(
+        mostrarPropuestaSimulada(
           resultado.propuesta
         );
 
 
         registrarActividad(
-          `SIMULACIÓN → ${resultado.propuesta.amount} ${resultado.propuesta.currency} · ${resultado.propuesta.duration}${resultado.propuesta.durationUnit} · ${resultado.propuesta.status}`,
+          `SIMULACIÓN → ${resultado.propuesta.amount} ${resultado.propuesta.currency} · ${resultado.propuesta.duration}${resultado.propuesta.durationUnit}`,
           "correcto"
         );
 
       }
 
-    } else {
+
+      /* ======================================
+         PROPUESTA REAL DERIV DEMO
+         ====================================== */
+
+      if (
+        resultado.propuestaDeriv?.ok
+      ) {
+
+        mostrarPropuestaDeriv(
+          resultado.propuestaDeriv,
+          resultado.contrato
+        );
+
+
+        registrarActividad(
+          `DERIV DEMO → COTIZACIÓN REAL · ${resultado.contrato.contractType} · precio ${resultado.propuestaDeriv.askPrice}`,
+          "correcto"
+        );
+
+
+        registrarActividad(
+          "COMPRA BLOQUEADA · Solo cotización.",
+          "aviso"
+        );
+
+      } else {
+
+        registrarActividad(
+          `DERIV DEMO → ${resultado.propuestaDeriv?.error || "No se recibió cotización."}`,
+          "aviso"
+        );
+
+      }
+
+
+    } catch (error) {
 
       registrarActividad(
-        `Señal no procesada · ${resultado.etapa || "BOT"} · ${resultado.motivo}`,
-        "aviso"
+        `Error procesando señal: ${error.message}`,
+        "error"
       );
 
     }
@@ -611,7 +742,7 @@ window.addEventListener(
 
 
 /* ==========================================
-   ERROR DE SINCRONIZACIÓN
+   ERROR DEL PUENTE
    ========================================== */
 
 window.addEventListener(
@@ -711,7 +842,8 @@ botonProbar.addEventListener(
   () => {
 
     registrarActividad(
-      "Enviando señal DEMO..."
+      "Enviando señal DEMO...",
+      "aviso"
     );
 
 
@@ -816,7 +948,8 @@ derivConnection.on(
 
 
       derivCuenta.textContent =
-        derivConnection.obtenerEstado()
+        derivConnection
+          .obtenerEstado()
           .accountId ||
         "--";
 
@@ -895,11 +1028,6 @@ derivConnection.on(
         false;
 
 
-      /*
-        El ID detectado puede mantenerse
-        visible como referencia.
-      */
-
       if (
         estado === "error"
       ) {
@@ -939,7 +1067,7 @@ derivConnection.on(
 
 /* ==========================================
    DERIV
-   MENSAJES WEBSOCKET
+   MENSAJES GENERALES
    ========================================== */
 
 derivConnection.on(
@@ -1000,11 +1128,6 @@ botonConectarDeriv.addEventListener(
 
     }
 
-
-    /*
-      Ya NO pedimos ID manual.
-      El módulo lo buscará automáticamente.
-    */
 
     if (
       derivAccountId
@@ -1071,11 +1194,6 @@ botonDesconectarDeriv.addEventListener(
     derivConnection.desconectar();
 
 
-    /*
-      Por seguridad borramos
-      el token del campo.
-    */
-
     derivToken.value =
       "";
 
@@ -1084,62 +1202,4 @@ botonDesconectarDeriv.addEventListener(
       derivAccountId
     ) {
 
-      derivAccountId.disabled =
-        false;
-
-    }
-
-
-    registrarActividad(
-      "Deriv DEMO desconectado.",
-      "aviso"
-    );
-
-  }
-);
-
-
-/* ==========================================
-   CERRAR PÁGINA
-   ========================================== */
-
-window.addEventListener(
-  "beforeunload",
-  () => {
-
-    derivConnection.desconectar();
-
-  }
-);
-
-
-/* ==========================================
-   ESTADO INICIAL
-   ========================================== */
-
-if (
-  derivAccountId
-) {
-
-  derivAccountId.value =
-    "Se detectará automáticamente";
-
-  derivAccountId.disabled =
-    true;
-
-}
-
-
-registrarActividad(
-  "BOT V1 MR preparado."
-);
-
-
-registrarActividad(
-  "Esperando conexión con Trading Analyzer."
-);
-
-
-registrarActividad(
-  "Deriv DEMO todavía desconectado."
-);
+     
