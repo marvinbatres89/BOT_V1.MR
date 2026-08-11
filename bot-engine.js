@@ -1,24 +1,32 @@
 /* ==========================================
    BOT V1 MR
    BOT ENGINE
-   FIX7 - CALIBRADOR DE EJECUCIÓN
+   FIX8 - CALIBRADOR POR MERCADO
 
-   CONSERVA FIX6:
-   SEÑAL
-   -> CONTRATO
-   -> PROPUESTA
-   -> BUY DEMO
-   -> RESULTADO
+   CONSERVA FIX7:
+   - SINCRONIZACIÓN
+   - CONTRATO
+   - PROPUESTA
+   - BUY DEMO
+   - RESULTADO
+   - TELEMETRÍA
+   - STANDARD / 1S
 
-   AGREGA FIX7:
-   -> FAMILIA DE MERCADO
-   -> PUNTO DE ENTRADA
-   -> RETRASO CONFIGURADO
-   -> LATENCIA DE PROPUESTA
-   -> LATENCIA DE BUY
-   -> LATENCIA TOTAL
-   -> RESULTADO
-   -> HISTORIAL DE CALIBRACIÓN
+   AGREGA FIX8:
+   - ESTADÍSTICAS POR MERCADO EXACTO
+
+   MERCADOS:
+   R_10
+   R_25
+   R_50
+   R_75
+   R_100
+
+   1HZ10V
+   1HZ25V
+   1HZ50V
+   1HZ75V
+   1HZ100V
 
    SOLO CUENTA DEMO
    ========================================== */
@@ -41,7 +49,24 @@ import {
 
 
 const TELEMETRY_KEY =
-  "BOT_V1_MR_FIX7_TELEMETRY";
+  "BOT_V1_MR_FIX8_TELEMETRY";
+
+
+const MERCADOS_CONTROLADOS = [
+
+  "R_10",
+  "R_25",
+  "R_50",
+  "R_75",
+  "R_100",
+
+  "1HZ10V",
+  "1HZ25V",
+  "1HZ50V",
+  "1HZ75V",
+  "1HZ100V"
+
+];
 
 
 class BotEngine {
@@ -61,7 +86,7 @@ class BotEngine {
       new Set();
 
     this.modo =
-      "DERIV DEMO + CALIBRADOR FIX7";
+      "DERIV DEMO + CALIBRADOR FIX8";
 
     this.ultimoContrato =
       null;
@@ -102,7 +127,7 @@ class BotEngine {
 
 
   /* ========================================
-     RELOJ DE ALTA PRECISIÓN
+     RELOJ
      ======================================== */
 
   ahora() {
@@ -125,7 +150,7 @@ class BotEngine {
 
 
   /* ========================================
-     REDONDEAR MILISEGUNDOS
+     REDONDEO
      ======================================== */
 
   ms(
@@ -157,10 +182,25 @@ class BotEngine {
 
 
   /* ========================================
-     IDENTIFICAR FAMILIA DEL MERCADO
+     NORMALIZAR MERCADO
+     ======================================== */
 
-     R_...   = ESTÁNDAR
-     1HZ...  = 1 SEGUNDO
+  normalizarMercado(
+    mercado
+  ) {
+
+    return String(
+      mercado ||
+      ""
+    )
+      .trim()
+      .toUpperCase();
+
+  }
+
+
+  /* ========================================
+     FAMILIA DEL MERCADO
      ======================================== */
 
   obtenerFamiliaMercado(
@@ -168,12 +208,9 @@ class BotEngine {
   ) {
 
     const symbol =
-      String(
-        mercado ||
-        ""
-      )
-        .trim()
-        .toUpperCase();
+      this.normalizarMercado(
+        mercado
+      );
 
 
     if (
@@ -206,8 +243,9 @@ class BotEngine {
   /* ========================================
      RETRASO DE REFERENCIA
 
-     NO MODIFICA LA EJECUCIÓN.
-     SOLO LO REGISTRA PARA CALIBRAR.
+     IMPORTANTE:
+     SOLO SE REGISTRA.
+     NO RETRASA LA COMPRA.
      ======================================== */
 
   obtenerRetrasoReferencia(
@@ -244,7 +282,7 @@ class BotEngine {
 
 
   /* ========================================
-     INICIAR
+     ESTADOS DEL BOT
      ======================================== */
 
   iniciar() {
@@ -269,10 +307,6 @@ class BotEngine {
   }
 
 
-  /* ========================================
-     PAUSAR
-     ======================================== */
-
   pausar() {
 
     this.pausado =
@@ -292,10 +326,6 @@ class BotEngine {
   }
 
 
-  /* ========================================
-     REANUDAR
-     ======================================== */
-
   reanudar() {
 
     this.pausado =
@@ -314,10 +344,6 @@ class BotEngine {
 
   }
 
-
-  /* ========================================
-     DETENER
-     ======================================== */
 
   detener() {
 
@@ -341,10 +367,6 @@ class BotEngine {
   }
 
 
-  /* ========================================
-     EJECUCIÓN DEMO
-     ======================================== */
-
   activarEjecucionDemo() {
 
     return derivTrade.activar();
@@ -358,10 +380,6 @@ class BotEngine {
 
   }
 
-
-  /* ========================================
-     VALIDAR ESTADO
-     ======================================== */
 
   puedeProcesar() {
 
@@ -410,7 +428,7 @@ class BotEngine {
 
 
   /* ========================================
-     CREAR TELEMETRÍA FIX7
+     CREAR TELEMETRÍA
      ======================================== */
 
   crearTelemetria(
@@ -422,15 +440,21 @@ class BotEngine {
       this.ahora();
 
 
+    const mercado =
+      this.normalizarMercado(
+        senal?.mercado
+      );
+
+
     const familia =
       this.obtenerFamiliaMercado(
-        senal?.mercado
+        mercado
       );
 
 
     const retrasoReferenciaMs =
       this.obtenerRetrasoReferencia(
-        senal?.mercado
+        mercado
       );
 
 
@@ -445,9 +469,7 @@ class BotEngine {
         senal?.id ??
         null,
 
-      mercado:
-        senal?.mercado ??
-        null,
+      mercado,
 
       familiaMercado:
         familia,
@@ -473,8 +495,10 @@ class BotEngine {
       retrasoReferenciaMs,
 
       retrasoReferenciaSeg:
-        retrasoReferenciaMs !== null
-          ? retrasoReferenciaMs / 1000
+        retrasoReferenciaMs !==
+          null
+          ? retrasoReferenciaMs /
+            1000
           : null,
 
       modo:
@@ -695,88 +719,7 @@ class BotEngine {
 
 
   /* ========================================
-     GUARDAR TELEMETRÍA
-     ======================================== */
-
-  guardarTelemetria(
-    telemetria
-  ) {
-
-    this.calcularTelemetria(
-      telemetria
-    );
-
-
-    this.ultimaTelemetria =
-      {
-        ...telemetria
-      };
-
-
-    try {
-
-      const datos =
-        JSON.parse(
-          localStorage.getItem(
-            TELEMETRY_KEY
-          ) ||
-          "[]"
-        );
-
-
-      const historial =
-        Array.isArray(
-          datos
-        )
-          ? datos
-          : [];
-
-
-      historial.unshift(
-        {
-          ...telemetria
-        }
-      );
-
-
-      if (
-        historial.length >
-        300
-      ) {
-
-        historial.length =
-          300;
-
-      }
-
-
-      localStorage.setItem(
-        TELEMETRY_KEY,
-        JSON.stringify(
-          historial
-        )
-      );
-
-
-    } catch (
-      error
-    ) {
-
-      console.warn(
-        "No se pudo guardar telemetría FIX7:",
-        error
-      );
-
-    }
-
-
-    return telemetria;
-
-  }
-
-
-  /* ========================================
-     HISTORIAL COMPLETO
+     HISTORIAL
      ======================================== */
 
   obtenerHistorialTelemetria() {
@@ -808,151 +751,69 @@ class BotEngine {
   }
 
 
-  /* ========================================
-     HISTORIAL POR FAMILIA
-     ======================================== */
-
-  obtenerTelemetriaPorFamilia(
-    familia
+  guardarTelemetria(
+    telemetria
   ) {
 
-    const buscada =
-      String(
-        familia ||
-        ""
-      )
-        .toUpperCase();
+    this.calcularTelemetria(
+      telemetria
+    );
 
 
-    return this
-      .obtenerHistorialTelemetria()
-      .filter(
-        (item) =>
-          String(
-            item?.familiaMercado ||
-            ""
-          )
-            .toUpperCase() ===
-          buscada
+    this.ultimaTelemetria =
+      {
+        ...telemetria
+      };
+
+
+    try {
+
+      const historial =
+        this.obtenerHistorialTelemetria();
+
+
+      historial.unshift(
+        {
+          ...telemetria
+        }
       );
+
+
+      if (
+        historial.length >
+        500
+      ) {
+
+        historial.length =
+          500;
+
+      }
+
+
+      localStorage.setItem(
+        TELEMETRY_KEY,
+        JSON.stringify(
+          historial
+        )
+      );
+
+
+    } catch (
+      error
+    ) {
+
+      console.warn(
+        "No se pudo guardar telemetría FIX8:",
+        error
+      );
+
+    }
+
+
+    return telemetria;
 
   }
 
-
-  /* ========================================
-     RESUMEN POR FAMILIA
-     ======================================== */
-
-  obtenerResumenFamilia(
-    familia
-  ) {
-
-    const datos =
-      this.obtenerTelemetriaPorFamilia(
-        familia
-      );
-
-
-    const finalizadas =
-      datos.filter(
-        (item) =>
-          item.resultado ===
-            "GANADA" ||
-          item.resultado ===
-            "PERDIDA"
-      );
-
-
-    const ganadas =
-      finalizadas.filter(
-        (item) =>
-          item.resultado ===
-            "GANADA"
-      ).length;
-
-
-    const perdidas =
-      finalizadas.filter(
-        (item) =>
-          item.resultado ===
-            "PERDIDA"
-      ).length;
-
-
-    const accuracy =
-      finalizadas.length
-        ? (
-            ganadas /
-            finalizadas.length
-          ) * 100
-        : null;
-
-
-    const latencias =
-      finalizadas
-        .map(
-          (item) =>
-            Number(
-              item.signalToBuyMs
-            )
-        )
-        .filter(
-          Number.isFinite
-        );
-
-
-    const promedioSignalToBuyMs =
-      latencias.length
-        ? latencias.reduce(
-            (
-              suma,
-              valor
-            ) =>
-              suma + valor,
-            0
-          ) /
-          latencias.length
-        : null;
-
-
-    return {
-
-      familia:
-        String(
-          familia
-        )
-          .toUpperCase(),
-
-      pruebas:
-        finalizadas.length,
-
-      ganadas,
-
-      perdidas,
-
-      accuracy:
-        accuracy !== null
-          ? this.ms(
-              accuracy
-            )
-          : null,
-
-      promedioSignalToBuyMs:
-        promedioSignalToBuyMs !==
-          null
-          ? this.ms(
-              promedioSignalToBuyMs
-            )
-          : null
-
-    };
-
-  }
-
-
-  /* ========================================
-     LIMPIAR TELEMETRÍA
-     ======================================== */
 
   limpiarTelemetria() {
 
@@ -980,7 +841,322 @@ class BotEngine {
 
 
   /* ========================================
-     PROCESAR SEÑAL FIX7
+     FILTROS
+     ======================================== */
+
+  obtenerTelemetriaPorFamilia(
+    familia
+  ) {
+
+    const buscada =
+      String(
+        familia ||
+        ""
+      )
+        .trim()
+        .toUpperCase();
+
+
+    return this
+      .obtenerHistorialTelemetria()
+      .filter(
+        (item) =>
+          String(
+            item?.familiaMercado ||
+            ""
+          )
+            .toUpperCase() ===
+          buscada
+      );
+
+  }
+
+
+  obtenerTelemetriaPorMercado(
+    mercado
+  ) {
+
+    const buscado =
+      this.normalizarMercado(
+        mercado
+      );
+
+
+    return this
+      .obtenerHistorialTelemetria()
+      .filter(
+        (item) =>
+          this.normalizarMercado(
+            item?.mercado
+          ) ===
+          buscado
+      );
+
+  }
+
+
+  /* ========================================
+     CREAR RESUMEN GENÉRICO
+     ======================================== */
+
+  construirResumen(
+    datos,
+    etiqueta
+  ) {
+
+    const finalizadas =
+      datos.filter(
+        (item) =>
+          item.resultado ===
+            "GANADA" ||
+          item.resultado ===
+            "PERDIDA"
+      );
+
+
+    const ganadas =
+      finalizadas.filter(
+        (item) =>
+          item.resultado ===
+            "GANADA"
+      ).length;
+
+
+    const perdidas =
+      finalizadas.filter(
+        (item) =>
+          item.resultado ===
+            "PERDIDA"
+      ).length;
+
+
+    const total =
+      finalizadas.length;
+
+
+    const accuracy =
+      total > 0
+        ? (
+            ganadas /
+            total
+          ) * 100
+        : null;
+
+
+    const latenciasSignalBuy =
+      finalizadas
+        .map(
+          (item) =>
+            Number(
+              item.signalToBuyMs
+            )
+        )
+        .filter(
+          Number.isFinite
+        );
+
+
+    const latenciasProposal =
+      finalizadas
+        .map(
+          (item) =>
+            Number(
+              item.proposalLatencyMs
+            )
+        )
+        .filter(
+          Number.isFinite
+        );
+
+
+    const latenciasBuy =
+      finalizadas
+        .map(
+          (item) =>
+            Number(
+              item.buyLatencyMs
+            )
+        )
+        .filter(
+          Number.isFinite
+        );
+
+
+    const promedio =
+      (lista) => {
+
+        if (
+          !lista.length
+        ) {
+
+          return null;
+
+        }
+
+
+        return lista.reduce(
+          (
+            suma,
+            valor
+          ) =>
+            suma +
+            valor,
+          0
+        ) /
+        lista.length;
+
+      };
+
+
+    return {
+
+      etiqueta,
+
+      pruebas:
+        total,
+
+      ganadas,
+
+      perdidas,
+
+      accuracy:
+        accuracy !== null
+          ? this.ms(
+              accuracy
+            )
+          : null,
+
+      promedioSignalToBuyMs:
+        this.ms(
+          promedio(
+            latenciasSignalBuy
+          )
+        ),
+
+      promedioProposalMs:
+        this.ms(
+          promedio(
+            latenciasProposal
+          )
+        ),
+
+      promedioBuyMs:
+        this.ms(
+          promedio(
+            latenciasBuy
+          )
+        )
+
+    };
+
+  }
+
+
+  /* ========================================
+     RESUMEN POR FAMILIA
+     ======================================== */
+
+  obtenerResumenFamilia(
+    familia
+  ) {
+
+    const datos =
+      this.obtenerTelemetriaPorFamilia(
+        familia
+      );
+
+
+    return this.construirResumen(
+      datos,
+      String(
+        familia ||
+        ""
+      )
+        .toUpperCase()
+    );
+
+  }
+
+
+  /* ========================================
+     RESUMEN POR MERCADO EXACTO
+     ======================================== */
+
+  obtenerResumenMercado(
+    mercado
+  ) {
+
+    const symbol =
+      this.normalizarMercado(
+        mercado
+      );
+
+
+    const datos =
+      this.obtenerTelemetriaPorMercado(
+        symbol
+      );
+
+
+    const resumen =
+      this.construirResumen(
+        datos,
+        symbol
+      );
+
+
+    return {
+
+      mercado:
+        symbol,
+
+      familia:
+        this.obtenerFamiliaMercado(
+          symbol
+        ),
+
+      retrasoReferenciaMs:
+        this.obtenerRetrasoReferencia(
+          symbol
+        ),
+
+      ...resumen
+
+    };
+
+  }
+
+
+  /* ========================================
+     TODOS LOS MERCADOS
+     ======================================== */
+
+  obtenerResumenMercados() {
+
+    const resultado =
+      {};
+
+
+    for (
+      const mercado
+      of MERCADOS_CONTROLADOS
+    ) {
+
+      resultado[mercado] =
+        this.obtenerResumenMercado(
+          mercado
+        );
+
+    }
+
+
+    return resultado;
+
+  }
+
+
+  /* ========================================
+     PROCESAR SEÑAL
      ======================================== */
 
   async procesarSenal(
@@ -1062,8 +1238,7 @@ class BotEngine {
     try {
 
       /* ====================================
-         PASO 1
-         MAPEAR CONTRATO
+         CONTRATO
          ==================================== */
 
       const contrato =
@@ -1108,8 +1283,7 @@ class BotEngine {
 
 
       /* ====================================
-         PASO 2
-         SIMULACIÓN LOCAL
+         SIMULACIÓN
          ==================================== */
 
       const propuestaSimulada =
@@ -1169,8 +1343,7 @@ class BotEngine {
 
 
       /* ====================================
-         PASO 3
-         COTIZACIÓN DERIV
+         PROPUESTA REAL
          ==================================== */
 
       telemetria.proposalRequestedPerf =
@@ -1220,17 +1393,13 @@ class BotEngine {
 
 
       /* ====================================
-         PASO 4
          BUY DEMO
-
-         IMPORTANTE:
-         FIX7 NO AGREGA RETRASO.
-         SOLO MIDE EL RETRASO REAL.
          ==================================== */
 
       if (
         propuestaDeriv.ok &&
-        derivTrade.obtenerEstado()
+        derivTrade
+          .obtenerEstado()
           .ejecucionActiva
       ) {
 
@@ -1263,8 +1432,7 @@ class BotEngine {
 
 
           /* ==================================
-             PASO 5
-             ESPERAR RESULTADO
+             RESULTADO
              ================================== */
 
           const seguimiento =
@@ -1350,10 +1518,6 @@ class BotEngine {
       }
 
 
-      /* ====================================
-         MARCAR SEÑAL PROCESADA
-         ==================================== */
-
       if (
         id
       ) {
@@ -1363,10 +1527,6 @@ class BotEngine {
 
       }
 
-
-      /* ====================================
-         GUARDAR MEDICIONES
-         ==================================== */
 
       this.guardarTelemetria(
         telemetria
@@ -1418,6 +1578,14 @@ class BotEngine {
               .familiaMercado
           ),
 
+        resumenMercado:
+          this.obtenerResumenMercado(
+            telemetria.mercado
+          ),
+
+        resumenMercados:
+          this.obtenerResumenMercados(),
+
         ejecucionDemoActiva:
           derivTrade
             .obtenerEstado()
@@ -1444,7 +1612,7 @@ class BotEngine {
 
 
   /* ========================================
-     ESTADO ACTUAL
+     ESTADO
      ======================================== */
 
   obtenerEstado() {
@@ -1490,6 +1658,14 @@ class BotEngine {
         this.obtenerResumenFamilia(
           "STANDARD"
         ),
+
+      resumenMercados:
+        this.obtenerResumenMercados(),
+
+      mercadosControlados:
+        [
+          ...MERCADOS_CONTROLADOS
+        ],
 
       trade:
         derivTrade
