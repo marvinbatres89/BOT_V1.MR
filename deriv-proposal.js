@@ -1,13 +1,14 @@
 /* ==========================================
    BOT V1 MR
    DERIV PROPOSAL
+   FIX6
 
-   SOLICITA COTIZACIONES REALES
-   EN DERIV DEMO
+   SOLICITA PROPUESTAS REALES
+   A DERIV DEMO
 
    IMPORTANTE:
-   NO CONTIENE BUY
    NO COMPRA CONTRATOS
+   NO USA BUY
    ========================================== */
 
 import {
@@ -29,6 +30,11 @@ class DerivProposal {
       null;
 
 
+    /*
+      Escuchamos todas las respuestas
+      del WebSocket autenticado.
+    */
+
     derivConnection.on(
       "message",
       (datos) => {
@@ -43,6 +49,10 @@ class DerivProposal {
   }
 
 
+  /* ========================================
+     CREAR REQ ID
+     ======================================== */
+
   siguienteReqId() {
 
     this.reqId +=
@@ -52,6 +62,10 @@ class DerivProposal {
 
   }
 
+
+  /* ========================================
+     PROCESAR RESPUESTAS DERIV
+     ======================================== */
 
   procesarRespuesta(
     datos
@@ -100,28 +114,30 @@ class DerivProposal {
     );
 
 
+    /* --------------------------------------
+       ERROR DERIV
+       -------------------------------------- */
+
     if (
       datos.error
     ) {
 
-      pendiente.resolve({
-        ok:
-          false,
-
-        error:
+      pendiente.reject(
+        new Error(
           datos.error.message ||
           datos.error.code ||
-          "Deriv rechazó la propuesta.",
-
-        code:
-          datos.error.code ??
-          null
-      });
+          "Deriv rechazó la propuesta."
+        )
+      );
 
       return;
 
     }
 
+
+    /* --------------------------------------
+       PROPUESTA
+       -------------------------------------- */
 
     if (
       datos.proposal
@@ -191,16 +207,18 @@ class DerivProposal {
     }
 
 
-    pendiente.resolve({
-      ok:
-        false,
-
-      error:
+    pendiente.reject(
+      new Error(
         "Deriv respondió sin una propuesta válida."
-    });
+      )
+    );
 
   }
 
+
+  /* ========================================
+     VALIDAR CONTRATO
+     ======================================== */
 
   validarContrato(
     contrato
@@ -258,6 +276,10 @@ class DerivProposal {
 
   }
 
+
+  /* ========================================
+     CONSTRUIR REQUEST PROPOSAL
+     ======================================== */
 
   construirSolicitud(
     contrato,
@@ -325,10 +347,6 @@ class DerivProposal {
       this.siguienteReqId();
 
 
-    /*
-      Deriv usa underlying_symbol
-      en el esquema actual de proposal.
-    */
     const solicitud = {
 
       proposal:
@@ -352,7 +370,7 @@ class DerivProposal {
       duration_unit:
         unidadDuracion,
 
-      underlying_symbol:
+      symbol:
         contrato.symbol,
 
       req_id:
@@ -360,6 +378,11 @@ class DerivProposal {
 
     };
 
+
+    /*
+      La barrera solo se envía
+      cuando el contrato la necesita.
+    */
 
     if (
       contrato.barrier !==
@@ -381,6 +404,10 @@ class DerivProposal {
   }
 
 
+  /* ========================================
+     SOLICITAR PROPUESTA REAL
+     ======================================== */
+
   async solicitar(
     contrato,
     opciones = {}
@@ -397,18 +424,21 @@ class DerivProposal {
     ) {
 
       return {
+
         ok:
           false,
 
         error:
           validacion.error
+
       };
 
     }
 
 
     const estado =
-      derivConnection.obtenerEstado();
+      derivConnection
+        .obtenerEstado();
 
 
     if (
@@ -416,11 +446,30 @@ class DerivProposal {
     ) {
 
       return {
+
         ok:
           false,
 
         error:
           "Deriv DEMO no está conectado."
+
+      };
+
+    }
+
+
+    if (
+      !estado.demoVerified
+    ) {
+
+      return {
+
+        ok:
+          false,
+
+        error:
+          "La cuenta no está verificada como DEMO."
+
       };
 
     }
@@ -440,11 +489,13 @@ class DerivProposal {
     } catch (error) {
 
       return {
+
         ok:
           false,
 
         error:
           error.message
+
       };
 
     }
@@ -467,11 +518,13 @@ class DerivProposal {
 
 
               resolve({
+
                 ok:
                   false,
 
                 error:
                   "Deriv no respondió a la propuesta dentro del tiempo esperado."
+
               });
 
             },
@@ -482,8 +535,33 @@ class DerivProposal {
         this.pendientes.set(
           reqId,
           {
+
             timeout,
-            resolve
+
+            resolve:
+              (propuesta) => {
+
+                resolve(
+                  propuesta
+                );
+
+              },
+
+            reject:
+              (error) => {
+
+                resolve({
+
+                  ok:
+                    false,
+
+                  error:
+                    error.message
+
+                });
+
+              }
+
           }
         );
 
@@ -509,11 +587,13 @@ class DerivProposal {
 
 
           resolve({
+
             ok:
               false,
 
             error:
               envio.mensaje
+
           });
 
         }
@@ -524,6 +604,10 @@ class DerivProposal {
   }
 
 
+  /* ========================================
+     ÚLTIMA PROPUESTA
+     ======================================== */
+
   obtenerUltimaPropuesta() {
 
     return this.ultimaPropuesta;
@@ -532,6 +616,10 @@ class DerivProposal {
 
 }
 
+
+/* ==========================================
+   INSTANCIA ÚNICA
+   ========================================== */
 
 export const derivProposal =
   new DerivProposal();
