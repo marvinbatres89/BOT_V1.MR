@@ -1,6 +1,7 @@
 /* ==========================================
    BOT V1 MR
-   DISEÑO CONSOLIDADO
+   DISEÑO PRINCIPAL
+   FIX6
    ========================================== */
 
 * {
@@ -20,6 +21,11 @@ body {
   margin: 0 auto;
   padding: 18px;
 }
+
+
+/* ==========================================
+   ENCABEZADO
+   ========================================== */
 
 .hero {
   display: flex;
@@ -51,6 +57,11 @@ body {
   font-size: 14px;
 }
 
+
+/* ==========================================
+   ESTADOS
+   ========================================== */
+
 .estado-bot {
   padding: 10px 14px;
   border-radius: 999px;
@@ -69,6 +80,11 @@ body {
   color: #79f3c2;
 }
 
+
+/* ==========================================
+   TARJETAS
+   ========================================== */
+
 .tarjeta {
   background: #0d1b2a;
   border: 1px solid #1f3348;
@@ -83,6 +99,11 @@ body {
   font-size: 18px;
 }
 
+
+/* ==========================================
+   DATOS
+   ========================================== */
+
 .datos-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -93,7 +114,6 @@ body {
   background: #0a1623;
   border-radius: 12px;
   padding: 12px;
-  min-width: 0;
 }
 
 .dato small {
@@ -104,39 +124,36 @@ body {
 
 .dato strong {
   font-size: 16px;
-  overflow-wrap: anywhere;
 }
 
-.campo {
-  margin-top: 12px;
-}
 
-.campo label {
-  display: block;
-  color: #9fb4c8;
-  font-size: 13px;
-  margin-bottom: 6px;
-}
+/* ==========================================
+   INPUTS
+   ========================================== */
 
-.campo input {
+.dato input {
   width: 100%;
-  min-height: 46px;
-  border: 1px solid #28415a;
-  border-radius: 12px;
+  border: 1px solid #29435d;
+  border-radius: 10px;
+  padding: 12px;
   background: #07111f;
   color: #eaf2ff;
-  padding: 11px 12px;
   font-size: 14px;
   outline: none;
 }
 
-.campo input:focus {
-  border-color: #2a74ff;
+.dato input:focus {
+  border-color: #43d9a3;
 }
 
-.campo input:disabled {
-  opacity: 0.75;
+.dato input:disabled {
+  opacity: 0.65;
 }
+
+
+/* ==========================================
+   BOTONES
+   ========================================== */
 
 .botones {
   display: grid;
@@ -156,7 +173,7 @@ body {
 
 .boton:disabled {
   opacity: 0.5;
-  cursor: default;
+  cursor: not-allowed;
 }
 
 .conectar {
@@ -175,6 +192,21 @@ body {
   color: #06130f;
 }
 
+.ejecutar {
+  background: #43d9a3;
+  color: #06130f;
+}
+
+.detener {
+  background: #8f354b;
+  color: #ffffff;
+}
+
+
+/* ==========================================
+   TEXTO Y AVISOS
+   ========================================== */
+
 .descripcion {
   color: #9fb4c8;
   line-height: 1.5;
@@ -185,19 +217,70 @@ body {
   line-height: 1.5;
 }
 
+.correcto {
+  color: #79f3c2;
+}
+
+.error {
+  color: #ff9fb4;
+}
+
+
+/* ==========================================
+   SEÑAL / CONTRATO / PROPUESTA
+   ========================================== */
+
 .ultima-senal {
   min-height: 90px;
   background: #07111f;
   border-radius: 12px;
   padding: 12px;
   color: #bcd0e4;
-  line-height: 1.55;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
+
+/* ==========================================
+   OPERACIÓN DEMO
+   ========================================== */
+
+.operacion-demo {
+  background: #07111f;
+  border: 1px solid #29435d;
+  border-radius: 12px;
+  padding: 14px;
+  line-height: 1.6;
+}
+
+.operacion-demo.ganada {
+  border-color: #43d9a3;
+}
+
+.operacion-demo.perdida {
+  border-color: #ff6f91;
+}
+
+.resultado-ganado {
+  color: #79f3c2;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.resultado-perdido {
+  color: #ff9fb4;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+
+/* ==========================================
+   REGISTRO
+   ========================================== */
+
 .registro {
   min-height: 150px;
-  max-height: 320px;
+  max-height: 280px;
   overflow-y: auto;
   background: #07111f;
   border-radius: 12px;
@@ -210,9 +293,10 @@ body {
   margin: 7px 0;
 }
 
-.separacion {
-  margin-top: 14px;
-}
+
+/* ==========================================
+   PIE
+   ========================================== */
 
 footer {
   text-align: center;
@@ -224,45 +308,43 @@ footer p {
   margin: 4px 0;
 }
 
+
+/* ==========================================
+   ADAPTACIÓN PARA TELÉFONO
+   ========================================== */
+
 @media (max-width: 520px) {
+
+  .app {
+    padding: 12px;
+  }
+
   .hero {
     align-items: flex-start;
+    gap: 10px;
   }
 
   .hero h1 {
     font-size: 24px;
   }
 
-  .datos-grid,
-  .botones {
+  .estado-bot {
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+
+  .datos-grid {
     grid-template-columns: 1fr 1fr;
   }
-}
 
+  .tarjeta {
+    padding: 14px;
+    border-radius: 15px;
+  }
 
-/* ==========================================
-   EJECUCIÓN DEMO
-   ========================================== */
+  .boton {
+    padding: 13px 9px;
+    font-size: 12px;
+  }
 
-.estado-ejecucion {
-  border-radius: 12px;
-  padding: 13px;
-  font-weight: bold;
-  text-align: center;
-  margin-top: 10px;
-}
-
-.apagado-ejecucion {
-  background: #3a2028;
-  color: #ff9fb4;
-}
-
-.encendido-ejecucion {
-  background: #123d32;
-  color: #79f3c2;
-}
-
-.activar-demo {
-  background: #8c5cff;
-  color: white;
 }
