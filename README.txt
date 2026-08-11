@@ -1,147 +1,186 @@
-BOT V1 MR - EJECUCIÓN DEMO CONTROLADA
-=======================================
+BOT V1 MR
+TRADING ANALYZER -> BOT -> DERIV DEMO
 
-ESTA VERSIÓN HACE
------------------
-1. Recibe señales de Trading Analyzer.
-2. Traduce la señal al tipo de contrato Deriv.
-3. Crea respaldo simulado.
-4. Solicita una cotización REAL en la cuenta DEMO.
-5. Si usted activa manualmente "EJECUCIÓN DEMO":
-   - compra el contrato usando el ID de la cotización;
-   - permite solamente una operación simultánea;
-   - sigue el contrato hasta el resultado;
-   - muestra GANADA/PERDIDA y profit.
-6. El monto está fijado en 1 USD en esta fase.
-7. NO hay martingala.
+VERSIÓN ACTUAL: FIX6
 
-BLOQUEO DE DINERO REAL
-----------------------
-La ejecución está OFF cada vez que se abre la página.
-Para activarla, Deriv debe estar conectado y la cuenta debe haber sido
-verificada como DEMO. Si la cuenta no puede verificarse como DEMO,
-la ejecución se bloquea.
 
-TOKEN PAT
----------
-No escriba el token dentro de ningún archivo.
-Péguelo únicamente en la pantalla del BOT.
-El token se mantiene en memoria durante la sesión y se elimina al desconectar.
+==========================================
+OBJETIVO
+==========================================
 
-PRIMERA PRUEBA RECOMENDADA
---------------------------
-A) PRUEBA SIN COMPRA
-1. Conectar Deriv DEMO.
-2. Conectar puente.
-3. Dejar EJECUCIÓN DEMO OFF.
-4. Pulsar PROBAR SEÑAL DEMO.
-5. Confirmar que aparece COTIZACIÓN REAL y que NO hay compra.
+BOT V1 MR recibe las señales generadas por
+Trading Analyzer y las transforma en contratos
+compatibles con Deriv.
 
-B) PRIMERA COMPRA DEMO
-1. Conectar Deriv DEMO.
-2. Conectar puente.
-3. Pulsar ACTIVAR EJECUCIÓN DEMO.
-4. Confirmar que muestra EJECUCIÓN DEMO ON.
-5. Pulsar PROBAR SEÑAL DEMO UNA SOLA VEZ.
-6. Esperar el resultado.
-7. Confirmar:
-   - COMPRA DEMO;
-   - contract_id;
-   - resultado GANADA/PERDIDA;
-   - profit.
+El proyecto trabaja actualmente con una cuenta
+DEMO verificada de Deriv.
 
-DESPUÉS
--------
-Cuando la señal DEMO funcione correctamente, haga una prueba con una señal
-real de Trading Analyzer.
 
+==========================================
+FLUJO PRINCIPAL
+==========================================
+
+Trading Analyzer
+-> Señal
+-> Signal Bridge
+-> Bot Engine
+-> Contract Mapper
+-> Propuesta Deriv
+-> Compra DEMO
+-> Seguimiento del contrato
+-> Resultado final
+
+
+==========================================
+ESTRATEGIAS
+==========================================
+
+El BOT reconoce:
+
+- Rise / Fall
+- Par / Impar
+- Más / Menos
+- Match
+
+
+==========================================
+SEGURIDAD
+==========================================
+
+La ejecución está diseñada para trabajar
+únicamente con una cuenta DEMO verificada.
+
+La ejecución automática permanece apagada
+hasta que el usuario la activa.
+
+Solo se permite una operación activa a la vez.
+
+No utiliza martingala.
+
+No debe utilizarse una cuenta REAL durante
+esta etapa de desarrollo y pruebas.
+
+
+==========================================
+FIX6 - CIERRE DEL CONTRATO
+==========================================
+
+FIX6 modifica principalmente el sistema que
+recupera el resultado final de una operación.
+
+La compra DEMO, la sincronización con Trading
+Analyzer y la generación de propuestas se
+mantienen.
+
+
+FLUJO FIX6:
+
+1. BUY devuelve contract_id.
+
+2. El BOT guarda el contract_id.
+
+3. PORTFOLIO comprueba si el contrato continúa
+   entre las posiciones abiertas.
+
+4. PROFIT_TABLE busca el mismo contract_id
+   dentro del historial de contratos cerrados.
+
+5. Cuando se encuentra el contrato cerrado,
+   el BOT recupera:
+
+   - Resultado
+   - Profit
+   - Precio de compra
+   - Precio de cierre
+
+6. El BOT muestra:
+
+   GANADA
+
+   o
+
+   PERDIDA
+
+   junto con el profit final.
+
+
+==========================================
+RESPALDOS DE SEGUIMIENTO
+==========================================
+
+Además del flujo principal FIX6 se conservan
+como respaldo:
+
+- proposal_open_contract
+- transaction
+
+Estos mecanismos ayudan a detectar el cierre
+sin modificar la parte de compra DEMO que ya
+funciona correctamente.
+
+
+==========================================
+ARCHIVOS DEL PROYECTO
+==========================================
+
+README.txt
+
+bot-engine.js
+
+bot.css
+
+bot.js
+
+contract-mapper.js
+
+deriv-connection.js
+
+deriv-proposal.js
+
+deriv-trade.js
+
+index.html
+
+proposal-simulator.js
+
+signal-bridge.js
+
+
+==========================================
+ESTADO DEL PROYECTO
+==========================================
+
+Sincronización Trading Analyzer:
+ACTIVA
+
+Recepción de señales:
+ACTIVA
+
+Mapeo de contratos:
+ACTIVO
+
+Conexión Deriv DEMO:
+ACTIVA
+
+Cotización real DEMO:
+ACTIVA
+
+Compra DEMO:
+ACTIVA
+
+Seguimiento final:
+FIX6 EN PRUEBAS
+
+
+==========================================
 IMPORTANTE
-----------
-Esta etapa ejecuta contratos únicamente en la cuenta DEMO verificada.
-No modifique el bloqueo de cuenta DEMO durante las pruebas.
+==========================================
 
+No colocar el Token PAT directamente dentro
+de los archivos del proyecto.
 
-CORRECCIÓN V2 DEL RESULTADO
----------------------------
-El seguimiento posterior a BUY ahora usa una suscripción WebSocket:
-proposal_open_contract + subscribe: 1.
+El token debe introducirse desde la interfaz
+durante la sesión.
 
-El BOT escucha actualizaciones del contrato en tiempo real y termina cuando:
-- is_sold = true; o
-- is_expired = true; o
-- status = won/lost/sold/expired.
-
-Al cerrar:
-- muestra GANADA/PERDIDA;
-- muestra profit;
-- libera la operación activa;
-- cancela la suscripción con forget.
-
-
-CORRECCIÓN V3 - SEGUIMIENTO DE RESULTADO
------------------------------------------
-El seguimiento posterior a BUY usa dos caminos simultáneos:
-
-1. Suscripción WebSocket:
-   proposal_open_contract + subscribe: 1
-
-2. Consulta individual de respaldo:
-   proposal_open_contract cada ~0.9 segundos
-
-La versión V3 también procesa cualquier respuesta que contenga
-proposal_open_contract, aunque el servidor no incluya msg_type.
-
-El contrato se considera cerrado cuando Deriv informa is_sold/is_expired
-o status won/lost/sold/expired. Entonces se muestra GANADA/PERDIDA y profit,
-se libera la operación activa y se cancela el seguimiento.
-
-
-FIX4 - CIERRE FINAL DEL CONTRATO
---------------------------------
-Esta versión conserva conexión, puente, cotización y BUY de la versión
-probada por el usuario.
-
-La corrección del resultado final usa tres mecanismos:
-1. Suscripción proposal_open_contract.
-2. Consulta periódica proposal_open_contract.
-3. Consulta profit_table para confirmar contratos que ya cerraron pero
-   continúan apareciendo como OPEN en proposal_open_contract.
-
-Cuando el contract_id aparece en profit_table, el BOT obtiene buy_price,
-sell_price/profit y muestra GANADA o PERDIDA.
-
-La ejecución continúa bloqueada para cuentas que no estén verificadas DEMO.
-
-
-FIX5 - CIERRE POR STREAM DE TRANSACCIONES
------------------------------------------
-FIX5 agrega una cuarta vía de confirmación:
-
-1. transaction subscribe: 1
-2. proposal_open_contract subscribe: 1
-3. proposal_open_contract por consulta
-4. profit_table
-
-El stream transaction se activa ANTES del BUY. Esto es especialmente
-importante para contratos de 1 tick, porque el cierre puede producirse
-muy rápido. Cuando llega la transacción SELL del mismo contract_id,
-el BOT calcula el resultado y muestra GANADA/PERDIDA + profit.
-
-La ejecución sigue permitida solamente en cuenta DEMO verificada.
-
-
-FIX6 - PORTFOLIO + PROFIT TABLE
--------------------------------
-La lógica principal de cierre ahora sigue la separación oficial de Deriv:
-
-- portfolio: solamente posiciones abiertas.
-- profit_table: histórico de ganancias/pérdidas de contratos cerrados.
-
-Flujo:
-BUY -> guardar contract_id -> revisar portfolio -> buscar el mismo contract_id
-en profit_table -> mostrar GANADA/PERDIDA + profit.
-
-proposal_open_contract y transaction quedan como respaldos para no alterar
-la compra DEMO que ya funciona.
-
-La ejecución permanece bloqueada para cuentas no verificadas como DEMO.
+BOT V1 MR
+FIX6
