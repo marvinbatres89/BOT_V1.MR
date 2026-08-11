@@ -1,72 +1,47 @@
 /* ==========================================
    BOT V1 MR
    BOT.CSS
-   FIX7 - CALIBRADOR DE EJECUCIÓN
+   FIX8 - TABLAS POR MERCADO
 
    CONSERVA:
-   - DISEÑO FIX6
-   - MODO MÓVIL
+   - DISEÑO MÓVIL
    - TARJETAS
    - BOTONES
-   - OPERACIÓN DEMO
-   - RESULTADO
+   - RESULTADOS
+   - CALIBRADOR
 
    AGREGA:
-   - PANEL CALIBRADOR FIX7
-   - ESTADÍSTICAS STANDARD
-   - ESTADÍSTICAS 1S
-   ========================================== */
-
-
-/* ==========================================
-   BASE
+   - TABLAS STANDARD
+   - TABLAS 1S
+   - SCROLL HORIZONTAL
+   - RESULTADO FINAL MÁS VISIBLE
    ========================================== */
 
 * {
   box-sizing: border-box;
 }
 
-
 html {
   scroll-behavior: smooth;
 }
 
-
 body {
   margin: 0;
-
-  background:
-    #07111f;
-
-  color:
-    #eaf2ff;
-
-  font-family:
-    Arial,
-    Helvetica,
-    sans-serif;
+  background: #07111f;
+  color: #eaf2ff;
+  font-family: Arial, Helvetica, sans-serif;
 }
-
 
 button,
 input {
-  font-family:
-    inherit;
+  font-family: inherit;
 }
 
-
 .app {
-  width:
-    100%;
-
-  max-width:
-    760px;
-
-  margin:
-    0 auto;
-
-  padding:
-    18px;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 18px;
 }
 
 
@@ -75,114 +50,56 @@ input {
    ========================================== */
 
 .hero {
-  display:
-    flex;
-
-  justify-content:
-    space-between;
-
-  align-items:
-    center;
-
-  gap:
-    16px;
-
-  margin-bottom:
-    18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
 }
-
 
 .eyebrow {
-  margin:
-    0;
-
-  font-size:
-    11px;
-
-  letter-spacing:
-    1.5px;
-
-  color:
-    #7f9bb7;
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: #7f9bb7;
 }
-
 
 .hero h1 {
-  margin:
-    5px 0;
-
-  font-size:
-    30px;
+  margin: 5px 0;
+  font-size: 30px;
 }
-
 
 .hero h1 span {
-  color:
-    #43d9a3;
+  color: #43d9a3;
 }
 
-
 .subtitulo {
-  margin:
-    0;
-
-  color:
-    #a9bfd4;
-
-  font-size:
-    14px;
-
-  line-height:
-    1.4;
+  margin: 0;
+  color: #a9bfd4;
+  font-size: 14px;
 }
 
 
 /* ==========================================
-   ESTADO DEL BOT
+   ESTADO BOT
    ========================================== */
 
 .estado-bot {
-  padding:
-    10px 14px;
-
-  border-radius:
-    999px;
-
-  font-size:
-    12px;
-
-  font-weight:
-    bold;
-
-  white-space:
-    nowrap;
-
-  transition:
-    0.2s ease;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
 }
-
 
 .estado-bot.apagado {
-  background:
-    #3a2028;
-
-  color:
-    #ff9fb4;
-
-  border:
-    1px solid #673644;
+  background: #3a2028;
+  color: #ff9fb4;
 }
 
-
 .estado-bot.encendido {
-  background:
-    #123d32;
-
-  color:
-    #79f3c2;
-
-  border:
-    1px solid #246a58;
+  background: #123d32;
+  color: #79f3c2;
 }
 
 
@@ -191,139 +108,66 @@ input {
    ========================================== */
 
 .tarjeta {
-  background:
-    #0d1b2a;
-
-  border:
-    1px solid #1f3348;
-
-  border-radius:
-    18px;
-
-  padding:
-    16px;
-
-  margin-bottom:
-    14px;
-
-  box-shadow:
-    0 8px 22px
-    rgba(
-      0,
-      0,
-      0,
-      0.14
-    );
+  background: #0d1b2a;
+  border: 1px solid #1f3348;
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 14px;
 }
 
-
 .tarjeta h2 {
-  margin-top:
-    0;
-
-  margin-bottom:
-    14px;
-
-  font-size:
-    18px;
-
-  color:
-    #f3f7ff;
+  margin-top: 0;
+  margin-bottom: 14px;
+  font-size: 18px;
 }
 
 
 /* ==========================================
-   DESCRIPCIÓN Y AVISOS
+   TEXTOS
    ========================================== */
 
 .descripcion {
-  color:
-    #9fb4c8;
-
-  line-height:
-    1.5;
-
-  font-size:
-    14px;
+  color: #9fb4c8;
+  line-height: 1.5;
+  font-size: 14px;
 }
 
-
 .aviso {
-  color:
-    #ffd37a;
-
-  line-height:
-    1.5;
-
-  font-size:
-    14px;
+  color: #ffd37a;
+  line-height: 1.5;
+  font-size: 14px;
 }
 
 
 /* ==========================================
-   GRID DE DATOS
+   DATOS
    ========================================== */
 
 .datos-grid {
-  display:
-    grid;
-
-  grid-template-columns:
-    1fr 1fr;
-
-  gap:
-    10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
-
 
 .dato {
-  background:
-    #0a1623;
-
-  border:
-    1px solid #16283a;
-
-  border-radius:
-    12px;
-
-  padding:
-    12px;
-
-  min-width:
-    0;
+  background: #0a1623;
+  border: 1px solid #16283a;
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 0;
 }
-
 
 .dato small {
-  display:
-    block;
-
-  color:
-    #7f9bb7;
-
-  margin-bottom:
-    6px;
-
-  font-size:
-    11px;
-
-  line-height:
-    1.3;
+  display: block;
+  color: #7f9bb7;
+  margin-bottom: 6px;
+  font-size: 11px;
 }
 
-
 .dato strong {
-  display:
-    block;
-
-  font-size:
-    16px;
-
-  color:
-    #eaf2ff;
-
-  overflow-wrap:
-    anywhere;
+  display: block;
+  font-size: 16px;
+  overflow-wrap: anywhere;
 }
 
 
@@ -332,63 +176,22 @@ input {
    ========================================== */
 
 .dato input {
-  width:
-    100%;
-
-  border:
-    1px solid #29435d;
-
-  border-radius:
-    10px;
-
-  padding:
-    12px;
-
-  background:
-    #07111f;
-
-  color:
-    #eaf2ff;
-
-  font-size:
-    14px;
-
-  outline:
-    none;
-
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+  width: 100%;
+  border: 1px solid #29435d;
+  border-radius: 10px;
+  padding: 12px;
+  background: #07111f;
+  color: #eaf2ff;
+  font-size: 14px;
+  outline: none;
 }
-
-
-.dato input::placeholder {
-  color:
-    #60778d;
-}
-
 
 .dato input:focus {
-  border-color:
-    #43d9a3;
-
-  box-shadow:
-    0 0 0 2px
-    rgba(
-      67,
-      217,
-      163,
-      0.12
-    );
+  border-color: #43d9a3;
 }
 
-
 .dato input:disabled {
-  opacity:
-    0.65;
-
-  cursor:
-    not-allowed;
+  opacity: 0.65;
 }
 
 
@@ -397,368 +200,221 @@ input {
    ========================================== */
 
 .botones {
-  display:
-    grid;
-
-  grid-template-columns:
-    1fr 1fr;
-
-  gap:
-    10px;
-
-  margin-top:
-    14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
 }
-
 
 .boton {
-  border:
-    none;
-
-  border-radius:
-    12px;
-
-  padding:
-    14px;
-
-  font-size:
-    14px;
-
-  font-weight:
-    bold;
-
-  cursor:
-    pointer;
-
-  transition:
-    transform 0.12s ease,
-    opacity 0.12s ease;
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
 }
-
-
-.boton:active {
-  transform:
-    scale(0.98);
-}
-
 
 .boton:disabled {
-  opacity:
-    0.45;
-
-  cursor:
-    not-allowed;
+  opacity: 0.45;
+  cursor: not-allowed;
 }
-
 
 .conectar {
-  background:
-    #2a74ff;
-
-  color:
-    white;
+  background: #2a74ff;
+  color: #ffffff;
 }
-
 
 .pausar {
-  background:
-    #1b2b3e;
-
-  color:
-    #dce8f5;
+  background: #1b2b3e;
+  color: #dce8f5;
 }
-
 
 .probar {
-  width:
-    100%;
-
-  background:
-    #43d9a3;
-
-  color:
-    #06130f;
+  width: 100%;
+  background: #43d9a3;
+  color: #06130f;
 }
-
 
 .ejecutar {
-  background:
-    #43d9a3;
-
-  color:
-    #06130f;
+  background: #43d9a3;
+  color: #06130f;
 }
 
-
 .detener {
-  background:
-    #8f354b;
-
-  color:
-    #ffffff;
+  background: #8f354b;
+  color: #ffffff;
 }
 
 
 /* ==========================================
-   ESTADO DE EJECUCIÓN DEMO
+   EJECUCIÓN
    ========================================== */
 
 .encendido-ejecucion {
-  color:
-    #79f3c2 !important;
+  color: #79f3c2 !important;
 }
-
 
 .apagado-ejecucion {
-  color:
-    #ff9fb4 !important;
+  color: #ff9fb4 !important;
 }
 
 
 /* ==========================================
-   ÚLTIMA SEÑAL / CONTRATO / PROPUESTA
+   TARJETAS DE CONTENIDO
    ========================================== */
 
-.ultima-senal {
-  min-height:
-    90px;
-
-  background:
-    #07111f;
-
-  border:
-    1px solid #16283a;
-
-  border-radius:
-    12px;
-
-  padding:
-    12px;
-
-  color:
-    #bcd0e4;
-
-  line-height:
-    1.55;
-
-  overflow-wrap:
-    anywhere;
-}
-
-
-/* ==========================================
-   OPERACIÓN DEMO
-   ========================================== */
-
+.ultima-senal,
 .operacion-demo {
-  min-height:
-    90px;
-
-  background:
-    #07111f;
-
-  border:
-    1px solid #29435d;
-
-  border-radius:
-    12px;
-
-  padding:
-    14px;
-
-  color:
-    #bcd0e4;
-
-  line-height:
-    1.6;
-
-  overflow-wrap:
-    anywhere;
+  min-height: 90px;
+  background: #07111f;
+  border: 1px solid #16283a;
+  border-radius: 12px;
+  padding: 14px;
+  color: #bcd0e4;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 
-.operacion-demo.ganada {
-  border-color:
-    #43d9a3;
+/* ==========================================
+   RESULTADO FINAL
+   ========================================== */
 
-  box-shadow:
-    inset 0 0 0 1px
-    rgba(
-      67,
-      217,
-      163,
-      0.14
-    );
+#resultadoDemo {
+  border-width: 2px;
 }
 
-
-.operacion-demo.perdida {
-  border-color:
-    #ff6f91;
-
-  box-shadow:
-    inset 0 0 0 1px
-    rgba(
-      255,
-      111,
-      145,
-      0.12
-    );
+#resultadoDemo.ganada {
+  border-color: #43d9a3;
+  background: #0a211b;
 }
 
+#resultadoDemo.perdida {
+  border-color: #ff6f91;
+  background: #261119;
+}
 
 .resultado-ganado {
-  color:
-    #79f3c2;
-
-  font-weight:
-    bold;
-
-  font-size:
-    18px;
+  color: #79f3c2;
+  font-weight: bold;
+  font-size: 22px;
+  letter-spacing: 0.5px;
 }
 
-
 .resultado-perdido {
-  color:
-    #ff9fb4;
-
-  font-weight:
-    bold;
-
-  font-size:
-    18px;
+  color: #ff9fb4;
+  font-weight: bold;
+  font-size: 22px;
+  letter-spacing: 0.5px;
 }
 
 
 /* ==========================================
-   FIX7
-   PANEL CALIBRADOR
+   CALIBRADOR FIX8
    ========================================== */
 
-.tarjeta:nth-of-type(4) {
-  border-color:
-    #31587b;
-}
-
-
-/*
-   Valores del calibrador.
-   Resaltamos especialmente
-   los tiempos de ejecución.
-*/
-
 #calibradorFamilia,
+#calibradorMercado,
 #calibradorPunto,
 #calibradorReferencia,
 #calibradorSignalBuy,
 #calibradorPropuesta,
 #calibradorBuy,
-#calibradorConfirmacion,
 #calibradorResultado {
-  color:
-    #79d8ff;
+  color: #79d8ff;
 }
 
 
 /* ==========================================
-   FIX7
-   STANDARD
+   TABLAS
    ========================================== */
 
-#standardPruebas,
-#standardGanadas,
-#standardPerdidas,
-#standardAccuracy,
-#standardLatencia {
-  color:
-    #eaf2ff;
+.tabla-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #1f3348;
+  background: #07111f;
 }
 
-
-#standardGanadas {
-  color:
-    #79f3c2;
+.tabla-estadisticas {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: 12px;
 }
 
-
-#standardPerdidas {
-  color:
-    #ff9fb4;
+.tabla-estadisticas thead {
+  background: #0a1623;
 }
 
-
-#standardAccuracy {
-  color:
-    #ffd37a;
+.tabla-estadisticas th {
+  padding: 11px 9px;
+  text-align: left;
+  color: #9fb4c8;
+  font-size: 11px;
+  white-space: nowrap;
+  border-bottom: 1px solid #29435d;
 }
 
+.tabla-estadisticas td {
+  padding: 11px 9px;
+  border-bottom: 1px solid #16283a;
+  color: #dce8f5;
+  white-space: nowrap;
+}
 
-#standardLatencia {
-  color:
-    #79d8ff;
+.tabla-estadisticas tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tabla-estadisticas tbody tr:hover {
+  background: #0a1623;
 }
 
 
 /* ==========================================
-   FIX7
-   1 SEGUNDO
+   COLUMNAS ESPECIALES
    ========================================== */
 
-#oneSecondPruebas,
-#oneSecondGanadas,
-#oneSecondPerdidas,
-#oneSecondAccuracy,
-#oneSecondLatencia {
-  color:
-    #eaf2ff;
+.tabla-estadisticas td:nth-child(1) {
+  font-weight: bold;
+  color: #79d8ff;
 }
 
-
-#oneSecondGanadas {
-  color:
-    #79f3c2;
+.tabla-estadisticas td:nth-child(3) {
+  color: #79f3c2;
 }
 
-
-#oneSecondPerdidas {
-  color:
-    #ff9fb4;
+.tabla-estadisticas td:nth-child(4) {
+  color: #ff9fb4;
 }
 
-
-#oneSecondAccuracy {
-  color:
-    #ffd37a;
+.tabla-estadisticas td:nth-child(5) {
+  color: #ffd37a;
 }
 
-
-#oneSecondLatencia {
-  color:
-    #79d8ff;
+.tabla-estadisticas td:nth-child(6) {
+  color: #79d8ff;
 }
 
 
 /* ==========================================
-   COLORES DE ESTADO
+   SCROLL TABLAS
    ========================================== */
 
-.correcto {
-  color:
-    #79f3c2;
+.tabla-wrap::-webkit-scrollbar {
+  height: 7px;
 }
 
-
-.error {
-  color:
-    #ff9fb4;
+.tabla-wrap::-webkit-scrollbar-thumb {
+  background: #29435d;
+  border-radius: 999px;
 }
 
-
-.warn,
-.aviso-texto {
-  color:
-    #ffd37a;
+.tabla-wrap::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 
@@ -767,72 +423,30 @@ input {
    ========================================== */
 
 .registro {
-  min-height:
-    160px;
-
-  max-height:
-    360px;
-
-  overflow-y:
-    auto;
-
-  background:
-    #07111f;
-
-  border:
-    1px solid #16283a;
-
-  border-radius:
-    12px;
-
-  padding:
-    12px;
-
-  font-family:
-    monospace;
-
-  font-size:
-    12px;
-
-  scrollbar-width:
-    thin;
+  min-height: 160px;
+  max-height: 360px;
+  overflow-y: auto;
+  background: #07111f;
+  border: 1px solid #16283a;
+  border-radius: 12px;
+  padding: 12px;
+  font-family: monospace;
+  font-size: 12px;
 }
-
 
 .registro p {
-  margin:
-    7px 0;
-
-  line-height:
-    1.4;
-
-  overflow-wrap:
-    anywhere;
+  margin: 7px 0;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
-
-
-/* ==========================================
-   SCROLL
-   ========================================== */
 
 .registro::-webkit-scrollbar {
-  width:
-    7px;
+  width: 7px;
 }
-
 
 .registro::-webkit-scrollbar-thumb {
-  background:
-    #29435d;
-
-  border-radius:
-    999px;
-}
-
-
-.registro::-webkit-scrollbar-track {
-  background:
-    transparent;
+  background: #29435d;
+  border-radius: 999px;
 }
 
 
@@ -841,148 +455,86 @@ input {
    ========================================== */
 
 footer {
-  text-align:
-    center;
-
-  color:
-    #6f879d;
-
-  padding:
-    12px 0 20px;
+  text-align: center;
+  color: #6f879d;
+  padding: 12px 0 20px;
 }
-
 
 footer p {
-  margin:
-    4px 0;
+  margin: 4px 0;
 }
 
-
 footer small {
-  line-height:
-    1.5;
+  line-height: 1.5;
 }
 
 
 /* ==========================================
-   ADAPTACIÓN PARA TELÉFONO
+   TELÉFONO
    ========================================== */
 
-@media (
-  max-width:
-  520px
-) {
+@media (max-width: 520px) {
 
   .app {
-    padding:
-      12px;
+    padding: 12px;
   }
-
 
   .hero {
-    align-items:
-      flex-start;
-
-    gap:
-      10px;
+    align-items: flex-start;
+    gap: 10px;
   }
-
 
   .hero h1 {
-    font-size:
-      24px;
+    font-size: 24px;
   }
-
 
   .subtitulo {
-    font-size:
-      12px;
+    font-size: 12px;
   }
-
 
   .estado-bot {
-    padding:
-      8px 10px;
-
-    font-size:
-      10px;
+    padding: 8px 10px;
+    font-size: 10px;
   }
-
 
   .datos-grid {
-    grid-template-columns:
-      1fr 1fr;
-
-    gap:
-      8px;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
-
 
   .dato {
-    padding:
-      10px;
+    padding: 10px;
   }
-
 
   .dato small {
-    font-size:
-      10px;
+    font-size: 10px;
   }
-
 
   .dato strong {
-    font-size:
-      14px;
+    font-size: 14px;
   }
-
 
   .tarjeta {
-    padding:
-      14px;
-
-    border-radius:
-      15px;
-
-    margin-bottom:
-      12px;
+    padding: 14px;
+    border-radius: 15px;
   }
-
 
   .tarjeta h2 {
-    font-size:
-      16px;
+    font-size: 16px;
   }
-
 
   .boton {
-    padding:
-      13px 9px;
-
-    font-size:
-      12px;
+    padding: 13px 9px;
+    font-size: 12px;
   }
 
-
-  .descripcion,
-  .aviso {
-    font-size:
-      13px;
+  .tabla-estadisticas {
+    font-size: 11px;
   }
 
-
-  .ultima-senal,
-  .operacion-demo {
-    font-size:
-      13px;
-  }
-
-
-  .registro {
-    max-height:
-      300px;
-
-    font-size:
-      11px;
+  .tabla-estadisticas th,
+  .tabla-estadisticas td {
+    padding: 9px 8px;
   }
 
 }
@@ -992,43 +544,31 @@ footer small {
    TELÉFONOS MUY ESTRECHOS
    ========================================== */
 
-@media (
-  max-width:
-  360px
-) {
+@media (max-width: 360px) {
 
   .app {
-    padding:
-      9px;
+    padding: 9px;
   }
-
 
   .datos-grid {
-    grid-template-columns:
-      1fr;
+    grid-template-columns: 1fr;
   }
-
 
   .botones {
-    grid-template-columns:
-      1fr;
+    grid-template-columns: 1fr;
   }
-
 
   .hero {
-    flex-direction:
-      column;
+    flex-direction: column;
   }
 
-
   .estado-bot {
-    align-self:
-      flex-start;
+    align-self: flex-start;
   }
 
 }
 
 
 /* ==========================================
-   FIN FIX7
+   FIN FIX8
    ========================================== */
