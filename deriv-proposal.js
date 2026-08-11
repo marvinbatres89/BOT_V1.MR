@@ -1,10 +1,13 @@
 /* ==========================================
    BOT V1 MR
    DERIV PROPOSAL
-   FIX6
+   FIX6.1
 
    SOLICITA PROPUESTAS REALES
    A DERIV DEMO
+
+   CORRECCIÓN:
+   symbol -> underlying_symbol
 
    IMPORTANTE:
    NO COMPRA CONTRATOS
@@ -30,11 +33,6 @@ class DerivProposal {
       null;
 
 
-    /*
-      Escuchamos todas las respuestas
-      del WebSocket autenticado.
-    */
-
     derivConnection.on(
       "message",
       (datos) => {
@@ -49,10 +47,6 @@ class DerivProposal {
   }
 
 
-  /* ========================================
-     CREAR REQ ID
-     ======================================== */
-
   siguienteReqId() {
 
     this.reqId +=
@@ -63,18 +57,13 @@ class DerivProposal {
   }
 
 
-  /* ========================================
-     PROCESAR RESPUESTAS DERIV
-     ======================================== */
-
   procesarRespuesta(
     datos
   ) {
 
     if (
       !datos ||
-      typeof datos !==
-        "object"
+      typeof datos !== "object"
     ) {
 
       return;
@@ -114,10 +103,6 @@ class DerivProposal {
     );
 
 
-    /* --------------------------------------
-       ERROR DERIV
-       -------------------------------------- */
-
     if (
       datos.error
     ) {
@@ -134,10 +119,6 @@ class DerivProposal {
 
     }
 
-
-    /* --------------------------------------
-       PROPUESTA
-       -------------------------------------- */
 
     if (
       datos.proposal
@@ -216,10 +197,6 @@ class DerivProposal {
   }
 
 
-  /* ========================================
-     VALIDAR CONTRATO
-     ======================================== */
-
   validarContrato(
     contrato
   ) {
@@ -276,10 +253,6 @@ class DerivProposal {
 
   }
 
-
-  /* ========================================
-     CONSTRUIR REQUEST PROPOSAL
-     ======================================== */
 
   construirSolicitud(
     contrato,
@@ -370,7 +343,7 @@ class DerivProposal {
       duration_unit:
         unidadDuracion,
 
-      symbol:
+      underlying_symbol:
         contrato.symbol,
 
       req_id:
@@ -378,11 +351,6 @@ class DerivProposal {
 
     };
 
-
-    /*
-      La barrera solo se envía
-      cuando el contrato la necesita.
-    */
 
     if (
       contrato.barrier !==
@@ -403,10 +371,6 @@ class DerivProposal {
 
   }
 
-
-  /* ========================================
-     SOLICITAR PROPUESTA REAL
-     ======================================== */
 
   async solicitar(
     contrato,
@@ -604,10 +568,6 @@ class DerivProposal {
   }
 
 
-  /* ========================================
-     ÚLTIMA PROPUESTA
-     ======================================== */
-
   obtenerUltimaPropuesta() {
 
     return this.ultimaPropuesta;
@@ -616,10 +576,6 @@ class DerivProposal {
 
 }
 
-
-/* ==========================================
-   INSTANCIA ÚNICA
-   ========================================== */
 
 export const derivProposal =
   new DerivProposal();
