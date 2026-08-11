@@ -1,7 +1,18 @@
 /* ==========================================
    BOT V1 MR
    PUENTE DE SINCRONIZACIÓN REAL
-   Trading Analyzer -> BOT
+   FIX6
+
+   TRADING ANALYZER -> BOT
+
+   RECEPCIÓN:
+   - BroadcastChannel
+   - localStorage
+
+   PROTECCIÓN:
+   - Señales duplicadas
+   - Señales antiguas
+   - Datos inválidos
    ========================================== */
 
 const BOT_CHANNEL_NAME =
@@ -10,7 +21,7 @@ const BOT_CHANNEL_NAME =
 const STORAGE_SIGNAL_KEY =
   "TA_BOT_SIGNAL_V1";
 
-const MAX_SIGNAL_AGE_MS =
+const MAX_ANTIGUEDAD_SENAL =
   15000;
 
 
@@ -18,26 +29,40 @@ class SignalBridge {
 
   constructor() {
 
-    this.ultimaSenal = null;
-    this.conectado = false;
+    this.ultimaSenal =
+      null;
+
+    this.conectado =
+      false;
 
     this.listeners =
       new Set();
 
-    this.channel = null;
+    this.channel =
+      null;
 
     this.ultimoIdRecibido =
       null;
+
 
     this.iniciarReceptorReal();
 
   }
 
 
+  /* ========================================
+     INICIAR RECEPTOR
+     ======================================== */
+
   iniciarReceptorReal() {
 
+    /* --------------------------------------
+       BROADCAST CHANNEL
+       -------------------------------------- */
+
     if (
-      "BroadcastChannel" in window
+      "BroadcastChannel" in
+      window
     ) {
 
       try {
@@ -58,6 +83,7 @@ class SignalBridge {
 
           };
 
+
       } catch (error) {
 
         console.error(
@@ -69,6 +95,10 @@ class SignalBridge {
 
     }
 
+
+    /* --------------------------------------
+       LOCAL STORAGE
+       -------------------------------------- */
 
     window.addEventListener(
       "storage",
@@ -98,6 +128,7 @@ class SignalBridge {
             "localStorage"
           );
 
+
         } catch (error) {
 
           console.error(
@@ -113,6 +144,10 @@ class SignalBridge {
   }
 
 
+  /* ========================================
+     CONECTAR BOT
+     ======================================== */
+
   conectar() {
 
     this.conectado =
@@ -120,9 +155,8 @@ class SignalBridge {
 
 
     /*
-      Si Android pausó la pestaña,
-      recuperamos únicamente una señal
-      muy reciente guardada por el Analyzer.
+      Recuperar una señal guardada
+      solamente cuando todavía es reciente.
     */
 
     try {
@@ -133,7 +167,9 @@ class SignalBridge {
         );
 
 
-      if (guardada) {
+      if (
+        guardada
+      ) {
 
         const datos =
           JSON.parse(
@@ -141,17 +177,23 @@ class SignalBridge {
           );
 
 
-        const antiguedad =
-          Date.now() -
+        const timestamp =
           Number(
-            datos.timestamp || 0
+            datos?.timestamp ??
+            0
           );
 
 
+        const antiguedad =
+          Date.now() -
+          timestamp;
+
+
         if (
+          timestamp > 0 &&
           antiguedad >= 0 &&
           antiguedad <=
-            MAX_SIGNAL_AGE_MS
+            MAX_ANTIGUEDAD_SENAL
         ) {
 
           setTimeout(
@@ -170,6 +212,7 @@ class SignalBridge {
 
       }
 
+
     } catch (error) {
 
       console.error(
@@ -185,11 +228,13 @@ class SignalBridge {
         "bot:estado",
         {
           detail: {
+
             conectado:
               true,
 
             mensaje:
               "BOT V1 MR escuchando Trading Analyzer"
+
           }
         }
       )
@@ -200,6 +245,10 @@ class SignalBridge {
 
   }
 
+
+  /* ========================================
+     DESCONECTAR
+     ======================================== */
 
   desconectar() {
 
@@ -212,27 +261,117 @@ class SignalBridge {
         "bot:estado",
         {
           detail: {
+
             conectado:
               false,
 
             mensaje:
               "BOT desconectado"
+
           }
         }
       )
     );
 
+
+    return true;
+
   }
 
+
+  /* ========================================
+     VALIDAR ANTIGÜEDAD
+     ======================================== */
+
+  esSenalReciente(
+    datos
+  ) {
+
+    /*
+      Las señales internas de prueba pueden
+      no traer timestamp inicialmente.
+    */
+
+    if (
+      datos?.timestamp ===
+        undefined ||
+      datos?.timestamp ===
+        null
+    ) {
+
+      return true;
+
+    }
+
+
+    const timestamp =
+      Number(
+        datos.timestamp
+      );
+
+
+    if (
+      !Number.isFinite(
+        timestamp
+      ) ||
+      timestamp <= 0
+    ) {
+
+      return false;
+
+    }
+
+
+    const antiguedad =
+      Date.now() -
+      timestamp;
+
+
+    return (
+      antiguedad >= 0 &&
+      antiguedad <=
+        MAX_ANTIGUEDAD_SENAL
+    );
+
+  }
+
+
+  /* ========================================
+     VALIDAR SEÑAL
+     ======================================== */
 
   validarSenal(
     senal
   ) {
 
     if (
-      !senal ||
-      !senal.mercado ||
-      !senal.estrategia ||
+      !senal
+    ) {
+
+      return false;
+
+    }
+
+
+    if (
+      !senal.mercado
+    ) {
+
+      return false;
+
+    }
+
+
+    if (
+      !senal.estrategia
+    ) {
+
+      return false;
+
+    }
+
+
+    if (
       !senal.direccion
     ) {
 
@@ -247,16 +386,35 @@ class SignalBridge {
       );
 
 
-    return (
-      Number.isFinite(
+    if (
+      !Number.isFinite(
         confianza
-      ) &&
-      confianza >= 0 &&
-      confianza <= 100
-    );
+      )
+    ) {
+
+      return false;
+
+    }
+
+
+    if (
+      confianza < 0 ||
+      confianza > 100
+    ) {
+
+      return false;
+
+    }
+
+
+    return true;
 
   }
 
+
+  /* ========================================
+     RECIBIR SEÑAL EXTERNA
+     ======================================== */
 
   recibirSenalExterna(
     datos,
@@ -277,9 +435,31 @@ class SignalBridge {
 
 
     if (
-      datos?.id &&
-      datos.id ===
-        this.ultimoIdRecibido
+      !this.esSenalReciente(
+        datos
+      )
+    ) {
+
+      console.warn(
+        "Señal antigua ignorada."
+      );
+
+      return false;
+
+    }
+
+
+    if (
+      datos?.id !==
+        undefined &&
+      datos?.id !==
+        null &&
+      String(
+        datos.id
+      ) ===
+        String(
+          this.ultimoIdRecibido
+        )
     ) {
 
       console.log(
@@ -301,9 +481,17 @@ class SignalBridge {
       resultado
     ) {
 
-      this.ultimoIdRecibido =
-        datos.id ??
-        null;
+      if (
+        datos?.id !==
+          undefined &&
+        datos?.id !==
+          null
+      ) {
+
+        this.ultimoIdRecibido =
+          datos.id;
+
+      }
 
 
       window.dispatchEvent(
@@ -325,9 +513,24 @@ class SignalBridge {
   }
 
 
+  /* ========================================
+     RECIBIR SEÑAL
+     ======================================== */
+
   recibirSenal(
-    datos = {}
+    datos
   ) {
+
+    if (
+      !datos ||
+      typeof datos !==
+        "object"
+    ) {
+
+      return false;
+
+    }
+
 
     const senal = {
 
@@ -350,14 +553,20 @@ class SignalBridge {
         ),
 
       precio:
-        datos.precio != null
+        datos.precio !==
+          null &&
+        datos.precio !==
+          undefined
           ? Number(
               datos.precio
             )
           : null,
 
       ultimoDigito:
-        datos.ultimoDigito != null
+        datos.ultimoDigito !==
+          null &&
+        datos.ultimoDigito !==
+          undefined
           ? Number(
               datos.ultimoDigito
             )
@@ -368,7 +577,10 @@ class SignalBridge {
         null,
 
       rsi:
-        datos.rsi != null
+        datos.rsi !==
+          null &&
+        datos.rsi !==
+          undefined
           ? Number(
               datos.rsi
             )
@@ -383,7 +595,10 @@ class SignalBridge {
         null,
 
       segundosEntrada:
-        datos.segundosEntrada != null
+        datos.segundosEntrada !==
+          null &&
+        datos.segundosEntrada !==
+          undefined
           ? Number(
               datos.segundosEntrada
             )
@@ -393,25 +608,18 @@ class SignalBridge {
         datos.modo ??
         null,
 
-      /*
-        Se conserva metadata para
-        OVER/UNDER y MATCH cuando
-        Trading Analyzer la envíe.
-      */
+      origen:
+        datos.origen ??
+        null,
+
       metadata:
-        (
-          datos.metadata &&
-          typeof datos.metadata ===
-            "object"
-        )
+        datos.metadata &&
+        typeof datos.metadata ===
+          "object"
           ? {
               ...datos.metadata
             }
           : {},
-
-      origen:
-        datos.origen ??
-        null,
 
       timestamp:
         datos.timestamp ??
@@ -431,12 +639,15 @@ class SignalBridge {
           "bot:error",
           {
             detail: {
+
               mensaje:
                 "Señal rechazada: datos inválidos"
+
             }
           }
         )
       );
+
 
       return false;
 
@@ -457,6 +668,7 @@ class SignalBridge {
         callback(
           senal
         );
+
 
       } catch (error) {
 
@@ -486,13 +698,17 @@ class SignalBridge {
   }
 
 
+  /* ========================================
+     ESCUCHAR SEÑALES
+     ======================================== */
+
   onSenal(
     callback
   ) {
 
     if (
       typeof callback ===
-      "function"
+        "function"
     ) {
 
       this.listeners.add(
@@ -513,12 +729,20 @@ class SignalBridge {
   }
 
 
+  /* ========================================
+     ÚLTIMA SEÑAL
+     ======================================== */
+
   obtenerUltimaSenal() {
 
     return this.ultimaSenal;
 
   }
 
+
+  /* ========================================
+     ESTADO
+     ======================================== */
 
   estaConectado() {
 
@@ -528,6 +752,10 @@ class SignalBridge {
 
 }
 
+
+/* ==========================================
+   INSTANCIA ÚNICA
+   ========================================== */
 
 export const signalBridge =
   new SignalBridge();
