@@ -1,18 +1,20 @@
 /* ==========================================
    BOT V1 MR
    BOT.CSS
-   FIX9 - COMPARADOR DE TIMING
+   FIX10 - CALIBRADOR MULTIMERCADO
 
-   CONSERVA:
+   CONSERVA FIX9:
    - DISEÑO MÓVIL
    - TARJETAS
    - TABLAS
+   - COMPARADORES
    - RESULTADO FINAL
+   - REGISTRO
 
    AGREGA:
-   - GANADAS VS PERDIDAS
-   - COMPARADOR R_50
-   - COMPARADOR 1HZ75V
+   - SOPORTE VISUAL 1HZ15V
+   - SOPORTE VISUAL 1HZ30V
+   - TABLAS DE 12 MERCADOS
    ========================================== */
 
 * {
@@ -192,6 +194,10 @@ input {
   outline: none;
 }
 
+.dato input::placeholder {
+  color: #60778d;
+}
+
 .dato input:focus {
   border-color: #43d9a3;
 }
@@ -219,6 +225,10 @@ input {
   font-size: 14px;
   font-weight: bold;
   cursor: pointer;
+}
+
+.boton:active {
+  transform: scale(0.98);
 }
 
 .boton:disabled {
@@ -267,7 +277,7 @@ input {
 
 
 /* ==========================================
-   TARJETAS DE CONTENIDO
+   CONTENIDO
    ========================================== */
 
 .ultima-senal,
@@ -331,7 +341,7 @@ input {
 
 
 /* ==========================================
-   COMPARADOR FIX9
+   COMPARADOR FIX10
    ========================================== */
 
 .comparador-grid {
@@ -375,7 +385,7 @@ input {
 
 
 /* ==========================================
-   CONCLUSIÓN TIMING
+   CONCLUSIÓN DEL TIMING
    ========================================== */
 
 .comparador-conclusion {
@@ -408,7 +418,7 @@ input {
 
 
 /* ==========================================
-   TABLAS
+   TABLAS MULTIMERCADO
    ========================================== */
 
 .tabla-wrap {
@@ -450,6 +460,10 @@ input {
   border-bottom: none;
 }
 
+.tabla-estadisticas tbody tr:hover {
+  background: #0a1623;
+}
+
 .tabla-estadisticas td:nth-child(1) {
   font-weight: bold;
   color: #79d8ff;
@@ -473,7 +487,25 @@ input {
 
 
 /* ==========================================
-   SCROLL
+   NUEVOS MERCADOS FIX10
+   ========================================== */
+
+#hz15Pruebas,
+#hz15Ganadas,
+#hz15Perdidas,
+#hz15Accuracy,
+#hz15Latencia,
+#hz30Pruebas,
+#hz30Ganadas,
+#hz30Perdidas,
+#hz30Accuracy,
+#hz30Latencia {
+  font-weight: 600;
+}
+
+
+/* ==========================================
+   SCROLL TABLAS
    ========================================== */
 
 .tabla-wrap::-webkit-scrollbar {
@@ -646,5 +678,5 @@ footer small {
 
 
 /* ==========================================
-   FIN FIX9
+   FIN FIX10
    ========================================== */
