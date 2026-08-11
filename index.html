@@ -11,7 +11,7 @@
   >
 
   <title>
-    BOT V1 MR · FIX7
+    BOT V1 MR · FIX8
   </title>
 
   <link
@@ -44,7 +44,7 @@
         </h1>
 
         <p class="subtitulo">
-          FIX7 · Calibrador de ejecución DEMO
+          FIX8 · Calibrador por mercado
         </p>
 
       </div>
@@ -192,20 +192,15 @@
 
 
       <p class="descripcion">
-
         Conexión autenticada con Deriv.
-
         La cuenta debe verificarse como DEMO
         antes de habilitar cualquier ejecución.
-
       </p>
 
 
       <p class="aviso">
-
         Dinero real bloqueado durante
-        esta fase de calibración.
-
+        esta fase de pruebas.
       </p>
 
 
@@ -274,14 +269,6 @@
         >
 
       </div>
-
-
-      <p class="descripcion">
-
-        El Token PAT se utiliza solamente
-        durante la sesión.
-
-      </p>
 
 
       <div class="botones">
@@ -354,24 +341,7 @@
       </h2>
 
 
-      <p class="descripcion">
-
-        FIX7 conserva el motor de ejecución
-        funcional del FIX6.
-
-      </p>
-
-
-      <p class="aviso">
-
-        Una sola operación DEMO activa
-        al mismo tiempo.
-
-      </p>
-
-
       <div class="datos-grid">
-
 
         <div class="dato">
 
@@ -397,7 +367,6 @@
           </strong>
 
         </div>
-
 
       </div>
 
@@ -428,32 +397,14 @@
 
 
     <!-- ======================================
-         CALIBRADOR FIX7
+         CALIBRADOR GENERAL
          ====================================== -->
 
     <section class="tarjeta">
 
       <h2>
-        Calibrador FIX7
+        Calibrador FIX8
       </h2>
-
-
-      <p class="descripcion">
-
-        Mide el tiempo real entre la señal
-        de Trading Analyzer y la ejecución
-        del BUY en Deriv DEMO.
-
-      </p>
-
-
-      <p class="aviso">
-
-        FIX7 mide el timing.
-        No agrega retrasos artificiales
-        a la operación.
-
-      </p>
 
 
       <div class="datos-grid">
@@ -466,6 +417,19 @@
           </small>
 
           <strong id="calibradorFamilia">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Mercado exacto
+          </small>
+
+          <strong id="calibradorMercado">
             --
           </strong>
 
@@ -540,19 +504,6 @@
         <div class="dato">
 
           <small>
-            Señal → confirmación
-          </small>
-
-          <strong id="calibradorConfirmacion">
-            --
-          </strong>
-
-        </div>
-
-
-        <div class="dato">
-
-          <small>
             Resultado
           </small>
 
@@ -570,104 +521,204 @@
 
 
     <!-- ======================================
-         ESTADÍSTICAS STANDARD
+         TABLA MERCADOS STANDARD
          ====================================== -->
 
     <section class="tarjeta">
 
       <h2>
-        Mercados estándar · R_
+        Estadísticas por mercado · STANDARD
       </h2>
 
 
-      <p class="descripcion">
+      <div class="tabla-wrap">
 
-        Estadísticas independientes para
-        Volatility estándar.
+        <table class="tabla-estadisticas">
 
-      </p>
+          <thead>
 
+            <tr>
 
-      <div class="datos-grid">
+              <th>
+                Mercado
+              </th>
 
+              <th>
+                Pruebas
+              </th>
 
-        <div class="dato">
+              <th>
+                G
+              </th>
 
-          <small>
-            Pruebas
-          </small>
+              <th>
+                P
+              </th>
 
-          <strong id="standardPruebas">
-            0
-          </strong>
+              <th>
+                Acierto
+              </th>
 
-        </div>
+              <th>
+                Señal→BUY
+              </th>
 
+            </tr>
 
-        <div class="dato">
-
-          <small>
-            Ganadas
-          </small>
-
-          <strong id="standardGanadas">
-            0
-          </strong>
-
-        </div>
-
-
-        <div class="dato">
-
-          <small>
-            Perdidas
-          </small>
-
-          <strong id="standardPerdidas">
-            0
-          </strong>
-
-        </div>
+          </thead>
 
 
-        <div class="dato">
-
-          <small>
-            Acierto
-          </small>
-
-          <strong id="standardAccuracy">
-            --
-          </strong>
-
-        </div>
+          <tbody>
 
 
-        <div class="dato">
+            <tr>
 
-          <small>
-            Promedio señal → BUY
-          </small>
+              <td>
+                R_10
+              </td>
 
-          <strong id="standardLatencia">
-            --
-          </strong>
+              <td id="r10Pruebas">
+                0
+              </td>
 
-        </div>
+              <td id="r10Ganadas">
+                0
+              </td>
+
+              <td id="r10Perdidas">
+                0
+              </td>
+
+              <td id="r10Accuracy">
+                --
+              </td>
+
+              <td id="r10Latencia">
+                --
+              </td>
+
+            </tr>
 
 
-        <div class="dato">
+            <tr>
 
-          <small>
-            Referencia probada
-          </small>
+              <td>
+                R_25
+              </td>
 
-          <strong>
-            10 · 0.0 s
-          </strong>
+              <td id="r25Pruebas">
+                0
+              </td>
 
-        </div>
+              <td id="r25Ganadas">
+                0
+              </td>
 
+              <td id="r25Perdidas">
+                0
+              </td>
+
+              <td id="r25Accuracy">
+                --
+              </td>
+
+              <td id="r25Latencia">
+                --
+              </td>
+
+            </tr>
+
+
+            <tr>
+
+              <td>
+                R_50
+              </td>
+
+              <td id="r50Pruebas">
+                0
+              </td>
+
+              <td id="r50Ganadas">
+                0
+              </td>
+
+              <td id="r50Perdidas">
+                0
+              </td>
+
+              <td id="r50Accuracy">
+                --
+              </td>
+
+              <td id="r50Latencia">
+                --
+              </td>
+
+            </tr>
+
+
+            <tr>
+
+              <td>
+                R_75
+              </td>
+
+              <td id="r75Pruebas">
+                0
+              </td>
+
+              <td id="r75Ganadas">
+                0
+              </td>
+
+              <td id="r75Perdidas">
+                0
+              </td>
+
+              <td id="r75Accuracy">
+                --
+              </td>
+
+              <td id="r75Latencia">
+                --
+              </td>
+
+            </tr>
+
+
+            <tr>
+
+              <td>
+                R_100
+              </td>
+
+              <td id="r100Pruebas">
+                0
+              </td>
+
+              <td id="r100Ganadas">
+                0
+              </td>
+
+              <td id="r100Perdidas">
+                0
+              </td>
+
+              <td id="r100Accuracy">
+                --
+              </td>
+
+              <td id="r100Latencia">
+                --
+              </td>
+
+            </tr>
+
+
+          </tbody>
+
+        </table>
 
       </div>
 
@@ -676,136 +727,206 @@
 
 
     <!-- ======================================
-         ESTADÍSTICAS 1S
+         TABLA MERCADOS 1S
          ====================================== -->
 
     <section class="tarjeta">
 
       <h2>
-        Mercados 1 segundo · 1HZ
+        Estadísticas por mercado · 1S
       </h2>
 
 
-      <p class="descripcion">
+      <div class="tabla-wrap">
 
-        Estadísticas independientes para
-        Volatility 1s.
+        <table class="tabla-estadisticas">
 
-      </p>
+          <thead>
 
+            <tr>
 
-      <div class="datos-grid">
+              <th>
+                Mercado
+              </th>
 
+              <th>
+                Pruebas
+              </th>
 
-        <div class="dato">
+              <th>
+                G
+              </th>
 
-          <small>
-            Pruebas
-          </small>
+              <th>
+                P
+              </th>
 
-          <strong id="oneSecondPruebas">
-            0
-          </strong>
+              <th>
+                Acierto
+              </th>
 
-        </div>
+              <th>
+                Señal→BUY
+              </th>
 
+            </tr>
 
-        <div class="dato">
-
-          <small>
-            Ganadas
-          </small>
-
-          <strong id="oneSecondGanadas">
-            0
-          </strong>
-
-        </div>
-
-
-        <div class="dato">
-
-          <small>
-            Perdidas
-          </small>
-
-          <strong id="oneSecondPerdidas">
-            0
-          </strong>
-
-        </div>
+          </thead>
 
 
-        <div class="dato">
-
-          <small>
-            Acierto
-          </small>
-
-          <strong id="oneSecondAccuracy">
-            --
-          </strong>
-
-        </div>
+          <tbody>
 
 
-        <div class="dato">
+            <tr>
 
-          <small>
-            Promedio señal → BUY
-          </small>
+              <td>
+                1HZ10V
+              </td>
 
-          <strong id="oneSecondLatencia">
-            --
-          </strong>
+              <td id="hz10Pruebas">
+                0
+              </td>
 
-        </div>
+              <td id="hz10Ganadas">
+                0
+              </td>
+
+              <td id="hz10Perdidas">
+                0
+              </td>
+
+              <td id="hz10Accuracy">
+                --
+              </td>
+
+              <td id="hz10Latencia">
+                --
+              </td>
+
+            </tr>
 
 
-        <div class="dato">
+            <tr>
 
-          <small>
-            Referencia probada
-          </small>
+              <td>
+                1HZ25V
+              </td>
 
-          <strong>
-            10 · 0.1 s
-          </strong>
+              <td id="hz25Pruebas">
+                0
+              </td>
 
-        </div>
+              <td id="hz25Ganadas">
+                0
+              </td>
 
+              <td id="hz25Perdidas">
+                0
+              </td>
+
+              <td id="hz25Accuracy">
+                --
+              </td>
+
+              <td id="hz25Latencia">
+                --
+              </td>
+
+            </tr>
+
+
+            <tr>
+
+              <td>
+                1HZ50V
+              </td>
+
+              <td id="hz50Pruebas">
+                0
+              </td>
+
+              <td id="hz50Ganadas">
+                0
+              </td>
+
+              <td id="hz50Perdidas">
+                0
+              </td>
+
+              <td id="hz50Accuracy">
+                --
+              </td>
+
+              <td id="hz50Latencia">
+                --
+              </td>
+
+            </tr>
+
+
+            <tr>
+
+              <td>
+                1HZ75V
+              </td>
+
+              <td id="hz75Pruebas">
+                0
+              </td>
+
+              <td id="hz75Ganadas">
+                0
+              </td>
+
+              <td id="hz75Perdidas">
+                0
+              </td>
+
+              <td id="hz75Accuracy">
+                --
+              </td>
+
+              <td id="hz75Latencia">
+                --
+              </td>
+
+            </tr>
+
+
+            <tr>
+
+              <td>
+                1HZ100V
+              </td>
+
+              <td id="hz100Pruebas">
+                0
+              </td>
+
+              <td id="hz100Ganadas">
+                0
+              </td>
+
+              <td id="hz100Perdidas">
+                0
+              </td>
+
+              <td id="hz100Accuracy">
+                --
+              </td>
+
+              <td id="hz100Latencia">
+                --
+              </td>
+
+            </tr>
+
+
+          </tbody>
+
+        </table>
 
       </div>
-
-    </section>
-
-
-
-    <!-- ======================================
-         PRUEBA INTERNA
-         ====================================== -->
-
-    <section class="tarjeta">
-
-      <h2>
-        Modo de prueba
-      </h2>
-
-
-      <p class="descripcion">
-
-        Genera una señal interna únicamente
-        para comprobar el flujo técnico.
-
-      </p>
-
-
-      <button
-        id="botonProbar"
-        class="boton probar"
-      >
-        PROBAR SEÑAL DEMO
-      </button>
 
     </section>
 
@@ -878,7 +999,7 @@
 
 
     <!-- ======================================
-         OPERACIÓN
+         OPERACIÓN DEMO
          ====================================== -->
 
     <section class="tarjeta">
@@ -900,7 +1021,7 @@
 
 
     <!-- ======================================
-         RESULTADO
+         RESULTADO FINAL
          ====================================== -->
 
     <section class="tarjeta">
@@ -914,8 +1035,34 @@
         id="resultadoDemo"
         class="operacion-demo"
       >
-        Esperando una operación...
+
+        <strong>
+          Esperando una operación...
+        </strong>
+
       </div>
+
+    </section>
+
+
+
+    <!-- ======================================
+         PRUEBA INTERNA
+         ====================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Modo de prueba
+      </h2>
+
+
+      <button
+        id="botonProbar"
+        class="boton probar"
+      >
+        PROBAR SEÑAL DEMO
+      </button>
 
     </section>
 
@@ -938,7 +1085,7 @@
       >
 
         <p>
-          BOT V1 MR FIX7 preparado.
+          BOT V1 MR FIX8 preparado.
         </p>
 
       </div>
@@ -954,16 +1101,15 @@
     <footer>
 
       <p>
-        BOT V1 MR · FIX7
+        BOT V1 MR · FIX8
       </p>
 
       <small>
         Trading Analyzer
-        → Señal
-        → Calibración
         → BOT
         → Deriv DEMO
         → Resultado
+        → Estadísticas por mercado
       </small>
 
     </footer>
