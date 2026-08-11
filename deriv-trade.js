@@ -1,21 +1,25 @@
 /* ==========================================
    BOT V1 MR
-   DERIV TRADE V5 - SOLO DEMO
+   DERIV TRADE FIX6
+   SOLO CUENTA DEMO
 
-   BUY + CIERRE ROBUSTO
+   FLUJO PRINCIPAL:
 
-   Vías de seguimiento:
-   1) transaction (stream de cuenta)
-   2) proposal_open_contract suscrito
-   3) proposal_open_contract por consulta
-   4) profit_table como respaldo final
+   BUY
+   -> CONTRACT ID
+   -> PORTFOLIO
+   -> PROFIT TABLE
+   -> GANADA / PERDIDA
+   -> PROFIT FINAL
+
+   RESPALDOS:
+   -> proposal_open_contract
+   -> transaction
 
    IMPORTANTE:
-   - Cuenta DEMO verificada obligatoria
-   - Ejecución apagada por defecto
-   - 1 operación a la vez
-   - Sin martingala
-   - Sin cuenta real
+   - SOLO DEMO
+   - 1 OPERACIÓN A LA VEZ
+   - SIN MARTINGALA
    ========================================== */
 
 import {
@@ -27,7 +31,8 @@ class DerivTrade {
 
   constructor() {
 
-    this.reqId = 6000;
+    this.reqId =
+      7000;
 
     this.pendientes =
       new Map();
@@ -44,24 +49,11 @@ class DerivTrade {
     this.ultimoResultado =
       null;
 
-    /*
-      Stream global de transacciones.
-      Se activa antes de comprar para no
-      perder el cierre de contratos de 1 tick.
-    */
     this.transactionSubscriptionId =
       null;
 
     this.transactionStreamSolicitado =
       false;
-
-    /*
-      Guarda temporalmente eventos SELL que
-      podrían llegar antes de que BUY termine
-      de crear operacionActiva.
-    */
-    this.transaccionesRecientes =
-      new Map();
 
 
     derivConnection.on(
@@ -78,10 +70,13 @@ class DerivTrade {
 
     derivConnection.on(
       "state",
-      ({ estado }) => {
+      ({
+        estado
+      }) => {
 
         if (
-          estado !== "connected"
+          estado !==
+            "connected"
         ) {
 
           this.transactionSubscriptionId =
@@ -90,7 +85,6 @@ class DerivTrade {
           this.transactionStreamSolicitado =
             false;
 
-          this.transaccionesRecientes.clear();
 
           this.interrumpirSeguimientos(
             "Conexión Deriv cerrada."
@@ -104,25 +98,39 @@ class DerivTrade {
   }
 
 
+  /* ========================================
+     REQ ID
+     ======================================== */
+
   siguienteReqId() {
 
-    this.reqId += 1;
+    this.reqId +=
+      1;
 
     return this.reqId;
 
   }
 
 
+  /* ========================================
+     ACTIVAR EJECUCIÓN DEMO
+     ======================================== */
+
   activar() {
 
     const estado =
-      derivConnection.obtenerEstado();
+      derivConnection
+        .obtenerEstado();
 
 
-    if (!estado.connected) {
+    if (
+      !estado.connected
+    ) {
 
       return {
-        ok: false,
+        ok:
+          false,
+
         mensaje:
           "Conecte Deriv DEMO antes de activar la ejecución."
       };
@@ -130,10 +138,14 @@ class DerivTrade {
     }
 
 
-    if (!estado.demoVerified) {
+    if (
+      !estado.demoVerified
+    ) {
 
       return {
-        ok: false,
+        ok:
+          false,
+
         mensaje:
           "La cuenta no está verificada como DEMO."
       };
@@ -146,20 +158,27 @@ class DerivTrade {
 
 
     /*
-      Se solicita el stream al activar para
-      tenerlo listo antes del BUY.
+      Dejamos preparado el stream
+      de transacciones como respaldo.
     */
+
     this.asegurarTransactionStream();
 
 
     return {
-      ok: true,
+      ok:
+        true,
+
       mensaje:
         "Ejecución DEMO activada."
     };
 
   }
 
+
+  /* ========================================
+     DESACTIVAR
+     ======================================== */
 
   desactivar() {
 
@@ -168,7 +187,9 @@ class DerivTrade {
 
 
     return {
-      ok: true,
+      ok:
+        true,
+
       mensaje:
         "Ejecución DEMO desactivada."
     };
@@ -176,16 +197,25 @@ class DerivTrade {
   }
 
 
+  /* ========================================
+     VALIDAR COMPRA
+     ======================================== */
+
   puedeComprar() {
 
     const estado =
-      derivConnection.obtenerEstado();
+      derivConnection
+        .obtenerEstado();
 
 
-    if (!this.ejecucionActiva) {
+    if (
+      !this.ejecucionActiva
+    ) {
 
       return {
-        ok: false,
+        ok:
+          false,
+
         motivo:
           "Ejecución DEMO desactivada."
       };
@@ -193,10 +223,14 @@ class DerivTrade {
     }
 
 
-    if (!estado.connected) {
+    if (
+      !estado.connected
+    ) {
 
       return {
-        ok: false,
+        ok:
+          false,
+
         motivo:
           "Deriv DEMO no está conectado."
       };
@@ -204,10 +238,14 @@ class DerivTrade {
     }
 
 
-    if (!estado.demoVerified) {
+    if (
+      !estado.demoVerified
+    ) {
 
       return {
-        ok: false,
+        ok:
+          false,
+
         motivo:
           "Cuenta no verificada como DEMO."
       };
@@ -215,10 +253,14 @@ class DerivTrade {
     }
 
 
-    if (this.operacionActiva) {
+    if (
+      this.operacionActiva
+    ) {
 
       return {
-        ok: false,
+        ok:
+          false,
+
         motivo:
           "Ya existe una operación DEMO activa."
       };
@@ -227,67 +269,16 @@ class DerivTrade {
 
 
     return {
-      ok: true
+      ok:
+        true
     };
 
   }
 
 
-  asegurarTransactionStream() {
-
-    if (
-      this.transactionStreamSolicitado ||
-      this.transactionSubscriptionId
-    ) {
-
-      return {
-        ok: true
-      };
-
-    }
-
-
-    const estado =
-      derivConnection.obtenerEstado();
-
-
-    if (!estado.connected) {
-
-      return {
-        ok: false,
-        mensaje:
-          "Deriv DEMO no está conectado."
-      };
-
-    }
-
-
-    this.transactionStreamSolicitado =
-      true;
-
-
-    const envio =
-      derivConnection.enviar({
-        transaction:
-          1,
-
-        subscribe:
-          1
-      });
-
-
-    if (!envio.ok) {
-
-      this.transactionStreamSolicitado =
-        false;
-
-    }
-
-
-    return envio;
-
-  }
-
+  /* ========================================
+     PROCESAR MENSAJES WEBSOCKET
+     ======================================== */
 
   procesarMensaje(
     datos
@@ -295,7 +286,8 @@ class DerivTrade {
 
     if (
       !datos ||
-      typeof datos !== "object"
+      typeof datos !==
+        "object"
     ) {
 
       return;
@@ -307,9 +299,9 @@ class DerivTrade {
       datos.req_id;
 
 
-    /*
-      RESPUESTAS A PETICIONES INDIVIDUALES
-    */
+    /* --------------------------------------
+       RESPUESTA A SOLICITUD
+       -------------------------------------- */
 
     if (
       reqId &&
@@ -334,10 +326,14 @@ class DerivTrade {
       );
 
 
-      if (datos.error) {
+      if (
+        datos.error
+      ) {
 
         pendiente.resolve({
-          ok: false,
+
+          ok:
+            false,
 
           error:
             datos.error.message ||
@@ -347,13 +343,18 @@ class DerivTrade {
           code:
             datos.error.code ??
             null
+
         });
 
       } else {
 
         pendiente.resolve({
-          ok: true,
+
+          ok:
+            true,
+
           datos
+
         });
 
       }
@@ -361,9 +362,9 @@ class DerivTrade {
     }
 
 
-    /*
-      STREAM DE TRANSACCIONES DE CUENTA
-    */
+    /* --------------------------------------
+       RESPALDO TRANSACTION
+       -------------------------------------- */
 
     if (
       datos.transaction
@@ -390,15 +391,17 @@ class DerivTrade {
     }
 
 
-    /*
-      ACTUALIZACIÓN DEL CONTRATO
-    */
+    /* --------------------------------------
+       RESPALDO PROPOSAL OPEN CONTRACT
+       -------------------------------------- */
 
     const contrato =
       datos.proposal_open_contract;
 
 
-    if (!contrato) {
+    if (
+      !contrato
+    ) {
 
       return;
 
@@ -430,17 +433,6 @@ class DerivTrade {
       );
 
 
-    if (
-      datos.subscription?.id &&
-      !seguimiento.subscriptionId
-    ) {
-
-      seguimiento.subscriptionId =
-        datos.subscription.id;
-
-    }
-
-
     seguimiento.ultimoContrato =
       contrato;
 
@@ -467,6 +459,10 @@ class DerivTrade {
   }
 
 
+  /* ========================================
+     PROCESAR TRANSACTION
+     ======================================== */
+
   procesarTransaccion(
     transaccion
   ) {
@@ -478,7 +474,12 @@ class DerivTrade {
       );
 
 
-    if (!contractId) {
+    if (
+      !contractId ||
+      !this.seguimientos.has(
+        contractId
+      )
+    ) {
 
       return;
 
@@ -496,11 +497,7 @@ class DerivTrade {
         .toLowerCase();
 
 
-    /*
-      Un BUY no cierra la operación.
-      Buscamos la transacción de salida/venta.
-    */
-    const pareceCierre =
+    const esCierre =
       [
         "sell",
         "sold",
@@ -518,65 +515,26 @@ class DerivTrade {
       );
 
 
-    if (!pareceCierre) {
+    if (
+      !esCierre
+    ) {
 
       return;
 
     }
 
 
-    /*
-      Guardamos el evento por si llegó
-      antes de que se creara el seguimiento.
-    */
-    this.transaccionesRecientes.set(
+    this.finalizarDesdeTransaccion(
       contractId,
-      {
-        transaccion,
-        receivedAt:
-          Date.now()
-      }
+      transaccion
     );
-
-
-    /*
-      Limitar memoria.
-    */
-    for (
-      const [id, item]
-      of this.transaccionesRecientes
-    ) {
-
-      if (
-        Date.now() -
-        item.receivedAt >
-        120000
-      ) {
-
-        this.transaccionesRecientes.delete(
-          id
-        );
-
-      }
-
-    }
-
-
-    if (
-      this.seguimientos.has(
-        contractId
-      )
-    ) {
-
-      this.finalizarDesdeTransaccion(
-        contractId,
-        transaccion
-      );
-
-    }
 
   }
 
+
+  /* ========================================
+     ACTUALIZACIÓN VISUAL
+     ======================================== */
 
   notificarActualizacion(
     seguimiento,
@@ -601,6 +559,10 @@ class DerivTrade {
   }
 
 
+  /* ========================================
+     DETECTAR CONTRATO CERRADO
+     ======================================== */
+
   estaCerrado(
     contrato
   ) {
@@ -615,16 +577,23 @@ class DerivTrade {
 
 
     return (
+
       Number(
         contrato?.is_sold ??
         0
       ) === 1 ||
-      contrato?.is_sold === true ||
+
+      contrato?.is_sold ===
+        true ||
+
       Number(
         contrato?.is_expired ??
         0
       ) === 1 ||
-      contrato?.is_expired === true ||
+
+      contrato?.is_expired ===
+        true ||
+
       [
         "won",
         "lost",
@@ -635,10 +604,15 @@ class DerivTrade {
       ].includes(
         status
       )
+
     );
 
   }
 
+
+  /* ========================================
+     SOLICITUD GENÉRICA
+     ======================================== */
 
   solicitar(
     payload,
@@ -650,9 +624,12 @@ class DerivTrade {
 
 
     const solicitud = {
+
       ...payload,
+
       req_id:
         reqId
+
     };
 
 
@@ -669,10 +646,13 @@ class DerivTrade {
 
 
               resolve({
-                ok: false,
+
+                ok:
+                  false,
 
                 error:
                   "Deriv no respondió dentro del tiempo esperado."
+
               });
 
             },
@@ -695,7 +675,9 @@ class DerivTrade {
           );
 
 
-        if (!envio.ok) {
+        if (
+          !envio.ok
+        ) {
 
           clearTimeout(
             timeout
@@ -708,10 +690,13 @@ class DerivTrade {
 
 
           resolve({
-            ok: false,
+
+            ok:
+              false,
 
             error:
               envio.mensaje
+
           });
 
         }
@@ -722,6 +707,69 @@ class DerivTrade {
   }
 
 
+  /* ========================================
+     TRANSACTION STREAM
+     RESPALDO
+     ======================================== */
+
+  asegurarTransactionStream() {
+
+    if (
+      this.transactionStreamSolicitado ||
+      this.transactionSubscriptionId
+    ) {
+
+      return;
+
+    }
+
+
+    const estado =
+      derivConnection
+        .obtenerEstado();
+
+
+    if (
+      !estado.connected
+    ) {
+
+      return;
+
+    }
+
+
+    this.transactionStreamSolicitado =
+      true;
+
+
+    const envio =
+      derivConnection.enviar({
+
+        transaction:
+          1,
+
+        subscribe:
+          1
+
+      });
+
+
+    if (
+      !envio.ok
+    ) {
+
+      this.transactionStreamSolicitado =
+        false;
+
+    }
+
+  }
+
+
+  /* ========================================
+     BUY DEMO
+     ======================================== */
+
   async comprar(
     propuestaDeriv
   ) {
@@ -730,13 +778,18 @@ class DerivTrade {
       this.puedeComprar();
 
 
-    if (!permiso.ok) {
+    if (
+      !permiso.ok
+    ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
 
         error:
           permiso.motivo
+
       };
 
     }
@@ -748,10 +801,13 @@ class DerivTrade {
     ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
 
         error:
           "No existe una propuesta Deriv válida para comprar."
+
       };
 
     }
@@ -771,25 +827,29 @@ class DerivTrade {
     ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
 
         error:
           "Precio de propuesta inválido."
+
       };
 
     }
 
 
     /*
-      CRÍTICO PARA CONTRATOS DE 1 TICK:
-      activar stream ANTES del BUY.
+      Preparar stream antes del BUY.
     */
+
     this.asegurarTransactionStream();
 
 
     const respuesta =
       await this.solicitar(
         {
+
           buy:
             String(
               propuestaDeriv.id
@@ -797,11 +857,14 @@ class DerivTrade {
 
           price:
             precio
+
         }
       );
 
 
-    if (!respuesta.ok) {
+    if (
+      !respuesta.ok
+    ) {
 
       return respuesta;
 
@@ -812,13 +875,18 @@ class DerivTrade {
       respuesta.datos?.buy;
 
 
-    if (!compra?.contract_id) {
+    if (
+      !compra?.contract_id
+    ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
 
         error:
           "Deriv respondió sin contract_id."
+
       };
 
     }
@@ -862,16 +930,24 @@ class DerivTrade {
 
 
     return {
-      ok: true,
+
+      ok:
+        true,
 
       compra:
         {
           ...this.operacionActiva
         }
+
     };
 
   }
 
+
+  /* ========================================
+     NORMALIZAR RESULTADO
+     PROPOSAL OPEN CONTRACT
+     ======================================== */
 
   normalizarResultadoContrato(
     contrato
@@ -896,16 +972,14 @@ class DerivTrade {
       Number(
         contrato?.sell_price ??
         (
-          Number.isFinite(
-            buyPrice + profit
-          )
-            ? buyPrice + profit
-            : 0
+          buyPrice +
+          profit
         )
       );
 
 
     return {
+
       contractId:
         String(
           contrato?.contract_id ??
@@ -935,10 +1009,16 @@ class DerivTrade {
 
       raw:
         contrato
+
     };
 
   }
 
+
+  /* ========================================
+     NORMALIZAR RESULTADO
+     TRANSACTION
+     ======================================== */
 
   normalizarResultadoTransaccion(
     transaccion
@@ -951,7 +1031,7 @@ class DerivTrade {
       );
 
 
-    let sellPrice =
+    const sellPrice =
       Number(
         transaccion?.sell_price ??
         transaccion?.amount ??
@@ -960,19 +1040,6 @@ class DerivTrade {
       );
 
 
-    if (!Number.isFinite(sellPrice)) {
-
-      sellPrice = 0;
-
-    }
-
-
-    /*
-      En una transacción SELL el amount
-      normalmente representa el abono de
-      cierre. Si existe profit explícito
-      se usa como fuente principal.
-    */
     let profit =
       Number(
         transaccion?.profit ??
@@ -980,7 +1047,11 @@ class DerivTrade {
       );
 
 
-    if (!Number.isFinite(profit)) {
+    if (
+      !Number.isFinite(
+        profit
+      )
+    ) {
 
       profit =
         sellPrice -
@@ -990,6 +1061,7 @@ class DerivTrade {
 
 
     return {
+
       contractId:
         String(
           transaccion?.contract_id ??
@@ -1016,19 +1088,24 @@ class DerivTrade {
 
       raw:
         transaccion
+
     };
 
   }
 
 
+  /* ========================================
+     NORMALIZAR PROFIT TABLE
+     ======================================== */
+
   normalizarResultadoProfitTable(
-    transaccion
+    item
   ) {
 
     const buyPrice =
       Math.abs(
         Number(
-          transaccion?.buy_price ??
+          item?.buy_price ??
           this.operacionActiva?.buyPrice ??
           0
         )
@@ -1037,20 +1114,24 @@ class DerivTrade {
 
     const sellPrice =
       Number(
-        transaccion?.sell_price ??
-        transaccion?.payout ??
+        item?.sell_price ??
+        item?.payout ??
         0
       );
 
 
     let profit =
       Number(
-        transaccion?.profit ??
+        item?.profit ??
         NaN
       );
 
 
-    if (!Number.isFinite(profit)) {
+    if (
+      !Number.isFinite(
+        profit
+      )
+    ) {
 
       profit =
         sellPrice -
@@ -1060,9 +1141,10 @@ class DerivTrade {
 
 
     return {
+
       contractId:
         String(
-          transaccion?.contract_id ??
+          item?.contract_id ??
           this.operacionActiva?.contractId ??
           ""
         ),
@@ -1085,314 +1167,16 @@ class DerivTrade {
         "profit_table",
 
       raw:
-        transaccion
+        item
+
     };
 
   }
 
 
-  limpiarSeguimiento(
-    contractId
-  ) {
-
-    const seguimiento =
-      this.seguimientos.get(
-        contractId
-      );
-
-
-    if (!seguimiento) {
-
-      return null;
-
-    }
-
-
-    this.seguimientos.delete(
-      contractId
-    );
-
-
-    clearTimeout(
-      seguimiento.timeout
-    );
-
-
-    clearInterval(
-      seguimiento.openPollTimer
-    );
-
-
-    clearInterval(
-      seguimiento.profitPollTimer
-    );
-
-
-    clearInterval(
-      seguimiento.timer
-    );
-
-
-    if (
-      seguimiento.subscriptionId
-    ) {
-
-      derivConnection.enviar({
-        forget:
-          seguimiento.subscriptionId
-      });
-
-    }
-
-
-    return seguimiento;
-
-  }
-
-
-  finalizar(
-    contractId,
-    resultado
-  ) {
-
-    const seguimiento =
-      this.limpiarSeguimiento(
-        contractId
-      );
-
-
-    if (!seguimiento) {
-
-      return;
-
-    }
-
-
-    this.transaccionesRecientes.delete(
-      contractId
-    );
-
-
-    this.ultimoResultado =
-      resultado;
-
-
-    this.operacionActiva =
-      null;
-
-
-    seguimiento.resolve({
-      ok: true,
-      resultado
-    });
-
-  }
-
-
-  finalizarDesdeContrato(
-    contractId,
-    contrato
-  ) {
-
-    this.finalizar(
-      contractId,
-      this.normalizarResultadoContrato(
-        contrato
-      )
-    );
-
-  }
-
-
-  finalizarDesdeTransaccion(
-    contractId,
-    transaccion
-  ) {
-
-    this.finalizar(
-      contractId,
-      this.normalizarResultadoTransaccion(
-        transaccion
-      )
-    );
-
-  }
-
-
-  finalizarDesdeProfitTable(
-    contractId,
-    transaccion
-  ) {
-
-    this.finalizar(
-      contractId,
-      this.normalizarResultadoProfitTable(
-        transaccion
-      )
-    );
-
-  }
-
-
-  interrumpirSeguimientos(
-    motivo
-  ) {
-
-    for (
-      const contractId
-      of Array.from(
-        this.seguimientos.keys()
-      )
-    ) {
-
-      const seguimiento =
-        this.limpiarSeguimiento(
-          contractId
-        );
-
-
-      if (seguimiento) {
-
-        seguimiento.resolve({
-          ok: false,
-
-          error:
-            motivo ||
-            "Seguimiento interrumpido.",
-
-          contractId
-        });
-
-      }
-
-    }
-
-
-    this.operacionActiva =
-      null;
-
-  }
-
-
-  async consultarContrato(
-    contractId
-  ) {
-
-    return this.solicitar(
-      {
-        proposal_open_contract:
-          1,
-
-        contract_id:
-          Number.isFinite(
-            Number(
-              contractId
-            )
-          )
-            ? Number(
-                contractId
-              )
-            : contractId
-      },
-      7000
-    );
-
-  }
-
-
-  extraerProfitTable(
-    datos
-  ) {
-
-    if (
-      Array.isArray(
-        datos?.profit_table?.transactions
-      )
-    ) {
-
-      return datos.profit_table.transactions;
-
-    }
-
-
-    if (
-      Array.isArray(
-        datos?.profit_table
-      )
-    ) {
-
-      return datos.profit_table;
-
-    }
-
-
-    return [];
-
-  }
-
-
-  async consultarProfitTable(
-    contractId
-  ) {
-
-    const respuesta =
-      await this.solicitar(
-        {
-          profit_table:
-            1,
-
-          description:
-            1,
-
-          limit:
-            50,
-
-          sort:
-            "DESC"
-        },
-        7000
-      );
-
-
-    if (!respuesta.ok) {
-
-      return respuesta;
-
-    }
-
-
-    const lista =
-      this.extraerProfitTable(
-        respuesta.datos
-      );
-
-
-    const buscado =
-      String(
-        contractId
-      );
-
-
-    const encontrada =
-      lista.find(
-        (item) =>
-          String(
-            item?.contract_id ??
-            ""
-          ) === buscado
-      );
-
-
-    return {
-      ok: true,
-
-      encontrada:
-        encontrada ??
-        null
-    };
-
-  }
-
+  /* ========================================
+     CONSULTAR PORTFOLIO
+     ======================================== */
 
   async consultarPortfolio() {
 
@@ -1406,7 +1190,9 @@ class DerivTrade {
       );
 
 
-    if (!respuesta.ok) {
+    if (
+      !respuesta.ok
+    ) {
 
       return respuesta;
 
@@ -1426,12 +1212,20 @@ class DerivTrade {
 
 
     return {
-      ok: true,
+
+      ok:
+        true,
+
       contratos
+
     };
 
   }
 
+
+  /* ========================================
+     BUSCAR EN PORTFOLIO
+     ======================================== */
 
   buscarContratoEnPortfolio(
     contratos,
@@ -1444,18 +1238,357 @@ class DerivTrade {
       );
 
 
-    return contratos.find(
-      (item) =>
-        String(
-          item?.contract_id ??
-          ""
-        ) === buscado
-    ) ?? null;
+    return (
+      contratos.find(
+        (item) =>
+
+          String(
+            item?.contract_id ??
+            ""
+          ) === buscado
+
+      ) ??
+      null
+    );
 
   }
 
 
+  /* ========================================
+     CONSULTAR PROFIT TABLE
+     ======================================== */
 
+  async consultarProfitTable(
+    contractId
+  ) {
+
+    const respuesta =
+      await this.solicitar(
+        {
+
+          profit_table:
+            1,
+
+          description:
+            1,
+
+          limit:
+            100,
+
+          offset:
+            0,
+
+          sort:
+            "DESC"
+
+        },
+        8000
+      );
+
+
+    if (
+      !respuesta.ok
+    ) {
+
+      return respuesta;
+
+    }
+
+
+    const lista =
+      Array.isArray(
+        respuesta.datos
+          ?.profit_table
+          ?.transactions
+      )
+        ? respuesta.datos
+            .profit_table
+            .transactions
+        : [];
+
+
+    const buscado =
+      String(
+        contractId
+      );
+
+
+    const encontrada =
+      lista.find(
+        (item) =>
+
+          String(
+            item?.contract_id ??
+            ""
+          ) === buscado
+
+      ) ??
+      null;
+
+
+    return {
+
+      ok:
+        true,
+
+      encontrada,
+
+      lista
+
+    };
+
+  }
+
+
+  /* ========================================
+     CONSULTAR OPEN CONTRACT
+     RESPALDO
+     ======================================== */
+
+  async consultarContrato(
+    contractId
+  ) {
+
+    return this.solicitar(
+      {
+
+        proposal_open_contract:
+          1,
+
+        contract_id:
+          Number.isFinite(
+            Number(
+              contractId
+            )
+          )
+            ? Number(
+                contractId
+              )
+            : contractId
+
+      },
+      8000
+    );
+
+  }
+
+
+  /* ========================================
+     LIMPIAR SEGUIMIENTO
+     ======================================== */
+
+  limpiarSeguimiento(
+    contractId
+  ) {
+
+    const seguimiento =
+      this.seguimientos.get(
+        contractId
+      );
+
+
+    if (
+      !seguimiento
+    ) {
+
+      return null;
+
+    }
+
+
+    this.seguimientos.delete(
+      contractId
+    );
+
+
+    clearTimeout(
+      seguimiento.timeout
+    );
+
+
+    clearInterval(
+      seguimiento.timer
+    );
+
+
+    if (
+      seguimiento.subscriptionId
+    ) {
+
+      derivConnection.enviar({
+
+        forget:
+          seguimiento.subscriptionId
+
+      });
+
+    }
+
+
+    return seguimiento;
+
+  }
+
+
+  /* ========================================
+     FINALIZAR
+     ======================================== */
+
+  finalizar(
+    contractId,
+    resultado
+  ) {
+
+    const seguimiento =
+      this.limpiarSeguimiento(
+        contractId
+      );
+
+
+    if (
+      !seguimiento
+    ) {
+
+      return;
+
+    }
+
+
+    this.ultimoResultado =
+      resultado;
+
+
+    this.operacionActiva =
+      null;
+
+
+    seguimiento.resolve({
+
+      ok:
+        true,
+
+      resultado
+
+    });
+
+  }
+
+
+  /* ========================================
+     FINALIZAR DESDE CONTRATO
+     ======================================== */
+
+  finalizarDesdeContrato(
+    contractId,
+    contrato
+  ) {
+
+    this.finalizar(
+      contractId,
+      this.normalizarResultadoContrato(
+        contrato
+      )
+    );
+
+  }
+
+
+  /* ========================================
+     FINALIZAR DESDE TRANSACTION
+     ======================================== */
+
+  finalizarDesdeTransaccion(
+    contractId,
+    transaccion
+  ) {
+
+    this.finalizar(
+      contractId,
+      this.normalizarResultadoTransaccion(
+        transaccion
+      )
+    );
+
+  }
+
+
+  /* ========================================
+     FINALIZAR DESDE PROFIT TABLE
+     ======================================== */
+
+  finalizarDesdeProfitTable(
+    contractId,
+    item
+  ) {
+
+    this.finalizar(
+      contractId,
+      this.normalizarResultadoProfitTable(
+        item
+      )
+    );
+
+  }
+
+
+  /* ========================================
+     INTERRUMPIR SEGUIMIENTOS
+     ======================================== */
+
+  interrumpirSeguimientos(
+    motivo
+  ) {
+
+    for (
+      const contractId
+      of Array.from(
+        this.seguimientos.keys()
+      )
+    ) {
+
+      const seguimiento =
+        this.limpiarSeguimiento(
+          contractId
+        );
+
+
+      if (
+        seguimiento
+      ) {
+
+        seguimiento.resolve({
+
+          ok:
+            false,
+
+          error:
+            motivo ||
+            "Seguimiento interrumpido.",
+
+          contractId
+
+        });
+
+      }
+
+    }
+
+
+    this.operacionActiva =
+      null;
+
+  }
+
+
+  /* ========================================
+     ESPERAR RESULTADO FIX6
+
+     FUENTE PRINCIPAL:
+
+     PORTFOLIO
+     +
+     PROFIT TABLE
+     ======================================== */
 
   async esperarResultado(
     contractId,
@@ -1472,12 +1605,18 @@ class DerivTrade {
       );
 
 
-    if (!id) {
+    if (
+      !id
+    ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
+
         error:
           "Falta contract_id para seguimiento."
+
       };
 
     }
@@ -1490,9 +1629,13 @@ class DerivTrade {
     ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
+
         error:
           "Ese contrato ya está siendo seguido."
+
       };
 
     }
@@ -1504,6 +1647,7 @@ class DerivTrade {
         const seguimiento = {
 
           resolve,
+
           onUpdate,
 
           subscriptionId:
@@ -1526,6 +1670,7 @@ class DerivTrade {
 
           timeout:
             null
+
         };
 
 
@@ -1536,22 +1681,19 @@ class DerivTrade {
 
 
         /*
-          FIX6:
-          Portfolio es la fuente principal para
-          saber si el contrato continúa abierto.
-          Profit Table es la fuente principal
-          para recuperar el resultado ya cerrado.
+          RESPALDO TRANSACTION
         */
-
 
         this.asegurarTransactionStream();
 
 
         /*
-          proposal_open_contract permanece
-          solamente como respaldo visual.
+          RESPALDO
+          PROPOSAL OPEN CONTRACT
         */
+
         derivConnection.enviar({
+
           proposal_open_contract:
             1,
 
@@ -1568,8 +1710,13 @@ class DerivTrade {
 
           subscribe:
             1
+
         });
 
+
+        /* ==================================
+           CICLO PRINCIPAL
+           ================================== */
 
         const ciclo =
           async () => {
@@ -1592,12 +1739,10 @@ class DerivTrade {
 
             try {
 
-              /*
-                1) PORTFOLIO:
-                   Deriv documenta que aquí
-                   aparecen solamente posiciones
-                   abiertas.
-              */
+              /* ==============================
+                 PASO 1
+                 PORTFOLIO
+                 ============================== */
 
               const portfolio =
                 await this.consultarPortfolio();
@@ -1614,10 +1759,13 @@ class DerivTrade {
                   );
 
 
-                if (abierto) {
+                if (
+                  abierto
+                ) {
 
                   seguimiento.vistoAbierto =
                     true;
+
 
                   seguimiento.ultimoContrato =
                     abierto;
@@ -1631,18 +1779,25 @@ class DerivTrade {
                     try {
 
                       onUpdate({
+
                         ...abierto,
+
                         status:
                           "open",
+
                         is_sold:
                           0
+
                       });
 
                     } catch {}
 
                   }
 
-                } else if (
+                }
+
+
+                else if (
                   seguimiento.vistoAbierto
                 ) {
 
@@ -1654,13 +1809,12 @@ class DerivTrade {
               }
 
 
-              /*
-                2) PROFIT TABLE:
-                   se consulta SIEMPRE porque un
-                   contrato de 1 tick puede cerrar
-                   antes de alcanzar a verse en
-                   Portfolio.
-              */
+              /* ==============================
+                 PASO 2
+                 PROFIT TABLE
+
+                 FUENTE PRINCIPAL DE CIERRE
+                 ============================== */
 
               const tabla =
                 await this.consultarProfitTable(
@@ -1683,10 +1837,11 @@ class DerivTrade {
               }
 
 
-              /*
-                3) RESPALDO:
-                   consulta directa del contrato.
-              */
+              /* ==============================
+                 PASO 3
+                 OPEN CONTRACT
+                 RESPALDO
+                 ============================== */
 
               const open =
                 await this.consultarContrato(
@@ -1701,7 +1856,9 @@ class DerivTrade {
                   : null;
 
 
-              if (contrato) {
+              if (
+                contrato
+              ) {
 
                 seguimiento.ultimoContrato =
                   contrato;
@@ -1740,6 +1897,15 @@ class DerivTrade {
 
               }
 
+            } catch (
+              error
+            ) {
+
+              console.warn(
+                "Seguimiento FIX6:",
+                error
+              );
+
             } finally {
 
               seguimiento.consultando =
@@ -1750,6 +1916,10 @@ class DerivTrade {
           };
 
 
+        /* ==================================
+           INTERVALO
+           ================================== */
+
         seguimiento.timer =
           setInterval(
             ciclo,
@@ -1757,13 +1927,16 @@ class DerivTrade {
           );
 
 
+        /* ==================================
+           TIMEOUT DE SEGURIDAD
+           ================================== */
+
         seguimiento.timeout =
           setTimeout(
             async () => {
 
               /*
-                Última consulta histórica
-                antes de declarar pendiente.
+                Última búsqueda en Profit Table.
               */
 
               try {
@@ -1797,14 +1970,18 @@ class DerivTrade {
                 );
 
 
-              if (limpio) {
+              if (
+                limpio
+              ) {
 
                 this.operacionActiva =
                   null;
 
 
                 limpio.resolve({
-                  ok: false,
+
+                  ok:
+                    false,
 
                   error:
                     "No se pudo confirmar el resultado en el histórico de Deriv dentro del tiempo de seguridad.",
@@ -1817,6 +1994,7 @@ class DerivTrade {
 
                   ultimoContrato:
                     limpio.ultimoContrato
+
                 });
 
               }
@@ -1826,6 +2004,10 @@ class DerivTrade {
           );
 
 
+        /*
+          Primera comprobación inmediata.
+        */
+
         ciclo();
 
       }
@@ -1833,6 +2015,10 @@ class DerivTrade {
 
   }
 
+
+  /* ========================================
+     ESTADO ACTUAL
+     ======================================== */
 
   obtenerEstado() {
 
@@ -1856,19 +2042,18 @@ class DerivTrade {
           : null,
 
       contratosEnSeguimiento:
-        this.seguimientos.size,
+        this.seguimientos.size
 
-      transactionStream:
-        Boolean(
-          this.transactionSubscriptionId ||
-          this.transactionStreamSolicitado
-        )
     };
 
   }
 
 }
 
+
+/* ==========================================
+   INSTANCIA ÚNICA
+   ========================================== */
 
 export const derivTrade =
   new DerivTrade();
