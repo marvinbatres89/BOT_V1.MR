@@ -1,41 +1,38 @@
 /* ==========================================
    BOT V1 MR
    TRADUCTOR DE SEÑALES A CONTRATOS DERIV
+   FIX6
    ========================================== */
 
 class ContractMapper {
 
-  normalizar(
-    valor
-  ) {
+  /* ========================================
+     NORMALIZAR TEXTO
+     ======================================== */
 
-    return String(
-      valor || ""
-    )
+  normalizar(valor) {
+
+    return String(valor || "")
       .trim()
       .toUpperCase();
 
   }
 
 
-  mapearRiseFall(
-    direccion
-  ) {
+  /* ========================================
+     RISE / FALL
+     ======================================== */
+
+  mapearRiseFall(direccion) {
 
     const valor =
-      this.normalizar(
-        direccion
-      );
+      this.normalizar(direccion);
 
 
     if (
-      [
-        "RISE",
-        "SUBE",
-        "UP"
-      ].includes(
-        valor
-      )
+      valor === "RISE" ||
+      valor === "SUBE" ||
+      valor === "UP"
     ) {
 
       return {
@@ -50,13 +47,9 @@ class ContractMapper {
 
 
     if (
-      [
-        "FALL",
-        "BAJA",
-        "DOWN"
-      ].includes(
-        valor
-      )
+      valor === "FALL" ||
+      valor === "BAJA" ||
+      valor === "DOWN"
     ) {
 
       return {
@@ -75,23 +68,19 @@ class ContractMapper {
   }
 
 
-  mapearParImpar(
-    direccion
-  ) {
+  /* ========================================
+     PAR / IMPAR
+     ======================================== */
+
+  mapearParImpar(direccion) {
 
     const valor =
-      this.normalizar(
-        direccion
-      );
+      this.normalizar(direccion);
 
 
     if (
-      [
-        "EVEN",
-        "PAR"
-      ].includes(
-        valor
-      )
+      valor === "EVEN" ||
+      valor === "PAR"
     ) {
 
       return {
@@ -106,12 +95,8 @@ class ContractMapper {
 
 
     if (
-      [
-        "ODD",
-        "IMPAR"
-      ].includes(
-        valor
-      )
+      valor === "ODD" ||
+      valor === "IMPAR"
     ) {
 
       return {
@@ -130,69 +115,9 @@ class ContractMapper {
   }
 
 
-  extraerDigito(
-    direccion,
-    metadata = {}
-  ) {
-
-    let valor =
-      metadata.barrier ??
-      metadata.digit ??
-      metadata.numero ??
-      metadata.number ??
-      null;
-
-
-    if (
-      valor === null ||
-      valor === undefined ||
-      valor === ""
-    ) {
-
-      const match =
-        this.normalizar(
-          direccion
-        )
-        .match(
-          /(?:^|\D)(\d)(?:\D|$)/
-        );
-
-
-      if (
-        match
-      ) {
-
-        valor =
-          match[1];
-
-      }
-
-    }
-
-
-    const numero =
-      Number(
-        valor
-      );
-
-
-    if (
-      !Number.isInteger(
-        numero
-      ) ||
-      numero < 0 ||
-      numero > 9
-    ) {
-
-      return null;
-
-    }
-
-
-    return numero;
-
-  }
-
+  /* ========================================
+     MÁS / MENOS
+     ======================================== */
 
   mapearOverUnder(
     direccion,
@@ -206,34 +131,33 @@ class ContractMapper {
 
 
     const barrier =
-      this.extraerDigito(
-        direccion,
-        metadata
+      Number(
+        metadata.barrier ??
+        metadata.digit ??
+        metadata.numero
       );
 
 
     if (
-      barrier === null
+      !Number.isInteger(
+        barrier
+      ) ||
+      barrier < 0 ||
+      barrier > 9
     ) {
 
       return {
         error:
-          "OVER/UNDER necesita una barrera del 0 al 9 enviada por Trading Analyzer."
+          "Falta el número barrera para OVER/UNDER."
       };
 
     }
 
 
     if (
-      valor.includes(
-        "OVER"
-      ) ||
-      valor.includes(
-        "MAS"
-      ) ||
-      valor.includes(
-        "MÁS"
-      )
+      valor === "OVER" ||
+      valor === "MAS" ||
+      valor === "MÁS"
     ) {
 
       return {
@@ -247,12 +171,8 @@ class ContractMapper {
 
 
     if (
-      valor.includes(
-        "UNDER"
-      ) ||
-      valor.includes(
-        "MENOS"
-      )
+      valor === "UNDER" ||
+      valor === "MENOS"
     ) {
 
       return {
@@ -270,33 +190,83 @@ class ContractMapper {
   }
 
 
+  /* ========================================
+     MATCH
+     ======================================== */
+
   mapearMatch(
     direccion,
     metadata = {}
   ) {
 
-    const digit =
-      this.extraerDigito(
-        direccion,
-        metadata
+    const valor =
+      this.normalizar(
+        direccion
+      );
+
+
+    let digit =
+      metadata.digit ??
+      metadata.numero ??
+      metadata.barrier;
+
+
+    /*
+      También admite:
+
+      MATCH 7
+    */
+
+    if (
+      digit === undefined ||
+      digit === null
+    ) {
+
+      const encontrado =
+        valor.match(
+          /(\d)/
+        );
+
+
+      if (
+        encontrado
+      ) {
+
+        digit =
+          Number(
+            encontrado[1]
+          );
+
+      }
+
+    }
+
+
+    digit =
+      Number(
+        digit
       );
 
 
     if (
-      digit === null
+      !Number.isInteger(
+        digit
+      ) ||
+      digit < 0 ||
+      digit > 9
     ) {
 
       return {
         error:
-          "MATCH necesita un dígito válido del 0 al 9 enviado por Trading Analyzer."
+          "MATCH necesita un dígito válido del 0 al 9."
       };
 
     }
 
 
     /*
-      Se mantiene la regla vigente
-      del proyecto: MATCH 0 no se opera.
+      Regla de Trading Analyzer:
+      MATCH 0 no se ejecuta.
     */
 
     if (
@@ -322,9 +292,11 @@ class ContractMapper {
   }
 
 
-  mapear(
-    senal
-  ) {
+  /* ========================================
+     MAPEAR SEÑAL COMPLETA
+     ======================================== */
+
+  mapear(senal) {
 
     if (
       !senal
@@ -336,6 +308,21 @@ class ContractMapper {
 
         error:
           "No existe señal."
+      };
+
+    }
+
+
+    if (
+      !senal.mercado
+    ) {
+
+      return {
+        ok:
+          false,
+
+        error:
+          "La señal no contiene mercado."
       };
 
     }
@@ -354,13 +341,13 @@ class ContractMapper {
       null;
 
 
+    /* ======================================
+       RISE / FALL
+       ====================================== */
+
     if (
-      [
-        "rise_fall",
-        "rise/fall"
-      ].includes(
-        estrategia
-      )
+      estrategia === "rise_fall" ||
+      estrategia === "rise/fall"
     ) {
 
       contrato =
@@ -371,15 +358,15 @@ class ContractMapper {
     }
 
 
+    /* ======================================
+       PAR / IMPAR
+       ====================================== */
+
     else if (
-      [
-        "even_odd",
-        "even/odd",
-        "par_impar",
-        "par/impar"
-      ].includes(
-        estrategia
-      )
+      estrategia === "even_odd" ||
+      estrategia === "even/odd" ||
+      estrategia === "par_impar" ||
+      estrategia === "par/impar"
     ) {
 
       contrato =
@@ -390,37 +377,38 @@ class ContractMapper {
     }
 
 
+    /* ======================================
+       MÁS / MENOS
+       ====================================== */
+
     else if (
-      [
-        "over_under",
-        "over/under",
-        "mas_menos",
-        "más/menos"
-      ].includes(
-        estrategia
-      )
+      estrategia === "over_under" ||
+      estrategia === "over/under" ||
+      estrategia === "mas_menos" ||
+      estrategia === "más/menos"
     ) {
 
       contrato =
         this.mapearOverUnder(
           senal.direccion,
-          senal.metadata ||
-            {}
+          senal.metadata || {}
         );
 
     }
 
 
+    /* ======================================
+       MATCH
+       ====================================== */
+
     else if (
-      estrategia ===
-        "match"
+      estrategia === "match"
     ) {
 
       contrato =
         this.mapearMatch(
           senal.direccion,
-          senal.metadata ||
-            {}
+          senal.metadata || {}
         );
 
     }
@@ -470,7 +458,6 @@ class ContractMapper {
 
 
     return {
-
       ok:
         true,
 
@@ -503,13 +490,16 @@ class ContractMapper {
 
       timestamp:
         Date.now()
-
     };
 
   }
 
 }
 
+
+/* ==========================================
+   INSTANCIA ÚNICA
+   ========================================== */
 
 export const contractMapper =
   new ContractMapper();
