@@ -1,7 +1,16 @@
 /* ==========================================
    BOT V1 MR
    CONTROLADOR PRINCIPAL
-   EJECUCIÓN DEMO CONTROLADA
+   FIX6
+
+   TRADING ANALYZER
+   -> CONTRATO
+   -> PROPUESTA DERIV
+   -> COMPRA DEMO CONTROLADA
+   -> SEGUIMIENTO
+   -> RESULTADO FINAL
+
+   SOLO CUENTA DEMO
    ========================================== */
 
 import {
@@ -17,50 +26,111 @@ import {
 } from "./deriv-connection.js";
 
 
+/* ==========================================
+   AYUDANTE DOM
+   ========================================== */
+
 const $ =
   (id) =>
-    document.getElementById(
-      id
-    );
+    document.getElementById(id);
 
 
-const UI = {
+/* ==========================================
+   ELEMENTOS DEL BOT
+   ========================================== */
 
-  estadoBot: $("estadoBot"),
-  mercado: $("mercado"),
-  estrategia: $("estrategia"),
-  direccion: $("direccion"),
-  confianza: $("confianza"),
-  entrada: $("entrada"),
-  precio: $("precio"),
+const estadoBot =
+  $("estadoBot");
 
-  botonConectar: $("botonConectar"),
-  botonPausar: $("botonPausar"),
-  botonProbar: $("botonProbar"),
+const mercado =
+  $("mercado");
 
-  ultimaSenal: $("ultimaSenal"),
-  ultimoContrato: $("ultimoContrato"),
-  ultimaPropuestaSimulada: $("ultimaPropuestaSimulada"),
-  ultimaPropuestaDeriv: $("ultimaPropuestaDeriv"),
-  operacionDemo: $("operacionDemo"),
-  resultadoDemo: $("resultadoDemo"),
-  registroBot: $("registroBot"),
+const estrategia =
+  $("estrategia");
 
-  estadoDeriv: $("estadoDeriv"),
-  derivAppId: $("derivAppId"),
-  derivAccountId: $("derivAccountId"),
-  derivToken: $("derivToken"),
-  botonConectarDeriv: $("botonConectarDeriv"),
-  botonDesconectarDeriv: $("botonDesconectarDeriv"),
-  derivCuenta: $("derivCuenta"),
-  derivConexion: $("derivConexion"),
+const direccion =
+  $("direccion");
 
-  estadoEjecucionDemo: $("estadoEjecucionDemo"),
-  botonActivarEjecucion: $("botonActivarEjecucion"),
-  botonDesactivarEjecucion: $("botonDesactivarEjecucion")
+const confianza =
+  $("confianza");
 
-};
+const entrada =
+  $("entrada");
 
+const precio =
+  $("precio");
+
+const botonConectar =
+  $("botonConectar");
+
+const botonPausar =
+  $("botonPausar");
+
+const botonProbar =
+  $("botonProbar");
+
+const ultimaSenal =
+  $("ultimaSenal");
+
+const ultimoContrato =
+  $("ultimoContrato");
+
+const ultimaPropuesta =
+  $("ultimaPropuesta");
+
+const registroBot =
+  $("registroBot");
+
+
+/* ==========================================
+   ELEMENTOS DERIV
+   ========================================== */
+
+const estadoDeriv =
+  $("estadoDeriv");
+
+const derivAppId =
+  $("derivAppId");
+
+const derivAccountId =
+  $("derivAccountId");
+
+const derivToken =
+  $("derivToken");
+
+const botonConectarDeriv =
+  $("botonConectarDeriv");
+
+const botonDesconectarDeriv =
+  $("botonDesconectarDeriv");
+
+const derivCuenta =
+  $("derivCuenta");
+
+const derivConexion =
+  $("derivConexion");
+
+
+/* ==========================================
+   EJECUCIÓN DEMO
+   ========================================== */
+
+const botonActivarDemo =
+  $("botonActivarDemo");
+
+const botonDesactivarDemo =
+  $("botonDesactivarDemo");
+
+const estadoEjecucion =
+  $("estadoEjecucion");
+
+const operacionDemo =
+  $("operacionDemo");
+
+
+/* ==========================================
+   HORA
+   ========================================== */
 
 function obtenerHora() {
 
@@ -68,21 +138,32 @@ function obtenerHora() {
     .toLocaleTimeString(
       "es-SV",
       {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
+        hour:
+          "2-digit",
+
+        minute:
+          "2-digit",
+
+        second:
+          "2-digit"
       }
     );
 
 }
 
 
+/* ==========================================
+   REGISTRO
+   ========================================== */
+
 function registrarActividad(
   mensaje,
   tipo = "normal"
 ) {
 
-  if (!UI.registroBot) return;
+  if (!registroBot) {
+    return;
+  }
 
 
   const linea =
@@ -95,272 +176,529 @@ function registrarActividad(
     `[${obtenerHora()}] ${mensaje}`;
 
 
-  if (tipo === "correcto") {
-    linea.style.color = "#79f3c2";
-  }
+  if (
+    tipo === "correcto"
+  ) {
 
-  if (tipo === "aviso") {
-    linea.style.color = "#ffd37a";
-  }
+    linea.style.color =
+      "#79f3c2";
 
-  if (tipo === "error") {
-    linea.style.color = "#ff9fb4";
   }
 
 
-  UI.registroBot.prepend(
+  if (
+    tipo === "aviso"
+  ) {
+
+    linea.style.color =
+      "#ffd37a";
+
+  }
+
+
+  if (
+    tipo === "error"
+  ) {
+
+    linea.style.color =
+      "#ff9fb4";
+
+  }
+
+
+  registroBot.prepend(
     linea
   );
 
 }
 
 
+/* ==========================================
+   MOSTRAR SEÑAL
+   ========================================== */
+
 function mostrarSenal(
   senal
 ) {
 
-  UI.mercado.textContent =
-    senal.mercado || "--";
-
-  UI.estrategia.textContent =
-    senal.estrategia || "--";
-
-  UI.direccion.textContent =
-    senal.direccion || "--";
-
-  UI.confianza.textContent =
-    `${senal.confianza}%`;
-
-  UI.entrada.textContent =
-    senal.segundosEntrada != null
-      ? `${senal.segundosEntrada} s`
-      : "--";
-
-  UI.precio.textContent =
-    senal.precio != null
-      ? String(senal.precio)
-      : "--";
+  if (!senal) {
+    return;
+  }
 
 
-  UI.ultimaSenal.innerHTML = `
-    <strong>Mercado:</strong> ${senal.mercado}<br><br>
-    <strong>Estrategia:</strong> ${senal.estrategia}<br>
-    <strong>Dirección:</strong> ${senal.direccion}<br>
-    <strong>Confianza:</strong> ${senal.confianza}%<br>
-    <strong>Tendencia:</strong> ${senal.tendencia ?? "--"}<br>
-    <strong>RSI:</strong> ${senal.rsi ?? "--"}<br>
-    <strong>Momentum:</strong> ${senal.momentum ?? "--"}<br>
-    <strong>Volatilidad:</strong> ${senal.volatilidad ?? "--"}<br>
-    <strong>Último dígito:</strong> ${senal.ultimoDigito ?? "--"}<br>
-    <strong>Entrada:</strong> ${senal.segundosEntrada ?? "--"} segundos
+  if (mercado) {
+
+    mercado.textContent =
+      senal.mercado ||
+      "--";
+
+  }
+
+
+  if (estrategia) {
+
+    estrategia.textContent =
+      senal.estrategia ||
+      "--";
+
+  }
+
+
+  if (direccion) {
+
+    direccion.textContent =
+      senal.direccion ||
+      "--";
+
+  }
+
+
+  if (confianza) {
+
+    confianza.textContent =
+      `${senal.confianza}%`;
+
+  }
+
+
+  if (entrada) {
+
+    entrada.textContent =
+      senal.segundosEntrada !== null &&
+      senal.segundosEntrada !== undefined
+        ? `${senal.segundosEntrada} s`
+        : "--";
+
+  }
+
+
+  if (precio) {
+
+    precio.textContent =
+      senal.precio !== null &&
+      senal.precio !== undefined
+        ? senal.precio
+        : "--";
+
+  }
+
+
+  if (!ultimaSenal) {
+    return;
+  }
+
+
+  ultimaSenal.innerHTML = `
+
+    <strong>Mercado:</strong>
+    ${senal.mercado ?? "--"}
+    <br><br>
+
+    <strong>Estrategia:</strong>
+    ${senal.estrategia ?? "--"}
+    <br>
+
+    <strong>Dirección:</strong>
+    ${senal.direccion ?? "--"}
+    <br>
+
+    <strong>Confianza:</strong>
+    ${senal.confianza ?? "--"}%
+    <br>
+
+    <strong>Tendencia:</strong>
+    ${senal.tendencia ?? "--"}
+    <br>
+
+    <strong>RSI:</strong>
+    ${senal.rsi ?? "--"}
+    <br>
+
+    <strong>Momentum:</strong>
+    ${senal.momentum ?? "--"}
+    <br>
+
+    <strong>Volatilidad:</strong>
+    ${senal.volatilidad ?? "--"}
+    <br>
+
+    <strong>Último dígito:</strong>
+    ${senal.ultimoDigito ?? "--"}
+    <br>
+
+    <strong>Entrada:</strong>
+    ${
+      senal.segundosEntrada !== null &&
+      senal.segundosEntrada !== undefined
+        ? `${senal.segundosEntrada} segundos`
+        : "--"
+    }
+
   `;
 
 }
 
+
+/* ==========================================
+   MOSTRAR CONTRATO
+   ========================================== */
 
 function mostrarContrato(
   contrato
 ) {
 
-  UI.ultimoContrato.innerHTML = `
-    <strong>Mercado:</strong> ${contrato.symbol}<br><br>
-    <strong>Contrato Deriv:</strong> ${contrato.contractType}<br>
-    <strong>Dirección:</strong> ${contrato.direction}<br>
-    <strong>Barrera:</strong> ${contrato.barrier ?? "--"}<br>
-    <strong>Confianza:</strong> ${contrato.confidence}%<br>
-    <strong>Segundo:</strong> ${contrato.executionSecond ?? "--"}
+  if (!ultimoContrato) {
+    return;
+  }
+
+
+  if (!contrato) {
+
+    ultimoContrato.textContent =
+      "Esperando una señal válida...";
+
+    return;
+
+  }
+
+
+  const barrera =
+    contrato.barrier !== null &&
+    contrato.barrier !== undefined
+      ? contrato.barrier
+      : "--";
+
+
+  ultimoContrato.innerHTML = `
+
+    <strong>Mercado:</strong>
+    ${contrato.symbol ?? "--"}
+    <br><br>
+
+    <strong>Contrato Deriv:</strong>
+    ${contrato.contractType ?? "--"}
+    <br>
+
+    <strong>Dirección:</strong>
+    ${contrato.direction ?? "--"}
+    <br>
+
+    <strong>Barrera:</strong>
+    ${barrera}
+    <br>
+
+    <strong>Confianza:</strong>
+    ${contrato.confidence ?? "--"}%
+    <br>
+
+    <strong>Segundo:</strong>
+    ${contrato.executionSecond ?? "--"}
+
   `;
 
 }
 
+
+/* ==========================================
+   MOSTRAR PROPUESTA SIMULADA
+   ========================================== */
 
 function mostrarPropuestaSimulada(
   propuesta
 ) {
 
-  UI.ultimaPropuestaSimulada.innerHTML = `
-    <strong>Modo:</strong> ${propuesta.modo}<br><br>
-    <strong>Contrato:</strong> ${propuesta.contractType}<br>
-    <strong>Monto:</strong> ${propuesta.amount} ${propuesta.currency}<br>
-    <strong>Duración:</strong> ${propuesta.duration}${propuesta.durationUnit}<br>
-    <strong>Estado:</strong> ${propuesta.status}<br>
-    <strong>ID:</strong> ${propuesta.id}
+  if (
+    !ultimaPropuesta ||
+    !propuesta
+  ) {
+
+    return;
+
+  }
+
+
+  ultimaPropuesta.innerHTML = `
+
+    <strong>Modo:</strong>
+    ${propuesta.modo ?? "SIMULACION"}
+    <br><br>
+
+    <strong>Contrato:</strong>
+    ${propuesta.contractType ?? "--"}
+    <br>
+
+    <strong>Monto:</strong>
+    ${propuesta.amount ?? "--"}
+    ${propuesta.currency ?? ""}
+    <br>
+
+    <strong>Duración:</strong>
+    ${propuesta.duration ?? "--"}
+    ${propuesta.durationUnit ?? ""}
+    <br>
+
+    <strong>Estado:</strong>
+    ${propuesta.status ?? "--"}
+    <br>
+
+    <strong>ID simulación:</strong>
+    ${propuesta.id ?? "--"}
+
   `;
 
 }
 
+
+/* ==========================================
+   MOSTRAR PROPUESTA DERIV
+   ========================================== */
 
 function mostrarPropuestaDeriv(
   propuesta,
   contrato
 ) {
 
-  if (!propuesta?.ok) {
-
-    UI.ultimaPropuestaDeriv.innerHTML = `
-      <strong>Estado:</strong> SIN COTIZACIÓN<br><br>
-      <strong>Motivo:</strong> ${propuesta?.error || "No se recibió cotización."}
-    `;
+  if (
+    !ultimaPropuesta ||
+    !propuesta?.ok
+  ) {
 
     return;
 
   }
 
 
-  UI.ultimaPropuestaDeriv.innerHTML = `
-    <strong>Modo:</strong> DERIV DEMO REAL<br><br>
-    <strong>Mercado:</strong> ${contrato?.symbol ?? "--"}<br>
-    <strong>Contrato:</strong> ${contrato?.contractType ?? "--"}<br>
-    <strong>ID propuesta:</strong> ${propuesta.id ?? "--"}<br><br>
-    <strong>Precio:</strong> ${propuesta.askPrice}<br>
-    <strong>Pago potencial:</strong> ${propuesta.payout}<br>
-    <strong>Spot:</strong> ${propuesta.spot ?? "--"}<br>
-    <strong>Estado:</strong> COTIZACIÓN REAL RECIBIDA
+  ultimaPropuesta.innerHTML = `
+
+    <strong>Modo:</strong>
+    DERIV DEMO REAL
+    <br><br>
+
+    <strong>Mercado:</strong>
+    ${contrato?.symbol ?? "--"}
+    <br>
+
+    <strong>Contrato:</strong>
+    ${contrato?.contractType ?? "--"}
+    <br>
+
+    <strong>ID propuesta:</strong>
+    ${propuesta.id ?? "--"}
+    <br><br>
+
+    <strong>Precio solicitado:</strong>
+    ${propuesta.askPrice ?? "--"}
+    <br>
+
+    <strong>Pago potencial:</strong>
+    ${propuesta.payout ?? "--"}
+    <br>
+
+    <strong>Spot:</strong>
+    ${propuesta.spot ?? "--"}
+    <br><br>
+
+    <strong>Estado:</strong>
+    COTIZACIÓN REAL RECIBIDA
+
   `;
 
 }
 
 
-function mostrarCompraDemo(
+/* ==========================================
+   MOSTRAR OPERACIÓN ABIERTA
+   ========================================== */
+
+function mostrarOperacionAbierta(
   compra
 ) {
 
-  if (!compra?.ok) {
+  if (!operacionDemo) {
+    return;
+  }
 
-    UI.operacionDemo.innerHTML = `
-      <strong>Compra DEMO no ejecutada.</strong><br><br>
-      ${compra?.error || "Ejecución DEMO desactivada."}
-    `;
+
+  operacionDemo.classList.remove(
+    "ganada",
+    "perdida"
+  );
+
+
+  operacionDemo.innerHTML = `
+
+    <strong>
+      OPERACIÓN DEMO ABIERTA
+    </strong>
+
+    <br><br>
+
+    <strong>Contract ID:</strong>
+    ${compra?.contractId ?? "--"}
+    <br>
+
+    <strong>Compra:</strong>
+    ${compra?.buyPrice ?? "--"}
+    <br>
+
+    <strong>Pago máximo:</strong>
+    ${compra?.payout ?? "--"}
+    <br><br>
+
+    <strong>Seguimiento:</strong>
+    Esperando resultado de Deriv...
+
+  `;
+
+}
+
+
+/* ==========================================
+   ACTUALIZAR SEGUIMIENTO
+   ========================================== */
+
+function actualizarOperacion(
+  contrato
+) {
+
+  if (
+    !operacionDemo ||
+    !contrato
+  ) {
 
     return;
 
   }
 
 
-  const dato =
-    compra.compra;
-
-
-  UI.operacionDemo.innerHTML = `
-    <strong>ESTADO:</strong> OPERACIÓN DEMO ABIERTA<br><br>
-    <strong>Contract ID:</strong> ${dato.contractId}<br>
-    <strong>Transaction ID:</strong> ${dato.transactionId ?? "--"}<br>
-    <strong>Compra:</strong> ${dato.buyPrice} USD<br>
-    <strong>Pago máximo:</strong> ${dato.payout}<br>
-    <strong>Descripción:</strong> ${dato.longcode || "--"}
-  `;
-
-}
-
-
-function mostrarActualizacionContrato(
-  contrato
-) {
-
-  const status =
+  const estado =
     String(
-      contrato?.status ?? "OPEN"
+      contrato.status ??
+      "open"
     )
       .toUpperCase();
 
 
-  UI.operacionDemo.innerHTML = `
-    <strong>ESTADO:</strong> ${status}<br><br>
-    <strong>Contract ID:</strong> ${contrato?.contract_id ?? "--"}<br>
-    <strong>Precio compra:</strong> ${contrato?.buy_price ?? "--"}<br>
-    <strong>Profit actual:</strong> ${contrato?.profit ?? "--"}<br>
-    <strong>Vendido:</strong> ${contrato?.is_sold ? "SÍ" : "NO"}
+  const profit =
+    contrato.profit !== undefined
+      ? contrato.profit
+      : "--";
+
+
+  operacionDemo.innerHTML = `
+
+    <strong>
+      OPERACIÓN DEMO EN SEGUIMIENTO
+    </strong>
+
+    <br><br>
+
+    <strong>Contract ID:</strong>
+    ${contrato.contract_id ?? "--"}
+    <br>
+
+    <strong>Estado:</strong>
+    ${estado}
+    <br>
+
+    <strong>Profit actual:</strong>
+    ${profit}
+
   `;
 
 }
 
 
-function mostrarResultadoDemo(
+/* ==========================================
+   RESULTADO FINAL
+   ========================================== */
+
+function mostrarResultado(
   resultado
 ) {
 
-  if (!resultado) return;
-
-
-  if (!resultado.ok) {
-
-    UI.resultadoDemo.innerHTML = `
-      <strong>Seguimiento pendiente.</strong><br><br>
-      ${resultado.error || "No se recibió resultado final."}
-    `;
+  if (
+    !operacionDemo ||
+    !resultado
+  ) {
 
     return;
 
   }
 
 
-  const dato =
-    resultado.resultado;
-
-
-  const ganado =
+  const profit =
     Number(
-      dato.profit
-    ) > 0;
+      resultado.profit ??
+      0
+    );
 
 
-  UI.resultadoDemo.innerHTML = `
-    <strong>RESULTADO:</strong> ${ganado ? "GANADA ✅" : "PERDIDA ❌"}<br><br>
-    <strong>Estado Deriv:</strong> ${dato.status}<br>
-    <strong>Contract ID:</strong> ${dato.contractId}<br>
-    <strong>Compra:</strong> ${dato.buyPrice}<br>
-    <strong>Venta/Pago:</strong> ${dato.sellPrice}<br>
-    <strong>Beneficio:</strong> ${dato.profit} USD
+  const ganada =
+    profit > 0;
+
+
+  operacionDemo.classList.remove(
+    "ganada",
+    "perdida"
+  );
+
+
+  operacionDemo.classList.add(
+    ganada
+      ? "ganada"
+      : "perdida"
+  );
+
+
+  operacionDemo.innerHTML = `
+
+    <div
+      class="${
+        ganada
+          ? "resultado-ganado"
+          : "resultado-perdido"
+      }"
+    >
+      ${
+        ganada
+          ? "GANADA"
+          : "PERDIDA"
+      }
+    </div>
+
+    <br>
+
+    <strong>Contract ID:</strong>
+    ${resultado.contractId ?? "--"}
+    <br>
+
+    <strong>Profit:</strong>
+    ${profit}
+    <br>
+
+    <strong>Compra:</strong>
+    ${resultado.buyPrice ?? "--"}
+    <br>
+
+    <strong>Cierre:</strong>
+    ${resultado.sellPrice ?? "--"}
+    <br>
+
+    <strong>Fuente:</strong>
+    ${resultado.source ?? "--"}
+
   `;
 
 }
 
 
-function renderEjecucionDemo() {
-
-  const estado =
-    botEngine.obtenerEstado()
-      .trade;
-
-
-  const activa =
-    Boolean(
-      estado.ejecucionActiva
-    );
-
-
-  UI.estadoEjecucionDemo.textContent =
-    activa
-      ? "EJECUCIÓN DEMO ON"
-      : "EJECUCIÓN DEMO OFF";
-
-
-  UI.estadoEjecucionDemo.classList.toggle(
-    "encendido-ejecucion",
-    activa
-  );
-
-
-  UI.estadoEjecucionDemo.classList.toggle(
-    "apagado-ejecucion",
-    !activa
-  );
-
-
-  UI.botonActivarEjecucion.disabled =
-    activa;
-
-
-  UI.botonDesactivarEjecucion.disabled =
-    !activa;
-
-}
-
+/* ==========================================
+   SEÑAL RECIBIDA
+   ========================================== */
 
 signalBridge.onSenal(
-  async (
-    senal
-  ) => {
+  async (senal) => {
 
     mostrarSenal(
       senal
@@ -380,12 +718,14 @@ signalBridge.onSenal(
           senal,
           {
             onOperacionUpdate:
-              mostrarActualizacionContrato
+              actualizarOperacion
           }
         );
 
 
-      if (!resultado.aceptada) {
+      if (
+        !resultado.aceptada
+      ) {
 
         registrarActividad(
           `Señal no procesada · ${resultado.etapa || "BOT"} · ${resultado.motivo}`,
@@ -403,21 +743,26 @@ signalBridge.onSenal(
       );
 
 
-      if (resultado.contrato) {
+      if (
+        resultado.contrato
+      ) {
 
         mostrarContrato(
           resultado.contrato
         );
 
+
         registrarActividad(
-          `CONTRATO → ${resultado.contrato.contractType}${resultado.contrato.barrier != null ? ` · BARRERA ${resultado.contrato.barrier}` : ""}`,
+          `CONTRATO → ${resultado.contrato.contractType}`,
           "correcto"
         );
 
       }
 
 
-      if (resultado.propuesta) {
+      if (
+        resultado.propuesta
+      ) {
 
         mostrarPropuestaSimulada(
           resultado.propuesta
@@ -426,16 +771,18 @@ signalBridge.onSenal(
       }
 
 
-      mostrarPropuestaDeriv(
-        resultado.propuestaDeriv,
-        resultado.contrato
-      );
+      if (
+        resultado.propuestaDeriv?.ok
+      ) {
 
+        mostrarPropuestaDeriv(
+          resultado.propuestaDeriv,
+          resultado.contrato
+        );
 
-      if (resultado.propuestaDeriv?.ok) {
 
         registrarActividad(
-          `DERIV DEMO → COTIZACIÓN REAL · ${resultado.contrato.contractType} · precio ${resultado.propuestaDeriv.askPrice}`,
+          `DERIV DEMO → COTIZACIÓN REAL · ${resultado.contrato.contractType} · ${resultado.propuestaDeriv.askPrice}`,
           "correcto"
         );
 
@@ -449,50 +796,84 @@ signalBridge.onSenal(
       }
 
 
-      if (resultado.ejecucionDemoActiva) {
+      if (
+        resultado.compraDemo?.ok
+      ) {
 
-        mostrarCompraDemo(
-          resultado.compraDemo
+        mostrarOperacionAbierta(
+          resultado.compraDemo.compra
         );
 
 
-        if (resultado.compraDemo?.ok) {
+        registrarActividad(
+          `BUY DEMO OK · Contract ID ${resultado.compraDemo.compra.contractId}`,
+          "correcto"
+        );
 
-          registrarActividad(
-            `COMPRA DEMO → contract ${resultado.compraDemo.compra.contractId} · ${resultado.compraDemo.compra.buyPrice} USD`,
-            "correcto"
-          );
-
-
-          mostrarResultadoDemo(
-            resultado.resultadoDemo
-          );
+      }
 
 
-          if (resultado.resultadoDemo?.ok) {
+      if (
+        resultado.compraDemo &&
+        !resultado.compraDemo.ok
+      ) {
 
-            registrarActividad(
-              `RESULTADO DEMO → ${resultado.resultadoDemo.resultado.profit > 0 ? "GANADA" : "PERDIDA"} · ${resultado.resultadoDemo.resultado.profit} USD`,
-              resultado.resultadoDemo.resultado.profit > 0
-                ? "correcto"
-                : "error"
-            );
+        registrarActividad(
+          `BUY DEMO RECHAZADO · ${resultado.compraDemo.error}`,
+          "error"
+        );
 
-          }
+      }
 
-        } else {
 
-          registrarActividad(
-            `COMPRA DEMO NO EJECUTADA → ${resultado.compraDemo?.error || "Motivo desconocido."}`,
-            "aviso"
-          );
+      if (
+        resultado.resultadoDemo?.contractId
+      ) {
+
+        mostrarResultado(
+          resultado.resultadoDemo
+        );
+
+
+        registrarActividad(
+          `${Number(resultado.resultadoDemo.profit) > 0 ? "GANADA" : "PERDIDA"} · PROFIT ${resultado.resultadoDemo.profit}`,
+          Number(resultado.resultadoDemo.profit) > 0
+            ? "correcto"
+            : "error"
+        );
+
+      }
+
+
+      else if (
+        resultado.resultadoDemo?.ok ===
+          false
+      ) {
+
+        if (operacionDemo) {
+
+          operacionDemo.innerHTML += `
+
+            <br><br>
+
+            <strong>
+              Seguimiento pendiente
+            </strong>
+
+            <br>
+
+            ${
+              resultado.resultadoDemo.error ??
+              "No se recibió resultado final."
+            }
+
+          `;
 
         }
 
-      } else {
 
         registrarActividad(
-          "Ejecución DEMO OFF · Solo cotización.",
+          `SEGUIMIENTO → ${resultado.resultadoDemo.error}`,
           "aviso"
         );
 
@@ -512,34 +893,53 @@ signalBridge.onSenal(
 );
 
 
+/* ==========================================
+   PUENTE
+   ========================================== */
+
 window.addEventListener(
   "bot:estado",
-  (
-    evento
-  ) => {
+  (evento) => {
 
     const datos =
       evento.detail;
 
 
-    if (datos.conectado) {
+    if (
+      datos.conectado
+    ) {
 
-      UI.estadoBot.textContent =
-        "BOT SYNC";
+      if (estadoBot) {
 
-      UI.estadoBot.classList.remove(
-        "apagado"
-      );
+        estadoBot.textContent =
+          "BOT SYNC";
 
-      UI.estadoBot.classList.add(
-        "encendido"
-      );
+        estadoBot.classList.remove(
+          "apagado"
+        );
 
-      UI.botonConectar.disabled =
-        true;
+        estadoBot.classList.add(
+          "encendido"
+        );
 
-      UI.botonPausar.disabled =
-        false;
+      }
+
+
+      if (botonConectar) {
+
+        botonConectar.disabled =
+          true;
+
+      }
+
+
+      if (botonPausar) {
+
+        botonPausar.disabled =
+          false;
+
+      }
+
 
       registrarActividad(
         datos.mensaje,
@@ -548,22 +948,37 @@ window.addEventListener(
 
     } else {
 
-      UI.estadoBot.textContent =
-        "BOT OFF";
+      if (estadoBot) {
 
-      UI.estadoBot.classList.remove(
-        "encendido"
-      );
+        estadoBot.textContent =
+          "BOT OFF";
 
-      UI.estadoBot.classList.add(
-        "apagado"
-      );
+        estadoBot.classList.remove(
+          "encendido"
+        );
 
-      UI.botonConectar.disabled =
-        false;
+        estadoBot.classList.add(
+          "apagado"
+        );
 
-      UI.botonPausar.disabled =
-        true;
+      }
+
+
+      if (botonConectar) {
+
+        botonConectar.disabled =
+          false;
+
+      }
+
+
+      if (botonPausar) {
+
+        botonPausar.disabled =
+          true;
+
+      }
+
 
       registrarActividad(
         datos.mensaje,
@@ -576,11 +991,13 @@ window.addEventListener(
 );
 
 
+/* ==========================================
+   ORIGEN DE SEÑAL
+   ========================================== */
+
 window.addEventListener(
   "bot:signal-source",
-  (
-    evento
-  ) => {
+  (evento) => {
 
     registrarActividad(
       `Señal recibida desde ${evento.detail?.origen || "desconocido"}`,
@@ -591,15 +1008,17 @@ window.addEventListener(
 );
 
 
+/* ==========================================
+   ERROR PUENTE
+   ========================================== */
+
 window.addEventListener(
   "bot:error",
-  (
-    evento
-  ) => {
+  (evento) => {
 
     registrarActividad(
       evento.detail?.mensaje ||
-      "Error de sincronización",
+      "Error de sincronización.",
       "error"
     );
 
@@ -607,52 +1026,22 @@ window.addEventListener(
 );
 
 
-UI.botonConectar.addEventListener(
-  "click",
-  () => {
+/* ==========================================
+   CONECTAR PUENTE
+   ========================================== */
 
-    signalBridge.conectar();
+if (botonConectar) {
 
-    const resultado =
-      botEngine.iniciar();
+  botonConectar.addEventListener(
+    "click",
+    () => {
 
-    registrarActividad(
-      resultado.mensaje,
-      "correcto"
-    );
+      signalBridge.conectar();
 
-  }
-);
-
-
-UI.botonPausar.addEventListener(
-  "click",
-  () => {
-
-    const estado =
-      botEngine.obtenerEstado();
-
-
-    if (!estado.pausado) {
 
       const resultado =
-        botEngine.pausar();
+        botEngine.iniciar();
 
-      UI.botonPausar.textContent =
-        "REANUDAR";
-
-      registrarActividad(
-        resultado.mensaje,
-        "aviso"
-      );
-
-    } else {
-
-      const resultado =
-        botEngine.reanudar();
-
-      UI.botonPausar.textContent =
-        "PAUSAR";
 
       registrarActividad(
         resultado.mensaje,
@@ -660,67 +1049,82 @@ UI.botonPausar.addEventListener(
       );
 
     }
+  );
 
-  }
-);
-
-
-UI.botonActivarEjecucion.addEventListener(
-  "click",
-  () => {
-
-    const resultado =
-      botEngine.activarEjecucionDemo();
+}
 
 
-    registrarActividad(
-      resultado.mensaje,
-      resultado.ok
-        ? "correcto"
-        : "aviso"
-    );
+/* ==========================================
+   PAUSAR
+   ========================================== */
+
+if (botonPausar) {
+
+  botonPausar.addEventListener(
+    "click",
+    () => {
+
+      const estado =
+        botEngine.obtenerEstado();
 
 
-    renderEjecucionDemo();
+      if (
+        !estado.pausado
+      ) {
 
-  }
-);
-
-
-UI.botonDesactivarEjecucion.addEventListener(
-  "click",
-  () => {
-
-    const resultado =
-      botEngine.desactivarEjecucionDemo();
+        const resultado =
+          botEngine.pausar();
 
 
-    registrarActividad(
-      resultado.mensaje,
-      "aviso"
-    );
+        botonPausar.textContent =
+          "REANUDAR";
 
 
-    renderEjecucionDemo();
+        registrarActividad(
+          resultado.mensaje,
+          "aviso"
+        );
 
-  }
-);
+      } else {
 
-
-UI.botonProbar.addEventListener(
-  "click",
-  () => {
-
-    registrarActividad(
-      "Enviando señal DEMO...",
-      "aviso"
-    );
+        const resultado =
+          botEngine.reanudar();
 
 
-    signalBridge.recibirSenal(
-      {
-        id:
-          `DEMO-${Date.now()}`,
+        botonPausar.textContent =
+          "PAUSAR";
+
+
+        registrarActividad(
+          resultado.mensaje,
+          "correcto"
+        );
+
+      }
+
+    }
+  );
+
+}
+
+
+/* ==========================================
+   SEÑAL DE PRUEBA
+   ========================================== */
+
+if (botonProbar) {
+
+  botonProbar.addEventListener(
+    "click",
+    () => {
+
+      registrarActividad(
+        "Enviando señal DEMO...",
+        "aviso"
+      );
+
+
+      signalBridge.recibirSenal({
 
         mercado:
           "1HZ100V",
@@ -753,16 +1157,19 @@ UI.botonProbar.addEventListener(
           "MEDIA",
 
         segundosEntrada:
-          3,
+          3
 
-        metadata:
-          {}
-      }
-    );
+      });
 
-  }
-);
+    }
+  );
 
+}
+
+
+/* ==========================================
+   CUENTA DERIV DETECTADA
+   ========================================== */
 
 derivConnection.on(
   "account",
@@ -770,20 +1177,37 @@ derivConnection.on(
     accountId
   }) => {
 
-    UI.derivAccountId.value =
-      accountId;
+    if (
+      derivAccountId
+    ) {
 
-    UI.derivCuenta.textContent =
-      accountId || "--";
+      derivAccountId.value =
+        accountId;
+
+    }
+
+
+    if (derivCuenta) {
+
+      derivCuenta.textContent =
+        accountId ||
+        "--";
+
+    }
+
 
     registrarActividad(
-      `Cuenta DEMO verificada · ${accountId}`,
+      `Cuenta DEMO detectada · ${accountId}`,
       "correcto"
     );
 
   }
 );
 
+
+/* ==========================================
+   ESTADO DERIV
+   ========================================== */
 
 derivConnection.on(
   "state",
@@ -792,34 +1216,84 @@ derivConnection.on(
     mensaje
   }) => {
 
-    UI.estadoDeriv.textContent =
-      mensaje;
+    if (estadoDeriv) {
+
+      estadoDeriv.textContent =
+        mensaje;
+
+    }
 
 
-    if (estado === "connected") {
+    if (
+      estado === "connected"
+    ) {
 
-      UI.derivConexion.textContent =
-        "DEMO CONECTADO";
+      if (derivConexion) {
 
-      UI.derivCuenta.textContent =
-        derivConnection
-          .obtenerEstado()
-          .accountId || "--";
+        derivConexion.textContent =
+          "DEMO CONECTADO";
 
-      UI.botonConectarDeriv.disabled =
-        true;
+      }
 
-      UI.botonDesconectarDeriv.disabled =
-        false;
 
-      UI.derivAppId.disabled =
-        true;
+      if (derivCuenta) {
 
-      UI.derivAccountId.disabled =
-        true;
+        derivCuenta.textContent =
+          derivConnection
+            .obtenerEstado()
+            .accountId ||
+          "--";
 
-      UI.derivToken.disabled =
-        true;
+      }
+
+
+      if (botonConectarDeriv) {
+
+        botonConectarDeriv.disabled =
+          true;
+
+      }
+
+
+      if (botonDesconectarDeriv) {
+
+        botonDesconectarDeriv.disabled =
+          false;
+
+      }
+
+
+      if (botonActivarDemo) {
+
+        botonActivarDemo.disabled =
+          false;
+
+      }
+
+
+      if (derivAppId) {
+
+        derivAppId.disabled =
+          true;
+
+      }
+
+
+      if (derivAccountId) {
+
+        derivAccountId.disabled =
+          true;
+
+      }
+
+
+      if (derivToken) {
+
+        derivToken.disabled =
+          true;
+
+      }
+
 
       registrarActividad(
         "Deriv DEMO conectado correctamente.",
@@ -829,47 +1303,109 @@ derivConnection.on(
     }
 
 
-    else if (estado === "connecting") {
+    else if (
+      estado === "connecting"
+    ) {
 
-      UI.derivConexion.textContent =
-        "CONECTANDO";
+      if (derivConexion) {
 
-      UI.botonConectarDeriv.disabled =
-        true;
+        derivConexion.textContent =
+          "CONECTANDO";
 
-      UI.botonDesconectarDeriv.disabled =
-        true;
+      }
 
-      registrarActividad(
-        mensaje,
-        "aviso"
-      );
+
+      if (botonConectarDeriv) {
+
+        botonConectarDeriv.disabled =
+          true;
+
+      }
+
+
+      if (botonDesconectarDeriv) {
+
+        botonDesconectarDeriv.disabled =
+          true;
+
+      }
 
     }
 
 
     else {
 
-      UI.derivConexion.textContent =
-        "OFF";
+      if (derivConexion) {
 
-      UI.botonConectarDeriv.disabled =
-        false;
+        derivConexion.textContent =
+          "OFF";
 
-      UI.botonDesconectarDeriv.disabled =
-        true;
-
-      UI.derivAppId.disabled =
-        false;
-
-      UI.derivToken.disabled =
-        false;
-
-      botEngine.desactivarEjecucionDemo();
-      renderEjecucionDemo();
+      }
 
 
-      if (estado === "error") {
+      if (botonConectarDeriv) {
+
+        botonConectarDeriv.disabled =
+          false;
+
+      }
+
+
+      if (botonDesconectarDeriv) {
+
+        botonDesconectarDeriv.disabled =
+          true;
+
+      }
+
+
+      if (botonActivarDemo) {
+
+        botonActivarDemo.disabled =
+          true;
+
+      }
+
+
+      if (botonDesactivarDemo) {
+
+        botonDesactivarDemo.disabled =
+          true;
+
+      }
+
+
+      if (estadoEjecucion) {
+
+        estadoEjecucion.textContent =
+          "DESACTIVADA";
+
+      }
+
+
+      if (derivAppId) {
+
+        derivAppId.disabled =
+          false;
+
+      }
+
+
+      if (derivToken) {
+
+        derivToken.disabled =
+          false;
+
+      }
+
+
+      botEngine
+        .desactivarEjecucionDemo();
+
+
+      if (
+        estado === "error"
+      ) {
 
         registrarActividad(
           `Deriv: ${mensaje}`,
@@ -883,6 +1419,10 @@ derivConnection.on(
   }
 );
 
+
+/* ==========================================
+   ERROR DERIV
+   ========================================== */
 
 derivConnection.on(
   "error",
@@ -899,133 +1439,308 @@ derivConnection.on(
 );
 
 
-UI.botonConectarDeriv.addEventListener(
-  "click",
-  async () => {
+/* ==========================================
+   CONECTAR DERIV
+   ========================================== */
 
-    const appId =
-      UI.derivAppId.value
-        .trim();
+if (botonConectarDeriv) {
 
-    const token =
-      UI.derivToken.value
-        .trim();
+  botonConectarDeriv.addEventListener(
+    "click",
+    async () => {
+
+      const appId =
+        derivAppId?.value
+          ?.trim() ||
+        "";
 
 
-    if (!appId) {
+      const token =
+        derivToken?.value
+          ?.trim() ||
+        "";
+
+
+      if (!appId) {
+
+        registrarActividad(
+          "Falta Deriv App ID.",
+          "aviso"
+        );
+
+        derivAppId?.focus();
+
+        return;
+
+      }
+
+
+      if (!token) {
+
+        registrarActividad(
+          "Falta Token PAT.",
+          "aviso"
+        );
+
+        derivToken?.focus();
+
+        return;
+
+      }
+
+
+      if (derivAccountId) {
+
+        derivAccountId.value =
+          "Buscando automáticamente...";
+
+        derivAccountId.disabled =
+          true;
+
+      }
+
 
       registrarActividad(
-        "Falta Deriv App ID.",
+        "Buscando cuenta DEMO y conectando con Deriv...",
         "aviso"
       );
 
-      UI.derivAppId.focus();
 
-      return;
-
-    }
-
-
-    if (!token) {
-
-      registrarActividad(
-        "Falta Token PAT.",
-        "aviso"
-      );
-
-      UI.derivToken.focus();
-
-      return;
-
-    }
-
-
-    UI.derivAccountId.value =
-      "Buscando automáticamente...";
-
-
-    registrarActividad(
-      "Buscando cuenta DEMO y conectando con Deriv...",
-      "aviso"
-    );
-
-
-    const resultado =
-      await derivConnection.conectarDemo(
-        {
+      const resultado =
+        await derivConnection.conectarDemo({
           token,
           appId
-        }
-      );
+        });
 
 
-    if (!resultado.ok) {
+      if (
+        !resultado.ok
+      ) {
 
-      UI.derivAccountId.value =
-        "Se detectará automáticamente";
+        registrarActividad(
+          `No se pudo conectar: ${resultado.mensaje}`,
+          "error"
+        );
+
+      }
+
+    }
+  );
+
+}
+
+
+/* ==========================================
+   DESCONECTAR DERIV
+   ========================================== */
+
+if (botonDesconectarDeriv) {
+
+  botonDesconectarDeriv.addEventListener(
+    "click",
+    () => {
+
+      botEngine
+        .desactivarEjecucionDemo();
+
+
+      derivConnection
+        .desconectar();
+
+
+      if (derivToken) {
+
+        derivToken.value =
+          "";
+
+      }
 
 
       registrarActividad(
-        `No se pudo conectar: ${resultado.mensaje}`,
-        "error"
+        "Deriv DEMO desconectado.",
+        "aviso"
       );
 
     }
+  );
 
-  }
-);
+}
 
 
-UI.botonDesconectarDeriv.addEventListener(
-  "click",
-  () => {
+/* ==========================================
+   ACTIVAR COMPRA DEMO
+   ========================================== */
 
-    botEngine.desactivarEjecucionDemo();
-    renderEjecucionDemo();
+if (botonActivarDemo) {
 
-    derivConnection.desconectar();
+  botonActivarDemo.addEventListener(
+    "click",
+    () => {
 
-    UI.derivToken.value =
-      "";
+      const resultado =
+        botEngine
+          .activarEjecucionDemo();
 
-    UI.derivAccountId.value =
-      "Se detectará automáticamente";
 
-    registrarActividad(
-      "Deriv DEMO desconectado.",
-      "aviso"
-    );
+      if (!resultado.ok) {
 
-  }
-);
+        registrarActividad(
+          resultado.mensaje,
+          "error"
+        );
 
+        return;
+
+      }
+
+
+      botonActivarDemo.disabled =
+        true;
+
+
+      if (botonDesactivarDemo) {
+
+        botonDesactivarDemo.disabled =
+          false;
+
+      }
+
+
+      if (estadoEjecucion) {
+
+        estadoEjecucion.textContent =
+          "ACTIVA · SOLO DEMO";
+
+      }
+
+
+      registrarActividad(
+        "EJECUCIÓN DEMO ACTIVADA.",
+        "correcto"
+      );
+
+    }
+  );
+
+}
+
+
+/* ==========================================
+   DESACTIVAR COMPRA DEMO
+   ========================================== */
+
+if (botonDesactivarDemo) {
+
+  botonDesactivarDemo.addEventListener(
+    "click",
+    () => {
+
+      const resultado =
+        botEngine
+          .desactivarEjecucionDemo();
+
+
+      botonDesactivarDemo.disabled =
+        true;
+
+
+      if (botonActivarDemo) {
+
+        botonActivarDemo.disabled =
+          !derivConnection
+            .obtenerEstado()
+            .connected;
+
+      }
+
+
+      if (estadoEjecucion) {
+
+        estadoEjecucion.textContent =
+          "DESACTIVADA";
+
+      }
+
+
+      registrarActividad(
+        resultado.mensaje,
+        "aviso"
+      );
+
+    }
+  );
+
+}
+
+
+/* ==========================================
+   CERRAR PÁGINA
+   ========================================== */
 
 window.addEventListener(
   "beforeunload",
   () => {
 
-    botEngine.desactivarEjecucionDemo();
-    derivConnection.desconectar();
+    botEngine
+      .desactivarEjecucionDemo();
+
+
+    derivConnection
+      .desconectar();
 
   }
 );
 
 
-UI.derivAccountId.value =
-  "Se detectará automáticamente";
+/* ==========================================
+   ESTADO INICIAL
+   ========================================== */
+
+if (derivAccountId) {
+
+  derivAccountId.value =
+    "Se detectará automáticamente";
+
+  derivAccountId.disabled =
+    true;
+
+}
 
 
-renderEjecucionDemo();
+if (botonActivarDemo) {
+
+  botonActivarDemo.disabled =
+    true;
+
+}
+
+
+if (botonDesactivarDemo) {
+
+  botonDesactivarDemo.disabled =
+    true;
+
+}
+
+
+if (estadoEjecucion) {
+
+  estadoEjecucion.textContent =
+    "DESACTIVADA";
+
+}
 
 
 registrarActividad(
-  "BOT V1 MR preparado."
+  "BOT V1 MR FIX6 preparado."
 );
 
-registrarActividad(
-  "Ejecución DEMO desactivada por defecto."
-);
 
 registrarActividad(
   "Esperando conexión con Trading Analyzer."
+);
+
+
+registrarActividad(
+  "Ejecución DEMO desactivada por seguridad."
 );
