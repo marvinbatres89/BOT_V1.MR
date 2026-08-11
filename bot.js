@@ -1,16 +1,22 @@
 /* ==========================================
    BOT V1 MR
    CONTROLADOR PRINCIPAL
-   FIX6
+   FIX7 - CALIBRADOR DE EJECUCIÓN
 
-   TRADING ANALYZER
-   -> CONTRATO
-   -> PROPUESTA DERIV
-   -> COMPRA DEMO CONTROLADA
-   -> SEGUIMIENTO
-   -> RESULTADO FINAL
+   CONSERVA:
+   - SINCRONIZACIÓN
+   - DERIV DEMO
+   - COTIZACIÓN
+   - BUY
+   - RESULTADO
 
-   SOLO CUENTA DEMO
+   AGREGA:
+   - MEDICIÓN DE LATENCIA
+   - FAMILIA 1S / STANDARD
+   - SIGNAL -> BUY
+   - LATENCIA PROPUESTA
+   - LATENCIA BUY
+   - ESTADÍSTICAS POR FAMILIA
    ========================================== */
 
 import {
@@ -26,111 +32,72 @@ import {
 } from "./deriv-connection.js";
 
 
-/* ==========================================
-   AYUDANTE DOM
-   ========================================== */
-
 const $ =
   (id) =>
     document.getElementById(id);
 
 
-/* ==========================================
-   ELEMENTOS DEL BOT
-   ========================================== */
+const UI = {
 
-const estadoBot =
-  $("estadoBot");
+  estadoBot: $("estadoBot"),
+  mercado: $("mercado"),
+  estrategia: $("estrategia"),
+  direccion: $("direccion"),
+  confianza: $("confianza"),
+  entrada: $("entrada"),
+  precio: $("precio"),
 
-const mercado =
-  $("mercado");
+  botonConectar: $("botonConectar"),
+  botonPausar: $("botonPausar"),
+  botonProbar: $("botonProbar"),
 
-const estrategia =
-  $("estrategia");
+  ultimaSenal: $("ultimaSenal"),
+  ultimoContrato: $("ultimoContrato"),
 
-const direccion =
-  $("direccion");
+  ultimaPropuestaSimulada:
+    $("ultimaPropuestaSimulada") ||
+    $("ultimaPropuesta"),
 
-const confianza =
-  $("confianza");
+  ultimaPropuestaDeriv:
+    $("ultimaPropuestaDeriv") ||
+    $("ultimaPropuesta"),
 
-const entrada =
-  $("entrada");
+  operacionDemo: $("operacionDemo"),
+  resultadoDemo: $("resultadoDemo"),
+  registroBot: $("registroBot"),
 
-const precio =
-  $("precio");
+  estadoDeriv: $("estadoDeriv"),
+  derivAppId: $("derivAppId"),
+  derivAccountId: $("derivAccountId"),
+  derivToken: $("derivToken"),
 
-const botonConectar =
-  $("botonConectar");
+  botonConectarDeriv:
+    $("botonConectarDeriv"),
 
-const botonPausar =
-  $("botonPausar");
+  botonDesconectarDeriv:
+    $("botonDesconectarDeriv"),
 
-const botonProbar =
-  $("botonProbar");
+  derivCuenta: $("derivCuenta"),
+  derivConexion: $("derivConexion"),
 
-const ultimaSenal =
-  $("ultimaSenal");
+  estadoEjecucionDemo:
+    $("estadoEjecucionDemo") ||
+    $("estadoEjecucion"),
 
-const ultimoContrato =
-  $("ultimoContrato");
+  botonActivarEjecucion:
+    $("botonActivarEjecucion") ||
+    $("botonActivarDemo"),
 
-const ultimaPropuesta =
-  $("ultimaPropuesta");
+  botonDesactivarEjecucion:
+    $("botonDesactivarEjecucion") ||
+    $("botonDesactivarDemo")
 
-const registroBot =
-  $("registroBot");
-
-
-/* ==========================================
-   ELEMENTOS DERIV
-   ========================================== */
-
-const estadoDeriv =
-  $("estadoDeriv");
-
-const derivAppId =
-  $("derivAppId");
-
-const derivAccountId =
-  $("derivAccountId");
-
-const derivToken =
-  $("derivToken");
-
-const botonConectarDeriv =
-  $("botonConectarDeriv");
-
-const botonDesconectarDeriv =
-  $("botonDesconectarDeriv");
-
-const derivCuenta =
-  $("derivCuenta");
-
-const derivConexion =
-  $("derivConexion");
+};
 
 
-/* ==========================================
-   EJECUCIÓN DEMO
-   ========================================== */
-
-const botonActivarDemo =
-  $("botonActivarDemo");
-
-const botonDesactivarDemo =
-  $("botonDesactivarDemo");
-
-const estadoEjecucion =
-  $("estadoEjecucion");
-
-const operacionDemo =
-  $("operacionDemo");
-
-
-/* ==========================================
+/* ========================================
    HORA
-   ========================================== */
+   ======================================== */
 
 function obtenerHora() {
 
@@ -138,257 +105,219 @@ function obtenerHora() {
     .toLocaleTimeString(
       "es-SV",
       {
-        hour:
-          "2-digit",
-
-        minute:
-          "2-digit",
-
-        second:
-          "2-digit"
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
       }
     );
 
 }
 
 
-/* ==========================================
+/* ========================================
    REGISTRO
-   ========================================== */
+   ======================================== */
 
 function registrarActividad(
   mensaje,
   tipo = "normal"
 ) {
 
-  if (!registroBot) {
+  if (!UI.registroBot) {
     return;
   }
 
 
   const linea =
-    document.createElement(
-      "p"
-    );
+    document.createElement("p");
 
 
   linea.textContent =
     `[${obtenerHora()}] ${mensaje}`;
 
 
-  if (
-    tipo === "correcto"
-  ) {
-
+  if (tipo === "correcto") {
     linea.style.color =
       "#79f3c2";
-
   }
 
 
-  if (
-    tipo === "aviso"
-  ) {
-
+  if (tipo === "aviso") {
     linea.style.color =
       "#ffd37a";
-
   }
 
 
-  if (
-    tipo === "error"
-  ) {
-
+  if (tipo === "error") {
     linea.style.color =
       "#ff9fb4";
-
   }
 
 
-  registroBot.prepend(
+  UI.registroBot.prepend(
     linea
   );
 
 }
 
 
-/* ==========================================
+/* ========================================
+   FORMATO MILISEGUNDOS
+   ======================================== */
+
+function formatoMs(
+  valor
+) {
+
+  const numero =
+    Number(valor);
+
+
+  if (!Number.isFinite(numero)) {
+    return "--";
+  }
+
+
+  return `${numero.toFixed(2)} ms`;
+
+}
+
+
+/* ========================================
    MOSTRAR SEÑAL
-   ========================================== */
+   ======================================== */
 
 function mostrarSenal(
   senal
 ) {
 
-  if (!senal) {
-    return;
+  if (UI.mercado) {
+    UI.mercado.textContent =
+      senal.mercado || "--";
   }
 
 
-  if (mercado) {
-
-    mercado.textContent =
-      senal.mercado ||
-      "--";
-
+  if (UI.estrategia) {
+    UI.estrategia.textContent =
+      senal.estrategia || "--";
   }
 
 
-  if (estrategia) {
-
-    estrategia.textContent =
-      senal.estrategia ||
-      "--";
-
+  if (UI.direccion) {
+    UI.direccion.textContent =
+      senal.direccion || "--";
   }
 
 
-  if (direccion) {
-
-    direccion.textContent =
-      senal.direccion ||
-      "--";
-
-  }
-
-
-  if (confianza) {
-
-    confianza.textContent =
+  if (UI.confianza) {
+    UI.confianza.textContent =
       `${senal.confianza}%`;
-
   }
 
 
-  if (entrada) {
+  if (UI.entrada) {
 
-    entrada.textContent =
-      senal.segundosEntrada !== null &&
-      senal.segundosEntrada !== undefined
+    UI.entrada.textContent =
+      senal.segundosEntrada != null
         ? `${senal.segundosEntrada} s`
         : "--";
 
   }
 
 
-  if (precio) {
+  if (UI.precio) {
 
-    precio.textContent =
-      senal.precio !== null &&
-      senal.precio !== undefined
-        ? senal.precio
+    UI.precio.textContent =
+      senal.precio != null
+        ? String(senal.precio)
         : "--";
 
   }
 
 
-  if (!ultimaSenal) {
-    return;
+  if (UI.ultimaSenal) {
+
+    UI.ultimaSenal.innerHTML = `
+
+      <strong>Mercado:</strong>
+      ${senal.mercado}
+      <br><br>
+
+      <strong>Estrategia:</strong>
+      ${senal.estrategia}
+      <br>
+
+      <strong>Dirección:</strong>
+      ${senal.direccion}
+      <br>
+
+      <strong>Confianza:</strong>
+      ${senal.confianza}%
+      <br>
+
+      <strong>Tendencia:</strong>
+      ${senal.tendencia ?? "--"}
+      <br>
+
+      <strong>RSI:</strong>
+      ${senal.rsi ?? "--"}
+      <br>
+
+      <strong>Momentum:</strong>
+      ${senal.momentum ?? "--"}
+      <br>
+
+      <strong>Volatilidad:</strong>
+      ${senal.volatilidad ?? "--"}
+      <br>
+
+      <strong>Último dígito:</strong>
+      ${senal.ultimoDigito ?? "--"}
+      <br>
+
+      <strong>Entrada:</strong>
+      ${senal.segundosEntrada ?? "--"} segundos
+
+    `;
+
   }
-
-
-  ultimaSenal.innerHTML = `
-
-    <strong>Mercado:</strong>
-    ${senal.mercado ?? "--"}
-    <br><br>
-
-    <strong>Estrategia:</strong>
-    ${senal.estrategia ?? "--"}
-    <br>
-
-    <strong>Dirección:</strong>
-    ${senal.direccion ?? "--"}
-    <br>
-
-    <strong>Confianza:</strong>
-    ${senal.confianza ?? "--"}%
-    <br>
-
-    <strong>Tendencia:</strong>
-    ${senal.tendencia ?? "--"}
-    <br>
-
-    <strong>RSI:</strong>
-    ${senal.rsi ?? "--"}
-    <br>
-
-    <strong>Momentum:</strong>
-    ${senal.momentum ?? "--"}
-    <br>
-
-    <strong>Volatilidad:</strong>
-    ${senal.volatilidad ?? "--"}
-    <br>
-
-    <strong>Último dígito:</strong>
-    ${senal.ultimoDigito ?? "--"}
-    <br>
-
-    <strong>Entrada:</strong>
-    ${
-      senal.segundosEntrada !== null &&
-      senal.segundosEntrada !== undefined
-        ? `${senal.segundosEntrada} segundos`
-        : "--"
-    }
-
-  `;
 
 }
 
 
-/* ==========================================
+/* ========================================
    MOSTRAR CONTRATO
-   ========================================== */
+   ======================================== */
 
 function mostrarContrato(
   contrato
 ) {
 
-  if (!ultimoContrato) {
+  if (!UI.ultimoContrato) {
     return;
   }
 
 
-  if (!contrato) {
-
-    ultimoContrato.textContent =
-      "Esperando una señal válida...";
-
-    return;
-
-  }
-
-
-  const barrera =
-    contrato.barrier !== null &&
-    contrato.barrier !== undefined
-      ? contrato.barrier
-      : "--";
-
-
-  ultimoContrato.innerHTML = `
+  UI.ultimoContrato.innerHTML = `
 
     <strong>Mercado:</strong>
-    ${contrato.symbol ?? "--"}
+    ${contrato.symbol}
     <br><br>
 
     <strong>Contrato Deriv:</strong>
-    ${contrato.contractType ?? "--"}
+    ${contrato.contractType}
     <br>
 
     <strong>Dirección:</strong>
-    ${contrato.direction ?? "--"}
+    ${contrato.direction}
     <br>
 
     <strong>Barrera:</strong>
-    ${barrera}
+    ${contrato.barrier ?? "--"}
     <br>
 
     <strong>Confianza:</strong>
-    ${contrato.confidence ?? "--"}%
+    ${contrato.confidence}%
     <br>
 
     <strong>Segundo:</strong>
@@ -399,16 +328,16 @@ function mostrarContrato(
 }
 
 
-/* ==========================================
-   MOSTRAR PROPUESTA SIMULADA
-   ========================================== */
+/* ========================================
+   PROPUESTA SIMULADA
+   ======================================== */
 
 function mostrarPropuestaSimulada(
   propuesta
 ) {
 
   if (
-    !ultimaPropuesta ||
+    !UI.ultimaPropuestaSimulada ||
     !propuesta
   ) {
 
@@ -417,58 +346,71 @@ function mostrarPropuestaSimulada(
   }
 
 
-  ultimaPropuesta.innerHTML = `
+  UI.ultimaPropuestaSimulada.innerHTML = `
 
     <strong>Modo:</strong>
-    ${propuesta.modo ?? "SIMULACION"}
+    ${propuesta.modo}
     <br><br>
 
     <strong>Contrato:</strong>
-    ${propuesta.contractType ?? "--"}
+    ${propuesta.contractType}
     <br>
 
     <strong>Monto:</strong>
-    ${propuesta.amount ?? "--"}
-    ${propuesta.currency ?? ""}
+    ${propuesta.amount}
+    ${propuesta.currency}
     <br>
 
     <strong>Duración:</strong>
-    ${propuesta.duration ?? "--"}
-    ${propuesta.durationUnit ?? ""}
+    ${propuesta.duration}${propuesta.durationUnit}
     <br>
 
     <strong>Estado:</strong>
-    ${propuesta.status ?? "--"}
+    ${propuesta.status}
     <br>
 
-    <strong>ID simulación:</strong>
-    ${propuesta.id ?? "--"}
+    <strong>ID:</strong>
+    ${propuesta.id}
 
   `;
 
 }
 
 
-/* ==========================================
-   MOSTRAR PROPUESTA DERIV
-   ========================================== */
+/* ========================================
+   PROPUESTA DERIV
+   ======================================== */
 
 function mostrarPropuestaDeriv(
   propuesta,
   contrato
 ) {
 
-  if (
-    !ultimaPropuesta ||
-    !propuesta?.ok
-  ) {
+  if (!UI.ultimaPropuestaDeriv) {
+    return;
+  }
+
+
+  if (!propuesta?.ok) {
+
+    UI.ultimaPropuestaDeriv.innerHTML = `
+
+      <strong>Estado:</strong>
+      SIN COTIZACIÓN
+      <br><br>
+
+      <strong>Motivo:</strong>
+      ${propuesta?.error ||
+        "No se recibió cotización."}
+
+    `;
 
     return;
 
   }
 
 
-  ultimaPropuesta.innerHTML = `
+  UI.ultimaPropuestaDeriv.innerHTML = `
 
     <strong>Modo:</strong>
     DERIV DEMO REAL
@@ -486,17 +428,17 @@ function mostrarPropuestaDeriv(
     ${propuesta.id ?? "--"}
     <br><br>
 
-    <strong>Precio solicitado:</strong>
-    ${propuesta.askPrice ?? "--"}
+    <strong>Precio:</strong>
+    ${propuesta.askPrice}
     <br>
 
     <strong>Pago potencial:</strong>
-    ${propuesta.payout ?? "--"}
+    ${propuesta.payout}
     <br>
 
     <strong>Spot:</strong>
     ${propuesta.spot ?? "--"}
-    <br><br>
+    <br>
 
     <strong>Estado:</strong>
     COTIZACIÓN REAL RECIBIDA
@@ -506,119 +448,132 @@ function mostrarPropuestaDeriv(
 }
 
 
-/* ==========================================
-   MOSTRAR OPERACIÓN ABIERTA
-   ========================================== */
+/* ========================================
+   MOSTRAR COMPRA
+   ======================================== */
 
-function mostrarOperacionAbierta(
+function mostrarCompraDemo(
   compra
 ) {
 
-  if (!operacionDemo) {
+  if (!UI.operacionDemo) {
     return;
   }
 
 
-  operacionDemo.classList.remove(
-    "ganada",
-    "perdida"
-  );
+  if (!compra?.ok) {
+
+    UI.operacionDemo.innerHTML = `
+
+      <strong>
+        Compra DEMO no ejecutada.
+      </strong>
+
+      <br><br>
+
+      ${compra?.error ||
+        "Ejecución DEMO desactivada."}
+
+    `;
+
+    return;
+
+  }
 
 
-  operacionDemo.innerHTML = `
+  const dato =
+    compra.compra;
 
-    <strong>
-      OPERACIÓN DEMO ABIERTA
-    </strong>
 
+  UI.operacionDemo.innerHTML = `
+
+    <strong>ESTADO:</strong>
+    OPERACIÓN DEMO ABIERTA
     <br><br>
 
     <strong>Contract ID:</strong>
-    ${compra?.contractId ?? "--"}
+    ${dato.contractId}
+    <br>
+
+    <strong>Transaction ID:</strong>
+    ${dato.transactionId ?? "--"}
     <br>
 
     <strong>Compra:</strong>
-    ${compra?.buyPrice ?? "--"}
+    ${dato.buyPrice} USD
     <br>
 
     <strong>Pago máximo:</strong>
-    ${compra?.payout ?? "--"}
-    <br><br>
+    ${dato.payout}
+    <br>
 
-    <strong>Seguimiento:</strong>
-    Esperando resultado de Deriv...
+    <strong>Descripción:</strong>
+    ${dato.longcode || "--"}
 
   `;
 
 }
 
 
-/* ==========================================
-   ACTUALIZAR SEGUIMIENTO
-   ========================================== */
+/* ========================================
+   ACTUALIZACIÓN CONTRATO
+   ======================================== */
 
-function actualizarOperacion(
+function mostrarActualizacionContrato(
   contrato
 ) {
 
-  if (
-    !operacionDemo ||
-    !contrato
-  ) {
-
+  if (!UI.operacionDemo) {
     return;
-
   }
 
 
-  const estado =
+  const status =
     String(
-      contrato.status ??
-      "open"
+      contrato?.status ??
+      "OPEN"
     )
       .toUpperCase();
 
 
-  const profit =
-    contrato.profit !== undefined
-      ? contrato.profit
-      : "--";
+  UI.operacionDemo.innerHTML = `
 
-
-  operacionDemo.innerHTML = `
-
-    <strong>
-      OPERACIÓN DEMO EN SEGUIMIENTO
-    </strong>
-
+    <strong>ESTADO:</strong>
+    ${status}
     <br><br>
 
     <strong>Contract ID:</strong>
-    ${contrato.contract_id ?? "--"}
+    ${contrato?.contract_id ?? "--"}
     <br>
 
-    <strong>Estado:</strong>
-    ${estado}
+    <strong>Precio compra:</strong>
+    ${contrato?.buy_price ?? "--"}
     <br>
 
     <strong>Profit actual:</strong>
-    ${profit}
+    ${contrato?.profit ?? "--"}
+    <br>
+
+    <strong>Vendido:</strong>
+    ${contrato?.is_sold
+      ? "SÍ"
+      : "NO"}
 
   `;
 
 }
 
 
-/* ==========================================
-   RESULTADO FINAL
-   ========================================== */
+/* ========================================
+   RESULTADO DEMO
+   ======================================== */
 
-function mostrarResultado(
+function mostrarResultadoDemo(
   resultado
 ) {
 
   if (
-    !operacionDemo ||
+    !UI.resultadoDemo ||
     !resultado
   ) {
 
@@ -627,78 +582,230 @@ function mostrarResultado(
   }
 
 
-  const profit =
+  if (!resultado.ok) {
+
+    UI.resultadoDemo.innerHTML = `
+
+      <strong>
+        Seguimiento pendiente.
+      </strong>
+
+      <br><br>
+
+      ${resultado.error ||
+        "No se recibió resultado final."}
+
+    `;
+
+    return;
+
+  }
+
+
+  const dato =
+    resultado.resultado;
+
+
+  const ganado =
     Number(
-      resultado.profit ??
-      0
-    );
+      dato.profit
+    ) > 0;
 
 
-  const ganada =
-    profit > 0;
+  UI.resultadoDemo.innerHTML = `
 
+    <strong>RESULTADO:</strong>
+    ${ganado
+      ? "GANADA ✅"
+      : "PERDIDA ❌"}
 
-  operacionDemo.classList.remove(
-    "ganada",
-    "perdida"
-  );
+    <br><br>
 
-
-  operacionDemo.classList.add(
-    ganada
-      ? "ganada"
-      : "perdida"
-  );
-
-
-  operacionDemo.innerHTML = `
-
-    <div
-      class="${
-        ganada
-          ? "resultado-ganado"
-          : "resultado-perdido"
-      }"
-    >
-      ${
-        ganada
-          ? "GANADA"
-          : "PERDIDA"
-      }
-    </div>
-
+    <strong>Estado Deriv:</strong>
+    ${dato.status}
     <br>
 
     <strong>Contract ID:</strong>
-    ${resultado.contractId ?? "--"}
-    <br>
-
-    <strong>Profit:</strong>
-    ${profit}
+    ${dato.contractId}
     <br>
 
     <strong>Compra:</strong>
-    ${resultado.buyPrice ?? "--"}
+    ${dato.buyPrice}
     <br>
 
-    <strong>Cierre:</strong>
-    ${resultado.sellPrice ?? "--"}
+    <strong>Venta/Pago:</strong>
+    ${dato.sellPrice}
+    <br>
+
+    <strong>Beneficio:</strong>
+    ${dato.profit} USD
     <br>
 
     <strong>Fuente:</strong>
-    ${resultado.source ?? "--"}
+    ${dato.source ?? "--"}
 
   `;
 
 }
 
 
-/* ==========================================
-   SEÑAL RECIBIDA
-   ========================================== */
+/* ========================================
+   FIX7
+   MOSTRAR TELEMETRÍA
+   ======================================== */
+
+function mostrarTelemetria(
+  telemetria
+) {
+
+  if (!telemetria) {
+    return;
+  }
+
+
+  registrarActividad(
+    `FIX7 · FAMILIA ${telemetria.familiaMercado} · PUNTO ${telemetria.puntoEntrada ?? "--"} · REFERENCIA ${telemetria.retrasoReferenciaSeg ?? "--"} s`,
+    "aviso"
+  );
+
+
+  registrarActividad(
+    `LATENCIA · Señal→BUY ${formatoMs(
+      telemetria.signalToBuyMs
+    )} · Propuesta ${formatoMs(
+      telemetria.proposalLatencyMs
+    )} · BUY ${formatoMs(
+      telemetria.buyLatencyMs
+    )}`,
+    "aviso"
+  );
+
+
+  registrarActividad(
+    `LATENCIA · Señal→Confirmación ${formatoMs(
+      telemetria.signalToBuyConfirmMs
+    )} · Total→Resultado ${formatoMs(
+      telemetria.totalUntilResultMs
+    )}`,
+    "aviso"
+  );
+
+}
+
+
+/* ========================================
+   FIX7
+   RESUMEN FAMILIA
+   ======================================== */
+
+function mostrarResumenFamilia(
+  resumen
+) {
+
+  if (!resumen) {
+    return;
+  }
+
+
+  const precision =
+    resumen.accuracy != null
+      ? `${resumen.accuracy}%`
+      : "--";
+
+
+  registrarActividad(
+    `CALIBRADOR ${resumen.familia} · ${resumen.pruebas} pruebas · ${resumen.ganadas} G · ${resumen.perdidas} P · ACIERTO ${precision} · PROMEDIO Señal→BUY ${formatoMs(
+      resumen.promedioSignalToBuyMs
+    )}`,
+    "correcto"
+  );
+
+}
+
+
+/* ========================================
+   EJECUCIÓN DEMO
+   ======================================== */
+
+function renderEjecucionDemo() {
+
+  const estado =
+    botEngine
+      .obtenerEstado()
+      .trade;
+
+
+  const activa =
+    Boolean(
+      estado.ejecucionActiva
+    );
+
+
+  if (UI.estadoEjecucionDemo) {
+
+    UI.estadoEjecucionDemo.textContent =
+      activa
+        ? "EJECUCIÓN DEMO ON"
+        : "EJECUCIÓN DEMO OFF";
+
+
+    UI.estadoEjecucionDemo
+      .classList
+      .toggle(
+        "encendido-ejecucion",
+        activa
+      );
+
+
+    UI.estadoEjecucionDemo
+      .classList
+      .toggle(
+        "apagado-ejecucion",
+        !activa
+      );
+
+  }
+
+
+  if (UI.botonActivarEjecucion) {
+
+    UI.botonActivarEjecucion.disabled =
+      activa;
+
+  }
+
+
+  if (UI.botonDesactivarEjecucion) {
+
+    UI.botonDesactivarEjecucion.disabled =
+      !activa;
+
+  }
+
+}
+
+
+/* ========================================
+   RECIBIR SEÑAL
+   ======================================== */
 
 signalBridge.onSenal(
-  async (senal) => {
+  async (
+    senal
+  ) => {
+
+    /*
+      Marca de tiempo FIX7.
+      Se toma inmediatamente al entrar
+      al callback del BOT.
+    */
+
+    const senalRecibidaPerf =
+      typeof performance !==
+        "undefined"
+        ? performance.now()
+        : Date.now();
+
 
     mostrarSenal(
       senal
@@ -717,15 +824,17 @@ signalBridge.onSenal(
         await botEngine.procesarSenal(
           senal,
           {
+
             onOperacionUpdate:
-              actualizarOperacion
+              mostrarActualizacionContrato,
+
+            senalRecibidaPerf
+
           }
         );
 
 
-      if (
-        !resultado.aceptada
-      ) {
+      if (!resultado.aceptada) {
 
         registrarActividad(
           `Señal no procesada · ${resultado.etapa || "BOT"} · ${resultado.motivo}`,
@@ -743,9 +852,7 @@ signalBridge.onSenal(
       );
 
 
-      if (
-        resultado.contrato
-      ) {
+      if (resultado.contrato) {
 
         mostrarContrato(
           resultado.contrato
@@ -753,16 +860,18 @@ signalBridge.onSenal(
 
 
         registrarActividad(
-          `CONTRATO → ${resultado.contrato.contractType}`,
+          `CONTRATO → ${resultado.contrato.contractType}${
+            resultado.contrato.barrier != null
+              ? ` · BARRERA ${resultado.contrato.barrier}`
+              : ""
+          }`,
           "correcto"
         );
 
       }
 
 
-      if (
-        resultado.propuesta
-      ) {
+      if (resultado.propuesta) {
 
         mostrarPropuestaSimulada(
           resultado.propuesta
@@ -771,18 +880,18 @@ signalBridge.onSenal(
       }
 
 
+      mostrarPropuestaDeriv(
+        resultado.propuestaDeriv,
+        resultado.contrato
+      );
+
+
       if (
         resultado.propuestaDeriv?.ok
       ) {
 
-        mostrarPropuestaDeriv(
-          resultado.propuestaDeriv,
-          resultado.contrato
-        );
-
-
         registrarActividad(
-          `DERIV DEMO → COTIZACIÓN REAL · ${resultado.contrato.contractType} · ${resultado.propuestaDeriv.askPrice}`,
+          `DERIV DEMO → COTIZACIÓN REAL · ${resultado.contrato.contractType} · precio ${resultado.propuestaDeriv.askPrice}`,
           "correcto"
         );
 
@@ -797,90 +906,93 @@ signalBridge.onSenal(
 
 
       if (
-        resultado.compraDemo?.ok
+        resultado.ejecucionDemoActiva
       ) {
 
-        mostrarOperacionAbierta(
-          resultado.compraDemo.compra
+        mostrarCompraDemo(
+          resultado.compraDemo
         );
 
 
-        registrarActividad(
-          `BUY DEMO OK · Contract ID ${resultado.compraDemo.compra.contractId}`,
-          "correcto"
-        );
+        if (
+          resultado.compraDemo?.ok
+        ) {
 
-      }
-
-
-      if (
-        resultado.compraDemo &&
-        !resultado.compraDemo.ok
-      ) {
-
-        registrarActividad(
-          `BUY DEMO RECHAZADO · ${resultado.compraDemo.error}`,
-          "error"
-        );
-
-      }
+          registrarActividad(
+            `COMPRA DEMO → contract ${resultado.compraDemo.compra.contractId} · ${resultado.compraDemo.compra.buyPrice} USD`,
+            "correcto"
+          );
 
 
-      if (
-        resultado.resultadoDemo?.contractId
-      ) {
-
-        mostrarResultado(
-          resultado.resultadoDemo
-        );
+          mostrarResultadoDemo(
+            resultado.resultadoDemo
+          );
 
 
-        registrarActividad(
-          `${Number(resultado.resultadoDemo.profit) > 0 ? "GANADA" : "PERDIDA"} · PROFIT ${resultado.resultadoDemo.profit}`,
-          Number(resultado.resultadoDemo.profit) > 0
-            ? "correcto"
-            : "error"
-        );
+          if (
+            resultado.resultadoDemo?.ok
+          ) {
 
-      }
+            const profit =
+              Number(
+                resultado
+                  .resultadoDemo
+                  .resultado
+                  .profit
+              );
 
 
-      else if (
-        resultado.resultadoDemo?.ok ===
-          false
-      ) {
+            registrarActividad(
+              `RESULTADO DEMO → ${
+                profit > 0
+                  ? "GANADA"
+                  : "PERDIDA"
+              } · ${profit} USD`,
+              profit > 0
+                ? "correcto"
+                : "error"
+            );
 
-        if (operacionDemo) {
+          }
 
-          operacionDemo.innerHTML += `
+        } else {
 
-            <br><br>
-
-            <strong>
-              Seguimiento pendiente
-            </strong>
-
-            <br>
-
-            ${
-              resultado.resultadoDemo.error ??
-              "No se recibió resultado final."
-            }
-
-          `;
+          registrarActividad(
+            `COMPRA DEMO NO EJECUTADA → ${resultado.compraDemo?.error || "Motivo desconocido."}`,
+            "aviso"
+          );
 
         }
 
+      } else {
 
         registrarActividad(
-          `SEGUIMIENTO → ${resultado.resultadoDemo.error}`,
+          "Ejecución DEMO OFF · Solo cotización.",
           "aviso"
         );
 
       }
 
 
-    } catch (error) {
+      /*
+        FIX7:
+        mostrar mediciones después
+        de finalizar la operación.
+      */
+
+      mostrarTelemetria(
+        resultado.telemetria
+      );
+
+
+      mostrarResumenFamilia(
+        resultado.resumenFamilia
+      );
+
+
+    } catch (
+      error
+    ) {
 
       registrarActividad(
         `Error procesando señal: ${error.message}`,
@@ -893,51 +1005,49 @@ signalBridge.onSenal(
 );
 
 
-/* ==========================================
-   PUENTE
-   ========================================== */
+/* ========================================
+   ESTADO DEL PUENTE
+   ======================================== */
 
 window.addEventListener(
   "bot:estado",
-  (evento) => {
+  (
+    evento
+  ) => {
 
     const datos =
       evento.detail;
 
 
-    if (
-      datos.conectado
-    ) {
+    if (datos.conectado) {
 
-      if (estadoBot) {
+      if (UI.estadoBot) {
 
-        estadoBot.textContent =
+        UI.estadoBot.textContent =
           "BOT SYNC";
 
-        estadoBot.classList.remove(
+
+        UI.estadoBot.classList.remove(
           "apagado"
         );
 
-        estadoBot.classList.add(
+
+        UI.estadoBot.classList.add(
           "encendido"
         );
 
       }
 
 
-      if (botonConectar) {
-
-        botonConectar.disabled =
+      if (UI.botonConectar) {
+        UI.botonConectar.disabled =
           true;
-
       }
 
 
-      if (botonPausar) {
-
-        botonPausar.disabled =
+      if (UI.botonPausar) {
+        UI.botonPausar.disabled =
           false;
-
       }
 
 
@@ -948,35 +1058,33 @@ window.addEventListener(
 
     } else {
 
-      if (estadoBot) {
+      if (UI.estadoBot) {
 
-        estadoBot.textContent =
+        UI.estadoBot.textContent =
           "BOT OFF";
 
-        estadoBot.classList.remove(
+
+        UI.estadoBot.classList.remove(
           "encendido"
         );
 
-        estadoBot.classList.add(
+
+        UI.estadoBot.classList.add(
           "apagado"
         );
 
       }
 
 
-      if (botonConectar) {
-
-        botonConectar.disabled =
+      if (UI.botonConectar) {
+        UI.botonConectar.disabled =
           false;
-
       }
 
 
-      if (botonPausar) {
-
-        botonPausar.disabled =
+      if (UI.botonPausar) {
+        UI.botonPausar.disabled =
           true;
-
       }
 
 
@@ -991,13 +1099,15 @@ window.addEventListener(
 );
 
 
-/* ==========================================
+/* ========================================
    ORIGEN DE SEÑAL
-   ========================================== */
+   ======================================== */
 
 window.addEventListener(
   "bot:signal-source",
-  (evento) => {
+  (
+    evento
+  ) => {
 
     registrarActividad(
       `Señal recibida desde ${evento.detail?.origen || "desconocido"}`,
@@ -1008,17 +1118,19 @@ window.addEventListener(
 );
 
 
-/* ==========================================
-   ERROR PUENTE
-   ========================================== */
+/* ========================================
+   ERRORES PUENTE
+   ======================================== */
 
 window.addEventListener(
   "bot:error",
-  (evento) => {
+  (
+    evento
+  ) => {
 
     registrarActividad(
       evento.detail?.mensaje ||
-      "Error de sincronización.",
+      "Error de sincronización",
       "error"
     );
 
@@ -1026,13 +1138,13 @@ window.addEventListener(
 );
 
 
-/* ==========================================
+/* ========================================
    CONECTAR PUENTE
-   ========================================== */
+   ======================================== */
 
-if (botonConectar) {
+if (UI.botonConectar) {
 
-  botonConectar.addEventListener(
+  UI.botonConectar.addEventListener(
     "click",
     () => {
 
@@ -1054,13 +1166,13 @@ if (botonConectar) {
 }
 
 
-/* ==========================================
-   PAUSAR
-   ========================================== */
+/* ========================================
+   PAUSAR / REANUDAR
+   ======================================== */
 
-if (botonPausar) {
+if (UI.botonPausar) {
 
-  botonPausar.addEventListener(
+  UI.botonPausar.addEventListener(
     "click",
     () => {
 
@@ -1068,15 +1180,13 @@ if (botonPausar) {
         botEngine.obtenerEstado();
 
 
-      if (
-        !estado.pausado
-      ) {
+      if (!estado.pausado) {
 
         const resultado =
           botEngine.pausar();
 
 
-        botonPausar.textContent =
+        UI.botonPausar.textContent =
           "REANUDAR";
 
 
@@ -1091,7 +1201,7 @@ if (botonPausar) {
           botEngine.reanudar();
 
 
-        botonPausar.textContent =
+        UI.botonPausar.textContent =
           "PAUSAR";
 
 
@@ -1108,58 +1218,131 @@ if (botonPausar) {
 }
 
 
-/* ==========================================
-   SEÑAL DE PRUEBA
-   ========================================== */
+/* ========================================
+   ACTIVAR EJECUCIÓN DEMO
+   ======================================== */
 
-if (botonProbar) {
+if (UI.botonActivarEjecucion) {
 
-  botonProbar.addEventListener(
+  UI.botonActivarEjecucion
+    .addEventListener(
+      "click",
+      () => {
+
+        const resultado =
+          botEngine
+            .activarEjecucionDemo();
+
+
+        registrarActividad(
+          resultado.mensaje,
+          resultado.ok
+            ? "correcto"
+            : "aviso"
+        );
+
+
+        renderEjecucionDemo();
+
+      }
+    );
+
+}
+
+
+/* ========================================
+   DESACTIVAR EJECUCIÓN
+   ======================================== */
+
+if (UI.botonDesactivarEjecucion) {
+
+  UI.botonDesactivarEjecucion
+    .addEventListener(
+      "click",
+      () => {
+
+        const resultado =
+          botEngine
+            .desactivarEjecucionDemo();
+
+
+        registrarActividad(
+          resultado.mensaje,
+          "aviso"
+        );
+
+
+        renderEjecucionDemo();
+
+      }
+    );
+
+}
+
+
+/* ========================================
+   SEÑAL INTERNA DE PRUEBA
+   ======================================== */
+
+if (UI.botonProbar) {
+
+  UI.botonProbar.addEventListener(
     "click",
     () => {
 
       registrarActividad(
-        "Enviando señal DEMO...",
+        "Enviando señal DEMO FIX7...",
         "aviso"
       );
 
 
-      signalBridge.recibirSenal({
+      signalBridge.recibirSenal(
+        {
 
-        mercado:
-          "1HZ100V",
+          id:
+            `DEMO-${Date.now()}`,
 
-        estrategia:
-          "rise_fall",
+          mercado:
+            "1HZ100V",
 
-        direccion:
-          "RISE",
+          estrategia:
+            "rise_fall",
 
-        confianza:
-          82,
+          direccion:
+            "RISE",
 
-        precio:
-          12345.67,
+          confianza:
+            82,
 
-        ultimoDigito:
-          7,
+          precio:
+            12345.67,
 
-        tendencia:
-          "ALCISTA",
+          ultimoDigito:
+            7,
 
-        rsi:
-          61.4,
+          tendencia:
+            "ALCISTA",
 
-        momentum:
-          "ALCISTA",
+          rsi:
+            61.4,
 
-        volatilidad:
-          "MEDIA",
+          momentum:
+            "ALCISTA",
 
-        segundosEntrada:
-          3
+          volatilidad:
+            "MEDIA",
 
-      });
+          segundosEntrada:
+            10,
+
+          modo:
+            "FIX7_TEST",
+
+          metadata:
+            {}
+
+        }
+      );
 
     }
   );
@@ -1167,9 +1350,9 @@ if (botonProbar) {
 }
 
 
-/* ==========================================
-   CUENTA DERIV DETECTADA
-   ========================================== */
+/* ========================================
+   CUENTA DERIV
+   ======================================== */
 
 derivConnection.on(
   "account",
@@ -1177,27 +1360,20 @@ derivConnection.on(
     accountId
   }) => {
 
-    if (
-      derivAccountId
-    ) {
-
-      derivAccountId.value =
+    if (UI.derivAccountId) {
+      UI.derivAccountId.value =
         accountId;
-
     }
 
 
-    if (derivCuenta) {
-
-      derivCuenta.textContent =
-        accountId ||
-        "--";
-
+    if (UI.derivCuenta) {
+      UI.derivCuenta.textContent =
+        accountId || "--";
     }
 
 
     registrarActividad(
-      `Cuenta DEMO detectada · ${accountId}`,
+      `Cuenta DEMO verificada · ${accountId}`,
       "correcto"
     );
 
@@ -1205,9 +1381,9 @@ derivConnection.on(
 );
 
 
-/* ==========================================
+/* ========================================
    ESTADO DERIV
-   ========================================== */
+   ======================================== */
 
 derivConnection.on(
   "state",
@@ -1216,29 +1392,25 @@ derivConnection.on(
     mensaje
   }) => {
 
-    if (estadoDeriv) {
-
-      estadoDeriv.textContent =
+    if (UI.estadoDeriv) {
+      UI.estadoDeriv.textContent =
         mensaje;
-
     }
 
 
-    if (
-      estado === "connected"
-    ) {
+    if (estado === "connected") {
 
-      if (derivConexion) {
+      if (UI.derivConexion) {
 
-        derivConexion.textContent =
+        UI.derivConexion.textContent =
           "DEMO CONECTADO";
 
       }
 
 
-      if (derivCuenta) {
+      if (UI.derivCuenta) {
 
-        derivCuenta.textContent =
+        UI.derivCuenta.textContent =
           derivConnection
             .obtenerEstado()
             .accountId ||
@@ -1247,51 +1419,33 @@ derivConnection.on(
       }
 
 
-      if (botonConectarDeriv) {
-
-        botonConectarDeriv.disabled =
+      if (UI.botonConectarDeriv) {
+        UI.botonConectarDeriv.disabled =
           true;
-
       }
 
 
-      if (botonDesconectarDeriv) {
-
-        botonDesconectarDeriv.disabled =
+      if (UI.botonDesconectarDeriv) {
+        UI.botonDesconectarDeriv.disabled =
           false;
-
       }
 
 
-      if (botonActivarDemo) {
-
-        botonActivarDemo.disabled =
-          false;
-
-      }
-
-
-      if (derivAppId) {
-
-        derivAppId.disabled =
+      if (UI.derivAppId) {
+        UI.derivAppId.disabled =
           true;
-
       }
 
 
-      if (derivAccountId) {
-
-        derivAccountId.disabled =
+      if (UI.derivAccountId) {
+        UI.derivAccountId.disabled =
           true;
-
       }
 
 
-      if (derivToken) {
-
-        derivToken.disabled =
+      if (UI.derivToken) {
+        UI.derivToken.disabled =
           true;
-
       }
 
 
@@ -1307,95 +1461,63 @@ derivConnection.on(
       estado === "connecting"
     ) {
 
-      if (derivConexion) {
+      if (UI.derivConexion) {
 
-        derivConexion.textContent =
+        UI.derivConexion.textContent =
           "CONECTANDO";
 
       }
 
 
-      if (botonConectarDeriv) {
-
-        botonConectarDeriv.disabled =
+      if (UI.botonConectarDeriv) {
+        UI.botonConectarDeriv.disabled =
           true;
-
       }
 
 
-      if (botonDesconectarDeriv) {
-
-        botonDesconectarDeriv.disabled =
+      if (UI.botonDesconectarDeriv) {
+        UI.botonDesconectarDeriv.disabled =
           true;
-
       }
+
+
+      registrarActividad(
+        mensaje,
+        "aviso"
+      );
 
     }
 
 
     else {
 
-      if (derivConexion) {
-
-        derivConexion.textContent =
+      if (UI.derivConexion) {
+        UI.derivConexion.textContent =
           "OFF";
-
       }
 
 
-      if (botonConectarDeriv) {
-
-        botonConectarDeriv.disabled =
+      if (UI.botonConectarDeriv) {
+        UI.botonConectarDeriv.disabled =
           false;
-
       }
 
 
-      if (botonDesconectarDeriv) {
-
-        botonDesconectarDeriv.disabled =
+      if (UI.botonDesconectarDeriv) {
+        UI.botonDesconectarDeriv.disabled =
           true;
-
       }
 
 
-      if (botonActivarDemo) {
-
-        botonActivarDemo.disabled =
-          true;
-
-      }
-
-
-      if (botonDesactivarDemo) {
-
-        botonDesactivarDemo.disabled =
-          true;
-
-      }
-
-
-      if (estadoEjecucion) {
-
-        estadoEjecucion.textContent =
-          "DESACTIVADA";
-
-      }
-
-
-      if (derivAppId) {
-
-        derivAppId.disabled =
+      if (UI.derivAppId) {
+        UI.derivAppId.disabled =
           false;
-
       }
 
 
-      if (derivToken) {
-
-        derivToken.disabled =
+      if (UI.derivToken) {
+        UI.derivToken.disabled =
           false;
-
       }
 
 
@@ -1403,9 +1525,10 @@ derivConnection.on(
         .desactivarEjecucionDemo();
 
 
-      if (
-        estado === "error"
-      ) {
+      renderEjecucionDemo();
+
+
+      if (estado === "error") {
 
         registrarActividad(
           `Deriv: ${mensaje}`,
@@ -1420,9 +1543,9 @@ derivConnection.on(
 );
 
 
-/* ==========================================
+/* ========================================
    ERROR DERIV
-   ========================================== */
+   ======================================== */
 
 derivConnection.on(
   "error",
@@ -1439,243 +1562,158 @@ derivConnection.on(
 );
 
 
-/* ==========================================
-   CONECTAR DERIV
-   ========================================== */
+/* ========================================
+   CONECTAR DERIV DEMO
+   ======================================== */
 
-if (botonConectarDeriv) {
+if (UI.botonConectarDeriv) {
 
-  botonConectarDeriv.addEventListener(
-    "click",
-    async () => {
+  UI.botonConectarDeriv
+    .addEventListener(
+      "click",
+      async () => {
 
-      const appId =
-        derivAppId?.value
-          ?.trim() ||
-        "";
-
-
-      const token =
-        derivToken?.value
-          ?.trim() ||
-        "";
-
-
-      if (!appId) {
-
-        registrarActividad(
-          "Falta Deriv App ID.",
-          "aviso"
-        );
-
-        derivAppId?.focus();
-
-        return;
-
-      }
-
-
-      if (!token) {
-
-        registrarActividad(
-          "Falta Token PAT.",
-          "aviso"
-        );
-
-        derivToken?.focus();
-
-        return;
-
-      }
-
-
-      if (derivAccountId) {
-
-        derivAccountId.value =
-          "Buscando automáticamente...";
-
-        derivAccountId.disabled =
-          true;
-
-      }
-
-
-      registrarActividad(
-        "Buscando cuenta DEMO y conectando con Deriv...",
-        "aviso"
-      );
-
-
-      const resultado =
-        await derivConnection.conectarDemo({
-          token,
-          appId
-        });
-
-
-      if (
-        !resultado.ok
-      ) {
-
-        registrarActividad(
-          `No se pudo conectar: ${resultado.mensaje}`,
-          "error"
-        );
-
-      }
-
-    }
-  );
-
-}
-
-
-/* ==========================================
-   DESCONECTAR DERIV
-   ========================================== */
-
-if (botonDesconectarDeriv) {
-
-  botonDesconectarDeriv.addEventListener(
-    "click",
-    () => {
-
-      botEngine
-        .desactivarEjecucionDemo();
-
-
-      derivConnection
-        .desconectar();
-
-
-      if (derivToken) {
-
-        derivToken.value =
+        const appId =
+          UI.derivAppId
+            ?.value
+            .trim() ||
           "";
 
-      }
+
+        const token =
+          UI.derivToken
+            ?.value
+            .trim() ||
+          "";
 
 
-      registrarActividad(
-        "Deriv DEMO desconectado.",
-        "aviso"
-      );
+        if (!appId) {
 
-    }
-  );
-
-}
+          registrarActividad(
+            "Falta Deriv App ID.",
+            "aviso"
+          );
 
 
-/* ==========================================
-   ACTIVAR COMPRA DEMO
-   ========================================== */
+          UI.derivAppId?.focus();
 
-if (botonActivarDemo) {
+          return;
 
-  botonActivarDemo.addEventListener(
-    "click",
-    () => {
-
-      const resultado =
-        botEngine
-          .activarEjecucionDemo();
+        }
 
 
-      if (!resultado.ok) {
+        if (!token) {
+
+          registrarActividad(
+            "Falta Token PAT.",
+            "aviso"
+          );
+
+
+          UI.derivToken?.focus();
+
+          return;
+
+        }
+
+
+        if (UI.derivAccountId) {
+
+          UI.derivAccountId.value =
+            "Buscando automáticamente...";
+
+        }
+
 
         registrarActividad(
-          resultado.mensaje,
-          "error"
+          "Buscando cuenta DEMO y conectando con Deriv...",
+          "aviso"
         );
 
-        return;
+
+        const resultado =
+          await derivConnection
+            .conectarDemo(
+              {
+                token,
+                appId
+              }
+            );
+
+
+        if (!resultado.ok) {
+
+          if (UI.derivAccountId) {
+
+            UI.derivAccountId.value =
+              "Se detectará automáticamente";
+
+          }
+
+
+          registrarActividad(
+            `No se pudo conectar: ${resultado.mensaje}`,
+            "error"
+          );
+
+        }
 
       }
-
-
-      botonActivarDemo.disabled =
-        true;
-
-
-      if (botonDesactivarDemo) {
-
-        botonDesactivarDemo.disabled =
-          false;
-
-      }
-
-
-      if (estadoEjecucion) {
-
-        estadoEjecucion.textContent =
-          "ACTIVA · SOLO DEMO";
-
-      }
-
-
-      registrarActividad(
-        "EJECUCIÓN DEMO ACTIVADA.",
-        "correcto"
-      );
-
-    }
-  );
+    );
 
 }
 
 
-/* ==========================================
-   DESACTIVAR COMPRA DEMO
-   ========================================== */
+/* ========================================
+   DESCONECTAR DERIV
+   ======================================== */
 
-if (botonDesactivarDemo) {
+if (UI.botonDesconectarDeriv) {
 
-  botonDesactivarDemo.addEventListener(
-    "click",
-    () => {
+  UI.botonDesconectarDeriv
+    .addEventListener(
+      "click",
+      () => {
 
-      const resultado =
         botEngine
           .desactivarEjecucionDemo();
 
 
-      botonDesactivarDemo.disabled =
-        true;
+        renderEjecucionDemo();
 
 
-      if (botonActivarDemo) {
+        derivConnection
+          .desconectar();
 
-        botonActivarDemo.disabled =
-          !derivConnection
-            .obtenerEstado()
-            .connected;
+
+        if (UI.derivToken) {
+          UI.derivToken.value =
+            "";
+        }
+
+
+        if (UI.derivAccountId) {
+
+          UI.derivAccountId.value =
+            "Se detectará automáticamente";
+
+        }
+
+
+        registrarActividad(
+          "Deriv DEMO desconectado.",
+          "aviso"
+        );
 
       }
-
-
-      if (estadoEjecucion) {
-
-        estadoEjecucion.textContent =
-          "DESACTIVADA";
-
-      }
-
-
-      registrarActividad(
-        resultado.mensaje,
-        "aviso"
-      );
-
-    }
-  );
+    );
 
 }
 
 
-/* ==========================================
-   CERRAR PÁGINA
-   ========================================== */
+/* ========================================
+   CIERRE DE PÁGINA
+   ======================================== */
 
 window.addEventListener(
   "beforeunload",
@@ -1692,55 +1730,41 @@ window.addEventListener(
 );
 
 
-/* ==========================================
-   ESTADO INICIAL
-   ========================================== */
+/* ========================================
+   INICIO FIX7
+   ======================================== */
 
-if (derivAccountId) {
+if (UI.derivAccountId) {
 
-  derivAccountId.value =
+  UI.derivAccountId.value =
     "Se detectará automáticamente";
 
-  derivAccountId.disabled =
-    true;
-
 }
 
 
-if (botonActivarDemo) {
-
-  botonActivarDemo.disabled =
-    true;
-
-}
-
-
-if (botonDesactivarDemo) {
-
-  botonDesactivarDemo.disabled =
-    true;
-
-}
-
-
-if (estadoEjecucion) {
-
-  estadoEjecucion.textContent =
-    "DESACTIVADA";
-
-}
+renderEjecucionDemo();
 
 
 registrarActividad(
-  "BOT V1 MR FIX6 preparado."
+  "BOT V1 MR FIX7 preparado."
+);
+
+
+registrarActividad(
+  "Calibrador de ejecución activado."
+);
+
+
+registrarActividad(
+  "FIX7 separará mercados 1S y STANDARD."
+);
+
+
+registrarActividad(
+  "Ejecución DEMO desactivada por defecto."
 );
 
 
 registrarActividad(
   "Esperando conexión con Trading Analyzer."
-);
-
-
-registrarActividad(
-  "Ejecución DEMO desactivada por seguridad."
 );
