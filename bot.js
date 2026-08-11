@@ -1,19 +1,16 @@
 /* ==========================================
    BOT V1 MR
-   CONTROLADOR PRINCIPAL
-   FIX7 - CALIBRADOR VISUAL
+   BOT.JS
+   FIX7 - CALIBRADOR FINAL
 
-   CONSERVA:
-   - SINCRONIZACIÓN
-   - DERIV DEMO
-   - COTIZACIÓN
-   - BUY DEMO
-   - RESULTADO
+   TRADING ANALYZER -> SIGNAL BRIDGE
+   -> BOT -> DERIV DEMO -> RESULTADO
 
-   AGREGA:
-   - PANEL VISUAL DE LATENCIA
-   - ESTADÍSTICAS STANDARD
-   - ESTADÍSTICAS 1S
+   FIX7:
+   - USA bridgeReceivedPerf
+   - MIDE LATENCIA REAL
+   - SEPARA STANDARD / 1S
+   - MUESTRA CALIBRADOR VISUAL
    ========================================== */
 
 import {
@@ -40,66 +37,33 @@ const $ =
 
 const UI = {
 
-  estadoBot:
-    $("estadoBot"),
+  estadoBot: $("estadoBot"),
 
-  mercado:
-    $("mercado"),
+  mercado: $("mercado"),
+  estrategia: $("estrategia"),
+  direccion: $("direccion"),
+  confianza: $("confianza"),
+  entrada: $("entrada"),
+  precio: $("precio"),
 
-  estrategia:
-    $("estrategia"),
+  botonConectar: $("botonConectar"),
+  botonPausar: $("botonPausar"),
+  botonProbar: $("botonProbar"),
 
-  direccion:
-    $("direccion"),
+  ultimaSenal: $("ultimaSenal"),
+  ultimoContrato: $("ultimoContrato"),
+  ultimaPropuesta: $("ultimaPropuesta"),
 
-  confianza:
-    $("confianza"),
+  operacionDemo: $("operacionDemo"),
+  resultadoDemo: $("resultadoDemo"),
 
-  entrada:
-    $("entrada"),
+  registroBot: $("registroBot"),
 
-  precio:
-    $("precio"),
+  estadoDeriv: $("estadoDeriv"),
 
-  botonConectar:
-    $("botonConectar"),
-
-  botonPausar:
-    $("botonPausar"),
-
-  botonProbar:
-    $("botonProbar"),
-
-  ultimaSenal:
-    $("ultimaSenal"),
-
-  ultimoContrato:
-    $("ultimoContrato"),
-
-  ultimaPropuesta:
-    $("ultimaPropuesta"),
-
-  operacionDemo:
-    $("operacionDemo"),
-
-  resultadoDemo:
-    $("resultadoDemo"),
-
-  registroBot:
-    $("registroBot"),
-
-
-  estadoDeriv:
-    $("estadoDeriv"),
-
-  derivAppId:
-    $("derivAppId"),
-
-  derivAccountId:
-    $("derivAccountId"),
-
-  derivToken:
-    $("derivToken"),
+  derivAppId: $("derivAppId"),
+  derivAccountId: $("derivAccountId"),
+  derivToken: $("derivToken"),
 
   botonConectarDeriv:
     $("botonConectarDeriv"),
@@ -107,12 +71,8 @@ const UI = {
   botonDesconectarDeriv:
     $("botonDesconectarDeriv"),
 
-  derivCuenta:
-    $("derivCuenta"),
-
-  derivConexion:
-    $("derivConexion"),
-
+  derivCuenta: $("derivCuenta"),
+  derivConexion: $("derivConexion"),
 
   estadoEjecucion:
     $("estadoEjecucion"),
@@ -122,9 +82,6 @@ const UI = {
 
   botonDesactivarDemo:
     $("botonDesactivarDemo"),
-
-
-  /* FIX7 */
 
   calibradorFamilia:
     $("calibradorFamilia"),
@@ -150,7 +107,6 @@ const UI = {
   calibradorResultado:
     $("calibradorResultado"),
 
-
   standardPruebas:
     $("standardPruebas"),
 
@@ -165,7 +121,6 @@ const UI = {
 
   standardLatencia:
     $("standardLatencia"),
-
 
   oneSecondPruebas:
     $("oneSecondPruebas"),
@@ -186,8 +141,24 @@ const UI = {
 
 
 /* ==========================================
-   HORA
+   TIEMPO
    ========================================== */
+
+function ahoraPreciso() {
+
+  if (
+    typeof performance !== "undefined" &&
+    typeof performance.now === "function"
+  ) {
+
+    return performance.now();
+
+  }
+
+  return Date.now();
+
+}
+
 
 function obtenerHora() {
 
@@ -195,14 +166,9 @@ function obtenerHora() {
     .toLocaleTimeString(
       "es-SV",
       {
-        hour:
-          "2-digit",
-
-        minute:
-          "2-digit",
-
-        second:
-          "2-digit"
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
       }
     );
 
@@ -222,168 +188,112 @@ function registrarActividad(
     return;
   }
 
-
   const linea =
-    document.createElement(
-      "p"
-    );
-
+    document.createElement("p");
 
   linea.textContent =
     `[${obtenerHora()}] ${mensaje}`;
 
-
-  if (
-    tipo === "correcto"
-  ) {
-
-    linea.style.color =
-      "#79f3c2";
-
+  if (tipo === "correcto") {
+    linea.style.color = "#79f3c2";
   }
 
-
-  if (
-    tipo === "aviso"
-  ) {
-
-    linea.style.color =
-      "#ffd37a";
-
+  if (tipo === "aviso") {
+    linea.style.color = "#ffd37a";
   }
 
-
-  if (
-    tipo === "error"
-  ) {
-
-    linea.style.color =
-      "#ff9fb4";
-
+  if (tipo === "error") {
+    linea.style.color = "#ff9fb4";
   }
 
-
-  UI.registroBot.prepend(
-    linea
-  );
+  UI.registroBot.prepend(linea);
 
 }
 
 
 /* ==========================================
-   FORMATO MS
+   FORMATO
    ========================================== */
 
-function formatoMs(
-  valor
-) {
+function formatoMs(valor) {
 
   const numero =
-    Number(
-      valor
-    );
+    Number(valor);
 
-
-  if (
-    !Number.isFinite(
-      numero
-    )
-  ) {
-
+  if (!Number.isFinite(numero)) {
     return "--";
-
   }
-
 
   return `${numero.toFixed(2)} ms`;
 
 }
 
 
+function formatoPorcentaje(valor) {
+
+  const numero =
+    Number(valor);
+
+  if (!Number.isFinite(numero)) {
+    return "--";
+  }
+
+  return `${numero.toFixed(1)}%`;
+
+}
+
+
 /* ==========================================
-   MOSTRAR SEÑAL
+   SEÑAL
    ========================================== */
 
-function mostrarSenal(
-  senal
-) {
+function mostrarSenal(senal) {
 
-  if (
-    UI.mercado
-  ) {
-
+  if (UI.mercado) {
     UI.mercado.textContent =
-      senal.mercado ||
-      "--";
-
+      senal.mercado || "--";
   }
 
-
-  if (
-    UI.estrategia
-  ) {
-
+  if (UI.estrategia) {
     UI.estrategia.textContent =
-      senal.estrategia ||
-      "--";
-
+      senal.estrategia || "--";
   }
 
-
-  if (
-    UI.direccion
-  ) {
-
+  if (UI.direccion) {
     UI.direccion.textContent =
-      senal.direccion ||
-      "--";
-
+      senal.direccion || "--";
   }
 
-
-  if (
-    UI.confianza
-  ) {
+  if (UI.confianza) {
 
     UI.confianza.textContent =
-      `${senal.confianza}%`;
+      Number.isFinite(
+        Number(senal.confianza)
+      )
+        ? `${Number(senal.confianza)}%`
+        : "--";
 
   }
 
-
-  if (
-    UI.entrada
-  ) {
+  if (UI.entrada) {
 
     UI.entrada.textContent =
-      senal.segundosEntrada !==
-        null &&
-      senal.segundosEntrada !==
-        undefined
+      senal.segundosEntrada != null
         ? `${senal.segundosEntrada} s`
         : "--";
 
   }
 
-
-  if (
-    UI.precio
-  ) {
+  if (UI.precio) {
 
     UI.precio.textContent =
-      senal.precio !==
-        null &&
-      senal.precio !==
-        undefined
-        ? senal.precio
+      senal.precio != null
+        ? String(senal.precio)
         : "--";
 
   }
 
-
-  if (
-    UI.ultimaSenal
-  ) {
+  if (UI.ultimaSenal) {
 
     UI.ultimaSenal.innerHTML = `
 
@@ -423,15 +333,8 @@ function mostrarSenal(
       ${senal.ultimoDigito ?? "--"}
       <br>
 
-      <strong>Entrada:</strong>
-      ${
-        senal.segundosEntrada !==
-          null &&
-        senal.segundosEntrada !==
-          undefined
-          ? `${senal.segundosEntrada} segundos`
-          : "--"
-      }
+      <strong>Punto de entrada:</strong>
+      ${senal.segundosEntrada ?? "--"}
 
     `;
 
@@ -444,19 +347,14 @@ function mostrarSenal(
    CONTRATO
    ========================================== */
 
-function mostrarContrato(
-  contrato
-) {
+function mostrarContrato(contrato) {
 
   if (
     !UI.ultimoContrato ||
     !contrato
   ) {
-
     return;
-
   }
-
 
   UI.ultimoContrato.innerHTML = `
 
@@ -480,7 +378,7 @@ function mostrarContrato(
     ${contrato.confidence ?? "--"}%
     <br>
 
-    <strong>Segundo:</strong>
+    <strong>Punto:</strong>
     ${contrato.executionSecond ?? "--"}
 
   `;
@@ -489,7 +387,7 @@ function mostrarContrato(
 
 
 /* ==========================================
-   PROPUESTA
+   PROPUESTA DERIV
    ========================================== */
 
 function mostrarPropuestaDeriv(
@@ -497,18 +395,11 @@ function mostrarPropuestaDeriv(
   contrato
 ) {
 
-  if (
-    !UI.ultimaPropuesta
-  ) {
-
+  if (!UI.ultimaPropuesta) {
     return;
-
   }
 
-
-  if (
-    !propuesta?.ok
-  ) {
+  if (!propuesta?.ok) {
 
     UI.ultimaPropuesta.innerHTML = `
 
@@ -517,14 +408,14 @@ function mostrarPropuestaDeriv(
       <br><br>
 
       <strong>Motivo:</strong>
-      ${propuesta?.error || "--"}
+      ${propuesta?.error ||
+        "No se recibió cotización."}
 
     `;
 
     return;
 
   }
-
 
   UI.ultimaPropuesta.innerHTML = `
 
@@ -568,22 +459,13 @@ function mostrarPropuestaDeriv(
    COMPRA DEMO
    ========================================== */
 
-function mostrarCompraDemo(
-  compra
-) {
+function mostrarCompraDemo(compra) {
 
-  if (
-    !UI.operacionDemo
-  ) {
-
+  if (!UI.operacionDemo) {
     return;
-
   }
 
-
-  if (
-    !compra?.ok
-  ) {
+  if (!compra?.ok) {
 
     UI.operacionDemo.innerHTML = `
 
@@ -593,7 +475,8 @@ function mostrarCompraDemo(
 
       <br><br>
 
-      ${compra?.error || "--"}
+      ${compra?.error ||
+        "Ejecución DEMO desactivada."}
 
     `;
 
@@ -601,10 +484,8 @@ function mostrarCompraDemo(
 
   }
 
-
   const dato =
-    compra.compra;
-
+    compra.compra || {};
 
   UI.operacionDemo.innerHTML = `
 
@@ -639,7 +520,7 @@ function mostrarCompraDemo(
 
 
 /* ==========================================
-   ACTUALIZACIÓN
+   SEGUIMIENTO
    ========================================== */
 
 function mostrarActualizacionContrato(
@@ -650,11 +531,8 @@ function mostrarActualizacionContrato(
     !UI.operacionDemo ||
     !contrato
   ) {
-
     return;
-
   }
-
 
   UI.operacionDemo.innerHTML = `
 
@@ -670,13 +548,20 @@ function mostrarActualizacionContrato(
 
     <strong>Estado:</strong>
     ${String(
-      contrato.status ??
-      "OPEN"
+      contrato.status ?? "OPEN"
     ).toUpperCase()}
+    <br>
+
+    <strong>Compra:</strong>
+    ${contrato.buy_price ?? "--"}
     <br>
 
     <strong>Profit actual:</strong>
     ${contrato.profit ?? "--"}
+    <br>
+
+    <strong>Vendido:</strong>
+    ${contrato.is_sold ? "SÍ" : "NO"}
 
   `;
 
@@ -691,28 +576,22 @@ function mostrarResultadoDemo(
   resultado
 ) {
 
-  if (
-    !UI.resultadoDemo
-  ) {
-
+  if (!UI.resultadoDemo) {
     return;
-
   }
 
-
-  if (
-    !resultado?.ok
-  ) {
+  if (!resultado?.ok) {
 
     UI.resultadoDemo.innerHTML = `
 
       <strong>
-        Seguimiento pendiente
+        Seguimiento pendiente.
       </strong>
 
       <br><br>
 
-      ${resultado?.error || "--"}
+      ${resultado?.error ||
+        "No se recibió resultado final."}
 
     `;
 
@@ -720,34 +599,29 @@ function mostrarResultadoDemo(
 
   }
 
-
   const dato =
-    resultado.resultado;
-
+    resultado.resultado || {};
 
   const profit =
-    Number(
-      dato.profit ??
-      0
-    );
-
+    Number(dato.profit ?? 0);
 
   const ganada =
     profit > 0;
 
+  UI.resultadoDemo
+    .classList
+    .remove(
+      "ganada",
+      "perdida"
+    );
 
-  UI.resultadoDemo.classList.remove(
-    "ganada",
-    "perdida"
-  );
-
-
-  UI.resultadoDemo.classList.add(
-    ganada
-      ? "ganada"
-      : "perdida"
-  );
-
+  UI.resultadoDemo
+    .classList
+    .add(
+      ganada
+        ? "ganada"
+        : "perdida"
+    );
 
   UI.resultadoDemo.innerHTML = `
 
@@ -759,11 +633,9 @@ function mostrarResultadoDemo(
       }"
     >
 
-      ${
-        ganada
-          ? "GANADA"
-          : "PERDIDA"
-      }
+      ${ganada
+        ? "GANADA"
+        : "PERDIDA"}
 
     </div>
 
@@ -794,26 +666,18 @@ function mostrarResultadoDemo(
 
 
 /* ==========================================
-   FIX7
-   PANEL CALIBRADOR
+   FIX7 - TELEMETRÍA VISUAL
    ========================================== */
 
 function mostrarTelemetria(
   telemetria
 ) {
 
-  if (
-    !telemetria
-  ) {
-
+  if (!telemetria) {
     return;
-
   }
 
-
-  if (
-    UI.calibradorFamilia
-  ) {
+  if (UI.calibradorFamilia) {
 
     UI.calibradorFamilia.textContent =
       telemetria.familiaMercado ??
@@ -821,10 +685,7 @@ function mostrarTelemetria(
 
   }
 
-
-  if (
-    UI.calibradorPunto
-  ) {
+  if (UI.calibradorPunto) {
 
     UI.calibradorPunto.textContent =
       telemetria.puntoEntrada ??
@@ -832,25 +693,16 @@ function mostrarTelemetria(
 
   }
 
-
-  if (
-    UI.calibradorReferencia
-  ) {
+  if (UI.calibradorReferencia) {
 
     UI.calibradorReferencia.textContent =
-      telemetria.retrasoReferenciaSeg !==
-        null &&
-      telemetria.retrasoReferenciaSeg !==
-        undefined
+      telemetria.retrasoReferenciaSeg != null
         ? `${telemetria.retrasoReferenciaSeg} s`
         : "--";
 
   }
 
-
-  if (
-    UI.calibradorSignalBuy
-  ) {
+  if (UI.calibradorSignalBuy) {
 
     UI.calibradorSignalBuy.textContent =
       formatoMs(
@@ -859,10 +711,7 @@ function mostrarTelemetria(
 
   }
 
-
-  if (
-    UI.calibradorPropuesta
-  ) {
+  if (UI.calibradorPropuesta) {
 
     UI.calibradorPropuesta.textContent =
       formatoMs(
@@ -871,10 +720,7 @@ function mostrarTelemetria(
 
   }
 
-
-  if (
-    UI.calibradorBuy
-  ) {
+  if (UI.calibradorBuy) {
 
     UI.calibradorBuy.textContent =
       formatoMs(
@@ -883,10 +729,7 @@ function mostrarTelemetria(
 
   }
 
-
-  if (
-    UI.calibradorConfirmacion
-  ) {
+  if (UI.calibradorConfirmacion) {
 
     UI.calibradorConfirmacion.textContent =
       formatoMs(
@@ -895,10 +738,7 @@ function mostrarTelemetria(
 
   }
 
-
-  if (
-    UI.calibradorResultado
-  ) {
+  if (UI.calibradorResultado) {
 
     UI.calibradorResultado.textContent =
       telemetria.resultado ??
@@ -906,10 +746,20 @@ function mostrarTelemetria(
 
   }
 
+  registrarActividad(
+    `FIX7 · ${telemetria.familiaMercado ?? "--"} · PUNTO ${telemetria.puntoEntrada ?? "--"} · Señal→BUY ${formatoMs(
+      telemetria.signalToBuyMs
+    )}`,
+    "aviso"
+  );
 
   registrarActividad(
-    `FIX7 · ${telemetria.familiaMercado} · PUNTO ${telemetria.puntoEntrada ?? "--"} · Señal→BUY ${formatoMs(
-      telemetria.signalToBuyMs
+    `LATENCIA · propuesta ${formatoMs(
+      telemetria.proposalLatencyMs
+    )} · BUY ${formatoMs(
+      telemetria.buyLatencyMs
+    )} · confirmación ${formatoMs(
+      telemetria.signalToBuyConfirmMs
     )}`,
     "aviso"
   );
@@ -918,67 +768,42 @@ function mostrarTelemetria(
 
 
 /* ==========================================
-   RESUMEN STANDARD
+   FIX7 - STANDARD
    ========================================== */
 
 function mostrarResumenStandard(
   resumen
 ) {
 
-  if (
-    !resumen
-  ) {
-
+  if (!resumen) {
     return;
-
   }
 
-
-  if (
-    UI.standardPruebas
-  ) {
-
+  if (UI.standardPruebas) {
     UI.standardPruebas.textContent =
-      resumen.pruebas;
-
+      resumen.pruebas ?? 0;
   }
 
-
-  if (
-    UI.standardGanadas
-  ) {
-
+  if (UI.standardGanadas) {
     UI.standardGanadas.textContent =
-      resumen.ganadas;
-
+      resumen.ganadas ?? 0;
   }
 
-
-  if (
-    UI.standardPerdidas
-  ) {
-
+  if (UI.standardPerdidas) {
     UI.standardPerdidas.textContent =
-      resumen.perdidas;
-
+      resumen.perdidas ?? 0;
   }
 
-
-  if (
-    UI.standardAccuracy
-  ) {
+  if (UI.standardAccuracy) {
 
     UI.standardAccuracy.textContent =
-      resumen.accuracy !== null
-        ? `${resumen.accuracy}%`
-        : "--";
+      formatoPorcentaje(
+        resumen.accuracy
+      );
 
   }
 
-
-  if (
-    UI.standardLatencia
-  ) {
+  if (UI.standardLatencia) {
 
     UI.standardLatencia.textContent =
       formatoMs(
@@ -991,67 +816,42 @@ function mostrarResumenStandard(
 
 
 /* ==========================================
-   RESUMEN 1S
+   FIX7 - 1S
    ========================================== */
 
 function mostrarResumen1S(
   resumen
 ) {
 
-  if (
-    !resumen
-  ) {
-
+  if (!resumen) {
     return;
-
   }
 
-
-  if (
-    UI.oneSecondPruebas
-  ) {
-
+  if (UI.oneSecondPruebas) {
     UI.oneSecondPruebas.textContent =
-      resumen.pruebas;
-
+      resumen.pruebas ?? 0;
   }
 
-
-  if (
-    UI.oneSecondGanadas
-  ) {
-
+  if (UI.oneSecondGanadas) {
     UI.oneSecondGanadas.textContent =
-      resumen.ganadas;
-
+      resumen.ganadas ?? 0;
   }
 
-
-  if (
-    UI.oneSecondPerdidas
-  ) {
-
+  if (UI.oneSecondPerdidas) {
     UI.oneSecondPerdidas.textContent =
-      resumen.perdidas;
-
+      resumen.perdidas ?? 0;
   }
 
-
-  if (
-    UI.oneSecondAccuracy
-  ) {
+  if (UI.oneSecondAccuracy) {
 
     UI.oneSecondAccuracy.textContent =
-      resumen.accuracy !== null
-        ? `${resumen.accuracy}%`
-        : "--";
+      formatoPorcentaje(
+        resumen.accuracy
+      );
 
   }
 
-
-  if (
-    UI.oneSecondLatencia
-  ) {
+  if (UI.oneSecondLatencia) {
 
     UI.oneSecondLatencia.textContent =
       formatoMs(
@@ -1064,7 +864,7 @@ function mostrarResumen1S(
 
 
 /* ==========================================
-   ACTUALIZAR RESÚMENES
+   RESÚMENES
    ========================================== */
 
 function actualizarResumenes() {
@@ -1072,11 +872,13 @@ function actualizarResumenes() {
   const estado =
     botEngine.obtenerEstado();
 
+  if (!estado) {
+    return;
+  }
 
   mostrarResumenStandard(
     estado.resumenStandard
   );
-
 
   mostrarResumen1S(
     estado.resumen1S
@@ -1091,46 +893,57 @@ function actualizarResumenes() {
 
 function renderEjecucionDemo() {
 
-  const estado =
-    botEngine
-      .obtenerEstado()
-      .trade;
+  const estadoBot =
+    botEngine.obtenerEstado();
 
+  const estadoTrade =
+    estadoBot?.trade || {};
 
   const activa =
     Boolean(
-      estado.ejecucionActiva
+      estadoTrade.ejecucionActiva
     );
 
+  const derivEstado =
+    derivConnection.obtenerEstado();
 
-  if (
-    UI.estadoEjecucion
-  ) {
+  const conectado =
+    Boolean(
+      derivEstado?.connected
+    );
+
+  if (UI.estadoEjecucion) {
 
     UI.estadoEjecucion.textContent =
       activa
         ? "EJECUCIÓN DEMO ON"
         : "EJECUCIÓN DEMO OFF";
 
+    UI.estadoEjecucion
+      .classList
+      .toggle(
+        "encendido-ejecucion",
+        activa
+      );
+
+    UI.estadoEjecucion
+      .classList
+      .toggle(
+        "apagado-ejecucion",
+        !activa
+      );
+
   }
 
-
-  if (
-    UI.botonActivarDemo
-  ) {
+  if (UI.botonActivarDemo) {
 
     UI.botonActivarDemo.disabled =
       activa ||
-      !derivConnection
-        .obtenerEstado()
-        .connected;
+      !conectado;
 
   }
 
-
-  if (
-    UI.botonDesactivarDemo
-  ) {
+  if (UI.botonDesactivarDemo) {
 
     UI.botonDesactivarDemo.disabled =
       !activa;
@@ -1142,23 +955,38 @@ function renderEjecucionDemo() {
 
 /* ==========================================
    RECIBIR SEÑAL
+   FIX7 - CAMBIO CLAVE
    ========================================== */
 
 signalBridge.onSenal(
-  async (
-    senal
-  ) => {
+  async (senal) => {
+
+    /*
+      FIX7 FINAL:
+
+      Ya NO iniciamos el reloj aquí
+      si SignalBridge nos entregó
+      bridgeReceivedPerf.
+
+      Esto permite medir desde el instante
+      más temprano en que el BOT recibió
+      realmente la señal.
+    */
+
+    const marcaPuente =
+      Number(
+        senal?.bridgeReceivedPerf
+      );
 
     const senalRecibidaPerf =
-      typeof performance !==
-        "undefined"
-        ? performance.now()
-        : Date.now();
+      Number.isFinite(
+        marcaPuente
+      )
+        ? marcaPuente
+        : ahoraPreciso();
 
 
-    mostrarSenal(
-      senal
-    );
+    mostrarSenal(senal);
 
 
     registrarActividad(
@@ -1177,18 +1005,24 @@ signalBridge.onSenal(
             onOperacionUpdate:
               mostrarActualizacionContrato,
 
-            senalRecibidaPerf
+            senalRecibidaPerf,
+
+            bridgeReceivedPerf:
+              senalRecibidaPerf
 
           }
         );
 
 
-      if (
-        !resultado.aceptada
-      ) {
+      if (!resultado?.aceptada) {
 
         registrarActividad(
-          `Señal no procesada · ${resultado.etapa || "BOT"} · ${resultado.motivo}`,
+          `Señal no procesada · ${
+            resultado?.etapa || "BOT"
+          } · ${
+            resultado?.motivo ||
+            "Sin motivo informado"
+          }`,
           "aviso"
         );
 
@@ -1203,9 +1037,22 @@ signalBridge.onSenal(
       );
 
 
-      mostrarContrato(
-        resultado.contrato
-      );
+      if (resultado.contrato) {
+
+        mostrarContrato(
+          resultado.contrato
+        );
+
+        registrarActividad(
+          `CONTRATO → ${resultado.contrato.contractType}${
+            resultado.contrato.barrier != null
+              ? ` · BARRERA ${resultado.contrato.barrier}`
+              : ""
+          }`,
+          "correcto"
+        );
+
+      }
 
 
       mostrarPropuestaDeriv(
@@ -1215,19 +1062,53 @@ signalBridge.onSenal(
 
 
       if (
-        resultado.compraDemo
+        resultado.propuestaDeriv?.ok
       ) {
 
-        mostrarCompraDemo(
-          resultado.compraDemo
+        registrarActividad(
+          `DERIV DEMO → COTIZACIÓN REAL · ${resultado.contrato?.contractType ?? "--"} · ${resultado.propuestaDeriv.askPrice ?? "--"}`,
+          "correcto"
+        );
+
+      } else {
+
+        registrarActividad(
+          `DERIV DEMO → ${
+            resultado.propuestaDeriv?.error ||
+            "Sin cotización."
+          }`,
+          "aviso"
         );
 
       }
 
 
-      if (
-        resultado.resultadoDemo
-      ) {
+      if (resultado.compraDemo) {
+
+        mostrarCompraDemo(
+          resultado.compraDemo
+        );
+
+        if (
+          resultado.compraDemo?.ok
+        ) {
+
+          registrarActividad(
+            `BUY DEMO OK · Contract ID ${
+              resultado.compraDemo
+                .compra
+                ?.contractId ??
+              "--"
+            }`,
+            "correcto"
+          );
+
+        }
+
+      }
+
+
+      if (resultado.resultadoDemo) {
 
         mostrarResultadoDemo(
           resultado.resultadoDemo
@@ -1253,12 +1134,16 @@ signalBridge.onSenal(
             resultado
               .resultadoDemo
               .resultado
-              .profit
+              ?.profit ??
+            0
           );
 
-
         registrarActividad(
-          `${profit > 0 ? "GANADA" : "PERDIDA"} · PROFIT ${profit}`,
+          `${
+            profit > 0
+              ? "GANADA"
+              : "PERDIDA"
+          } · PROFIT ${profit}`,
           profit > 0
             ? "correcto"
             : "error"
@@ -1267,12 +1152,13 @@ signalBridge.onSenal(
       }
 
 
-    } catch (
-      error
-    ) {
+    } catch (error) {
 
       registrarActividad(
-        `Error procesando señal: ${error.message}`,
+        `Error procesando señal: ${
+          error?.message ||
+          String(error)
+        }`,
         "error"
       );
 
@@ -1283,104 +1169,81 @@ signalBridge.onSenal(
 
 
 /* ==========================================
-   PUENTE
+   ESTADO DEL PUENTE
    ========================================== */
 
 window.addEventListener(
   "bot:estado",
-  (
-    evento
-  ) => {
+  (evento) => {
 
     const datos =
-      evento.detail;
+      evento.detail || {};
 
+    if (datos.conectado) {
 
-    if (
-      datos.conectado
-    ) {
-
-      if (
-        UI.estadoBot
-      ) {
+      if (UI.estadoBot) {
 
         UI.estadoBot.textContent =
           "BOT SYNC";
 
-        UI.estadoBot.classList.remove(
-          "apagado"
-        );
+        UI.estadoBot
+          .classList
+          .remove("apagado");
 
-        UI.estadoBot.classList.add(
-          "encendido"
-        );
+        UI.estadoBot
+          .classList
+          .add("encendido");
 
       }
 
-
-      if (
-        UI.botonConectar
-      ) {
-
+      if (UI.botonConectar) {
         UI.botonConectar.disabled =
           true;
-
       }
 
-
-      if (
-        UI.botonPausar
-      ) {
-
+      if (UI.botonPausar) {
         UI.botonPausar.disabled =
           false;
-
       }
 
-
       registrarActividad(
-        datos.mensaje,
+        datos.mensaje ||
+        "Puente conectado.",
         "correcto"
       );
 
     } else {
 
-      if (
-        UI.estadoBot
-      ) {
+      if (UI.estadoBot) {
 
         UI.estadoBot.textContent =
           "BOT OFF";
 
-        UI.estadoBot.classList.remove(
-          "encendido"
-        );
+        UI.estadoBot
+          .classList
+          .remove("encendido");
 
-        UI.estadoBot.classList.add(
-          "apagado"
-        );
+        UI.estadoBot
+          .classList
+          .add("apagado");
 
       }
 
-
-      if (
-        UI.botonConectar
-      ) {
-
+      if (UI.botonConectar) {
         UI.botonConectar.disabled =
           false;
-
       }
 
-
-      if (
-        UI.botonPausar
-      ) {
-
+      if (UI.botonPausar) {
         UI.botonPausar.disabled =
           true;
-
       }
+
+      registrarActividad(
+        datos.mensaje ||
+        "Puente desconectado.",
+        "aviso"
+      );
 
     }
 
@@ -1389,17 +1252,18 @@ window.addEventListener(
 
 
 /* ==========================================
-   ORIGEN
+   ORIGEN DE SEÑAL
    ========================================== */
 
 window.addEventListener(
   "bot:signal-source",
-  (
-    evento
-  ) => {
+  (evento) => {
 
     registrarActividad(
-      `Señal recibida desde ${evento.detail?.origen || "desconocido"}`,
+      `Señal recibida desde ${
+        evento.detail?.origen ||
+        "desconocido"
+      }`,
       "correcto"
     );
 
@@ -1408,14 +1272,12 @@ window.addEventListener(
 
 
 /* ==========================================
-   ERROR PUENTE
+   ERROR DEL PUENTE
    ========================================== */
 
 window.addEventListener(
   "bot:error",
-  (
-    evento
-  ) => {
+  (evento) => {
 
     registrarActividad(
       evento.detail?.mensaje ||
@@ -1431,9 +1293,7 @@ window.addEventListener(
    CONECTAR PUENTE
    ========================================== */
 
-if (
-  UI.botonConectar
-) {
+if (UI.botonConectar) {
 
   UI.botonConectar.addEventListener(
     "click",
@@ -1441,13 +1301,12 @@ if (
 
       signalBridge.conectar();
 
-
       const resultado =
         botEngine.iniciar();
 
-
       registrarActividad(
-        resultado.mensaje,
+        resultado?.mensaje ||
+        "Motor iniciado.",
         "correcto"
       );
 
@@ -1458,12 +1317,10 @@ if (
 
 
 /* ==========================================
-   PAUSAR
+   PAUSAR / REANUDAR
    ========================================== */
 
-if (
-  UI.botonPausar
-) {
+if (UI.botonPausar) {
 
   UI.botonPausar.addEventListener(
     "click",
@@ -1472,21 +1329,17 @@ if (
       const estado =
         botEngine.obtenerEstado();
 
-
-      if (
-        !estado.pausado
-      ) {
+      if (!estado?.pausado) {
 
         const resultado =
           botEngine.pausar();
 
-
         UI.botonPausar.textContent =
           "REANUDAR";
 
-
         registrarActividad(
-          resultado.mensaje,
+          resultado?.mensaje ||
+          "BOT pausado.",
           "aviso"
         );
 
@@ -1495,13 +1348,12 @@ if (
         const resultado =
           botEngine.reanudar();
 
-
         UI.botonPausar.textContent =
           "PAUSAR";
 
-
         registrarActividad(
-          resultado.mensaje,
+          resultado?.mensaje ||
+          "BOT reanudado.",
           "correcto"
         );
 
@@ -1517,9 +1369,7 @@ if (
    ACTIVAR DEMO
    ========================================== */
 
-if (
-  UI.botonActivarDemo
-) {
+if (UI.botonActivarDemo) {
 
   UI.botonActivarDemo.addEventListener(
     "click",
@@ -1529,14 +1379,13 @@ if (
         botEngine
           .activarEjecucionDemo();
 
-
       registrarActividad(
-        resultado.mensaje,
-        resultado.ok
+        resultado?.mensaje ||
+        "Cambio de ejecución DEMO.",
+        resultado?.ok
           ? "correcto"
           : "aviso"
       );
-
 
       renderEjecucionDemo();
 
@@ -1550,9 +1399,7 @@ if (
    DESACTIVAR DEMO
    ========================================== */
 
-if (
-  UI.botonDesactivarDemo
-) {
+if (UI.botonDesactivarDemo) {
 
   UI.botonDesactivarDemo.addEventListener(
     "click",
@@ -1562,12 +1409,11 @@ if (
         botEngine
           .desactivarEjecucionDemo();
 
-
       registrarActividad(
-        resultado.mensaje,
+        resultado?.mensaje ||
+        "Ejecución DEMO desactivada.",
         "aviso"
       );
-
 
       renderEjecucionDemo();
 
@@ -1581,19 +1427,16 @@ if (
    PRUEBA INTERNA
    ========================================== */
 
-if (
-  UI.botonProbar
-) {
+if (UI.botonProbar) {
 
   UI.botonProbar.addEventListener(
     "click",
     () => {
 
       registrarActividad(
-        "Enviando señal DEMO FIX7...",
+        "Enviando señal interna FIX7...",
         "aviso"
       );
-
 
       signalBridge.recibirSenal({
 
@@ -1636,6 +1479,9 @@ if (
         modo:
           "FIX7_TEST",
 
+        timestamp:
+          Date.now(),
+
         metadata:
           {}
 
@@ -1648,38 +1494,27 @@ if (
 
 
 /* ==========================================
-   CUENTA DEMO
+   CUENTA DERIV
    ========================================== */
 
 derivConnection.on(
   "account",
-  ({
-    accountId
-  }) => {
+  ({ accountId }) => {
 
-    if (
-      UI.derivAccountId
-    ) {
-
+    if (UI.derivAccountId) {
       UI.derivAccountId.value =
-        accountId;
-
+        accountId || "";
     }
 
-
-    if (
-      UI.derivCuenta
-    ) {
-
+    if (UI.derivCuenta) {
       UI.derivCuenta.textContent =
-        accountId ||
-        "--";
-
+        accountId || "--";
     }
-
 
     registrarActividad(
-      `Cuenta DEMO verificada · ${accountId}`,
+      `Cuenta DEMO verificada · ${
+        accountId || "--"
+      }`,
       "correcto"
     );
 
@@ -1698,72 +1533,60 @@ derivConnection.on(
     mensaje
   }) => {
 
-    if (
-      UI.estadoDeriv
-    ) {
+    if (UI.estadoDeriv) {
 
       UI.estadoDeriv.textContent =
-        mensaje;
+        mensaje ||
+        estado ||
+        "--";
 
     }
 
 
-    if (
-      estado === "connected"
-    ) {
+    if (estado === "connected") {
 
-      if (
-        UI.derivConexion
-      ) {
+      if (UI.derivConexion) {
 
         UI.derivConexion.textContent =
           "DEMO CONECTADO";
 
       }
 
+      if (UI.derivCuenta) {
 
-      if (
-        UI.botonConectarDeriv
-      ) {
+        UI.derivCuenta.textContent =
+          derivConnection
+            .obtenerEstado()
+            ?.accountId ||
+          "--";
+
+      }
+
+      if (UI.botonConectarDeriv) {
 
         UI.botonConectarDeriv.disabled =
           true;
 
       }
 
-
-      if (
-        UI.botonDesconectarDeriv
-      ) {
+      if (UI.botonDesconectarDeriv) {
 
         UI.botonDesconectarDeriv.disabled =
           false;
 
       }
 
-
-      if (
-        UI.derivAppId
-      ) {
-
+      if (UI.derivAppId) {
         UI.derivAppId.disabled =
           true;
-
       }
 
-
-      if (
-        UI.derivToken
-      ) {
-
+      if (UI.derivToken) {
         UI.derivToken.disabled =
           true;
-
       }
 
-
       renderEjecucionDemo();
-
 
       registrarActividad(
         "Deriv DEMO conectado correctamente.",
@@ -1777,83 +1600,81 @@ derivConnection.on(
       estado === "connecting"
     ) {
 
-      if (
-        UI.derivConexion
-      ) {
+      if (UI.derivConexion) {
 
         UI.derivConexion.textContent =
           "CONECTANDO";
 
       }
 
-    }
-
-
-    else {
-
-      if (
-        UI.derivConexion
-      ) {
-
-        UI.derivConexion.textContent =
-          "OFF";
-
-      }
-
-
-      if (
-        UI.botonConectarDeriv
-      ) {
+      if (UI.botonConectarDeriv) {
 
         UI.botonConectarDeriv.disabled =
-          false;
+          true;
 
       }
 
-
-      if (
-        UI.botonDesconectarDeriv
-      ) {
+      if (UI.botonDesconectarDeriv) {
 
         UI.botonDesconectarDeriv.disabled =
           true;
 
       }
 
+      registrarActividad(
+        mensaje ||
+        "Conectando con Deriv...",
+        "aviso"
+      );
 
-      if (
-        UI.derivAppId
-      ) {
+    }
 
+
+    else {
+
+      if (UI.derivConexion) {
+
+        UI.derivConexion.textContent =
+          "OFF";
+
+      }
+
+      if (UI.botonConectarDeriv) {
+
+        UI.botonConectarDeriv.disabled =
+          false;
+
+      }
+
+      if (UI.botonDesconectarDeriv) {
+
+        UI.botonDesconectarDeriv.disabled =
+          true;
+
+      }
+
+      if (UI.derivAppId) {
         UI.derivAppId.disabled =
           false;
-
       }
 
-
-      if (
-        UI.derivToken
-      ) {
-
+      if (UI.derivToken) {
         UI.derivToken.disabled =
           false;
-
       }
-
 
       botEngine
         .desactivarEjecucionDemo();
 
-
       renderEjecucionDemo();
 
-
-      if (
-        estado === "error"
-      ) {
+      if (estado === "error") {
 
         registrarActividad(
-          `Deriv: ${mensaje}`,
+          `Deriv: ${
+            mensaje ||
+            "Error de conexión"
+          }`,
           "error"
         );
 
@@ -1871,12 +1692,13 @@ derivConnection.on(
 
 derivConnection.on(
   "error",
-  ({
-    mensaje
-  }) => {
+  ({ mensaje }) => {
 
     registrarActividad(
-      `DERIV ERROR → ${mensaje}`,
+      `DERIV ERROR → ${
+        mensaje ||
+        "Error desconocido"
+      }`,
       "error"
     );
 
@@ -1885,77 +1707,100 @@ derivConnection.on(
 
 
 /* ==========================================
-   CONECTAR DERIV
+   CONECTAR DERIV DEMO
    ========================================== */
 
-if (
-  UI.botonConectarDeriv
-) {
+if (UI.botonConectarDeriv) {
 
   UI.botonConectarDeriv.addEventListener(
     "click",
     async () => {
 
       const appId =
-        UI.derivAppId?.value
+        UI.derivAppId
+          ?.value
           ?.trim() ||
         "";
-
 
       const token =
-        UI.derivToken?.value
+        UI.derivToken
+          ?.value
           ?.trim() ||
         "";
 
-
-      if (
-        !appId
-      ) {
+      if (!appId) {
 
         registrarActividad(
           "Falta Deriv App ID.",
           "aviso"
         );
 
+        UI.derivAppId?.focus();
+
         return;
 
       }
 
-
-      if (
-        !token
-      ) {
+      if (!token) {
 
         registrarActividad(
           "Falta Token PAT.",
           "aviso"
         );
 
+        UI.derivToken?.focus();
+
         return;
 
       }
 
+      if (UI.derivAccountId) {
+
+        UI.derivAccountId.value =
+          "Buscando automáticamente...";
+
+      }
 
       registrarActividad(
         "Buscando cuenta DEMO y conectando con Deriv...",
         "aviso"
       );
 
+      try {
 
-      const resultado =
-        await derivConnection
-          .conectarDemo({
-            token,
-            appId
-          });
+        const resultado =
+          await derivConnection
+            .conectarDemo({
+              token,
+              appId
+            });
 
+        if (!resultado?.ok) {
 
-      if (
-        !resultado.ok
-      ) {
+          if (UI.derivAccountId) {
+
+            UI.derivAccountId.value =
+              "Se detectará automáticamente";
+
+          }
+
+          registrarActividad(
+            `No se pudo conectar: ${
+              resultado?.mensaje ||
+              "Error desconocido"
+            }`,
+            "error"
+          );
+
+        }
+
+      } catch (error) {
 
         registrarActividad(
-          `No se pudo conectar: ${resultado.mensaje}`,
+          `Error conectando Deriv: ${
+            error?.message ||
+            String(error)
+          }`,
           "error"
         );
 
@@ -1968,45 +1813,51 @@ if (
 
 
 /* ==========================================
-   DESCONECTAR
+   DESCONECTAR DERIV
    ========================================== */
 
-if (
+if (UI.botonDesconectarDeriv) {
+
   UI.botonDesconectarDeriv
-) {
+    .addEventListener(
+      "click",
+      () => {
 
-  UI.botonDesconectarDeriv.addEventListener(
-    "click",
-    () => {
+        botEngine
+          .desactivarEjecucionDemo();
 
-      botEngine
-        .desactivarEjecucionDemo();
+        renderEjecucionDemo();
 
+        derivConnection
+          .desconectar();
 
-      derivConnection
-        .desconectar();
+        if (UI.derivToken) {
 
+          UI.derivToken.value =
+            "";
 
-      if (
-        UI.derivToken
-      ) {
+        }
 
-        UI.derivToken.value =
-          "";
+        if (UI.derivAccountId) {
+
+          UI.derivAccountId.value =
+            "Se detectará automáticamente";
+
+        }
+
+        registrarActividad(
+          "Deriv DEMO desconectado.",
+          "aviso"
+        );
 
       }
-
-
-      renderEjecucionDemo();
-
-    }
-  );
+    );
 
 }
 
 
 /* ==========================================
-   CERRAR PÁGINA
+   CIERRE DE PÁGINA
    ========================================== */
 
 window.addEventListener(
@@ -2016,7 +1867,6 @@ window.addEventListener(
     botEngine
       .desactivarEjecucionDemo();
 
-
     derivConnection
       .desconectar();
 
@@ -2025,12 +1875,10 @@ window.addEventListener(
 
 
 /* ==========================================
-   INICIO
+   INICIO FIX7 FINAL
    ========================================== */
 
-if (
-  UI.derivAccountId
-) {
+if (UI.derivAccountId) {
 
   UI.derivAccountId.value =
     "Se detectará automáticamente";
@@ -2040,25 +1888,29 @@ if (
 
 renderEjecucionDemo();
 
-
 actualizarResumenes();
 
 
 registrarActividad(
-  "BOT V1 MR FIX7 preparado."
+  "BOT V1 MR FIX7 FINAL preparado."
 );
-
 
 registrarActividad(
   "Calibrador visual activado."
 );
 
+registrarActividad(
+  "Reloj iniciado desde Signal Bridge."
+);
 
 registrarActividad(
   "Mercados STANDARD y 1S separados."
 );
 
-
 registrarActividad(
   "Ejecución DEMO desactivada por defecto."
+);
+
+registrarActividad(
+  "Esperando conexión con Trading Analyzer."
 );
