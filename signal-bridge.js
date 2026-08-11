@@ -1,7 +1,7 @@
 /* ==========================================
    BOT V1 MR
-   PUENTE DE SINCRONIZACIÓN REAL
-   FIX6
+   SIGNAL BRIDGE
+   FIX7 - CALIBRADOR DE EJECUCIÓN
 
    TRADING ANALYZER -> BOT
 
@@ -9,20 +9,29 @@
    - BroadcastChannel
    - localStorage
 
+   FIX7 AGREGA:
+   - MARCA DE TIEMPO DE ALTA PRECISIÓN
+     DESDE EL INSTANTE EN QUE LA SEÑAL
+     ENTRA AL PUENTE
+
    PROTECCIÓN:
-   - Señales duplicadas
-   - Señales antiguas
-   - Datos inválidos
+   - SEÑALES DUPLICADAS
+   - SEÑALES ANTIGUAS
+   - DATOS INVÁLIDOS
    ========================================== */
+
 
 const BOT_CHANNEL_NAME =
   "trading-analyzer-bot-v1-mr";
 
+
 const STORAGE_SIGNAL_KEY =
   "TA_BOT_SIGNAL_V1";
 
+
 const MAX_ANTIGUEDAD_SENAL =
   15000;
+
 
 
 class SignalBridge {
@@ -32,14 +41,18 @@ class SignalBridge {
     this.ultimaSenal =
       null;
 
+
     this.conectado =
       false;
+
 
     this.listeners =
       new Set();
 
+
     this.channel =
       null;
+
 
     this.ultimoIdRecibido =
       null;
@@ -50,11 +63,37 @@ class SignalBridge {
   }
 
 
+
+  /* ========================================
+     RELOJ DE ALTA PRECISIÓN
+     ======================================== */
+
+  ahora() {
+
+    if (
+      typeof performance !==
+        "undefined" &&
+      typeof performance.now ===
+        "function"
+    ) {
+
+      return performance.now();
+
+    }
+
+
+    return Date.now();
+
+  }
+
+
+
   /* ========================================
      INICIAR RECEPTOR
      ======================================== */
 
   iniciarReceptorReal() {
+
 
     /* --------------------------------------
        BROADCAST CHANNEL
@@ -76,15 +115,30 @@ class SignalBridge {
         this.channel.onmessage =
           (evento) => {
 
+            /*
+              FIX7:
+
+              Esta marca se toma inmediatamente
+              cuando el navegador entrega la
+              señal al BOT.
+            */
+
+            const recibidoPerf =
+              this.ahora();
+
+
             this.recibirSenalExterna(
               evento.data,
-              "BroadcastChannel"
+              "BroadcastChannel",
+              recibidoPerf
             );
 
           };
 
 
-      } catch (error) {
+      } catch (
+        error
+      ) {
 
         console.error(
           "No se pudo iniciar BroadcastChannel:",
@@ -94,6 +148,7 @@ class SignalBridge {
       }
 
     }
+
 
 
     /* --------------------------------------
@@ -115,6 +170,16 @@ class SignalBridge {
         }
 
 
+        /*
+          FIX7:
+          medir desde que Chrome recibe
+          el evento storage.
+        */
+
+        const recibidoPerf =
+          this.ahora();
+
+
         try {
 
           const datos =
@@ -125,11 +190,14 @@ class SignalBridge {
 
           this.recibirSenalExterna(
             datos,
-            "localStorage"
+            "localStorage",
+            recibidoPerf
           );
 
 
-        } catch (error) {
+        } catch (
+          error
+        ) {
 
           console.error(
             "Error leyendo señal localStorage:",
@@ -144,6 +212,7 @@ class SignalBridge {
   }
 
 
+
   /* ========================================
      CONECTAR BOT
      ======================================== */
@@ -156,7 +225,7 @@ class SignalBridge {
 
     /*
       Recuperar una señal guardada
-      solamente cuando todavía es reciente.
+      solamente si sigue siendo reciente.
     */
 
     try {
@@ -199,9 +268,14 @@ class SignalBridge {
           setTimeout(
             () => {
 
+              const recibidoPerf =
+                this.ahora();
+
+
               this.recibirSenalExterna(
                 datos,
-                "localStorage-recuperada"
+                "localStorage-recuperada",
+                recibidoPerf
               );
 
             },
@@ -213,7 +287,9 @@ class SignalBridge {
       }
 
 
-    } catch (error) {
+    } catch (
+      error
+    ) {
 
       console.error(
         "No se pudo recuperar la última señal:",
@@ -244,6 +320,7 @@ class SignalBridge {
     return true;
 
   }
+
 
 
   /* ========================================
@@ -279,6 +356,7 @@ class SignalBridge {
   }
 
 
+
   /* ========================================
      VALIDAR ANTIGÜEDAD
      ======================================== */
@@ -288,8 +366,8 @@ class SignalBridge {
   ) {
 
     /*
-      Las señales internas de prueba pueden
-      no traer timestamp inicialmente.
+      Las señales internas de prueba
+      pueden no traer timestamp.
     */
 
     if (
@@ -334,6 +412,7 @@ class SignalBridge {
     );
 
   }
+
 
 
   /* ========================================
@@ -412,13 +491,15 @@ class SignalBridge {
   }
 
 
+
   /* ========================================
      RECIBIR SEÑAL EXTERNA
      ======================================== */
 
   recibirSenalExterna(
     datos,
-    origen = "desconocido"
+    origen = "desconocido",
+    recibidoPerf = null
   ) {
 
     if (
@@ -428,6 +509,7 @@ class SignalBridge {
       console.log(
         "Señal recibida pero BOT desconectado."
       );
+
 
       return false;
 
@@ -443,6 +525,7 @@ class SignalBridge {
       console.warn(
         "Señal antigua ignorada."
       );
+
 
       return false;
 
@@ -466,6 +549,7 @@ class SignalBridge {
         "Señal duplicada ignorada."
       );
 
+
       return false;
 
     }
@@ -473,7 +557,8 @@ class SignalBridge {
 
     const resultado =
       this.recibirSenal(
-        datos
+        datos,
+        recibidoPerf
       );
 
 
@@ -499,7 +584,12 @@ class SignalBridge {
           "bot:signal-source",
           {
             detail: {
-              origen
+
+              origen,
+
+              recibidoPerf:
+                recibidoPerf
+
             }
           }
         )
@@ -513,12 +603,14 @@ class SignalBridge {
   }
 
 
+
   /* ========================================
      RECIBIR SEÑAL
      ======================================== */
 
   recibirSenal(
-    datos
+    datos,
+    recibidoPerf = null
   ) {
 
     if (
@@ -530,6 +622,18 @@ class SignalBridge {
       return false;
 
     }
+
+
+    const marcaPuente =
+      Number.isFinite(
+        Number(
+          recibidoPerf
+        )
+      )
+        ? Number(
+            recibidoPerf
+          )
+        : this.ahora();
 
 
     const senal = {
@@ -623,7 +727,18 @@ class SignalBridge {
 
       timestamp:
         datos.timestamp ??
-        Date.now()
+        Date.now(),
+
+
+      /*
+        FIX7:
+
+        Marca interna de alta precisión
+        del momento de entrada al puente.
+      */
+
+      bridgeReceivedPerf:
+        marcaPuente
 
     };
 
@@ -670,7 +785,9 @@ class SignalBridge {
         );
 
 
-      } catch (error) {
+      } catch (
+        error
+      ) {
 
         console.error(
           "Error enviando señal al bot:",
@@ -696,6 +813,7 @@ class SignalBridge {
     return true;
 
   }
+
 
 
   /* ========================================
@@ -729,6 +847,7 @@ class SignalBridge {
   }
 
 
+
   /* ========================================
      ÚLTIMA SEÑAL
      ======================================== */
@@ -738,6 +857,7 @@ class SignalBridge {
     return this.ultimaSenal;
 
   }
+
 
 
   /* ========================================
