@@ -545,5 +545,9 @@ class BotEngine {
 }
 
 
+/* ==========================================
+   INSTANCIA ÚNICA
+   ========================================== */
+
 export const botEngine =
   new BotEngine();
