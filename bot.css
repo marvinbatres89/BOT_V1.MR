@@ -1,20 +1,18 @@
 /* ==========================================
    BOT V1 MR
    BOT.CSS
-   FIX8 - TABLAS POR MERCADO
+   FIX9 - COMPARADOR DE TIMING
 
    CONSERVA:
    - DISEÑO MÓVIL
    - TARJETAS
-   - BOTONES
-   - RESULTADOS
-   - CALIBRADOR
+   - TABLAS
+   - RESULTADO FINAL
 
    AGREGA:
-   - TABLAS STANDARD
-   - TABLAS 1S
-   - SCROLL HORIZONTAL
-   - RESULTADO FINAL MÁS VISIBLE
+   - GANADAS VS PERDIDAS
+   - COMPARADOR R_50
+   - COMPARADOR 1HZ75V
    ========================================== */
 
 * {
@@ -77,6 +75,7 @@ input {
   margin: 0;
   color: #a9bfd4;
   font-size: 14px;
+  line-height: 1.4;
 }
 
 
@@ -121,6 +120,12 @@ input {
   font-size: 18px;
 }
 
+.tarjeta h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
 
 /* ==========================================
    TEXTOS
@@ -147,6 +152,7 @@ input {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+  margin-top: 10px;
 }
 
 .dato {
@@ -222,7 +228,7 @@ input {
 
 .conectar {
   background: #2a74ff;
-  color: #ffffff;
+  color: white;
 }
 
 .pausar {
@@ -248,7 +254,7 @@ input {
 
 
 /* ==========================================
-   EJECUCIÓN
+   EJECUCIÓN DEMO
    ========================================== */
 
 .encendido-ejecucion {
@@ -299,19 +305,17 @@ input {
   color: #79f3c2;
   font-weight: bold;
   font-size: 22px;
-  letter-spacing: 0.5px;
 }
 
 .resultado-perdido {
   color: #ff9fb4;
   font-weight: bold;
   font-size: 22px;
-  letter-spacing: 0.5px;
 }
 
 
 /* ==========================================
-   CALIBRADOR FIX8
+   CALIBRADOR
    ========================================== */
 
 #calibradorFamilia,
@@ -323,6 +327,83 @@ input {
 #calibradorBuy,
 #calibradorResultado {
   color: #79d8ff;
+}
+
+
+/* ==========================================
+   COMPARADOR FIX9
+   ========================================== */
+
+.comparador-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.comparador-columna {
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid #29435d;
+}
+
+.comparador-columna .dato {
+  margin-bottom: 8px;
+}
+
+.comparador-columna .dato:last-child {
+  margin-bottom: 0;
+}
+
+.comparador-columna.ganadoras {
+  background: #0a211b;
+  border-color: #2a725a;
+}
+
+.comparador-columna.perdedoras {
+  background: #261119;
+  border-color: #713346;
+}
+
+.comparador-columna.ganadoras h3 {
+  color: #79f3c2;
+}
+
+.comparador-columna.perdedoras h3 {
+  color: #ff9fb4;
+}
+
+
+/* ==========================================
+   CONCLUSIÓN TIMING
+   ========================================== */
+
+.comparador-conclusion {
+  margin-top: 14px;
+  background: #07111f;
+  border: 1px solid #31587b;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.comparador-conclusion small {
+  display: block;
+  color: #7f9bb7;
+  margin-bottom: 6px;
+}
+
+.comparador-conclusion strong {
+  display: block;
+  color: #79d8ff;
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.comparador-conclusion span {
+  display: block;
+  color: #ffd37a;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 
@@ -369,15 +450,6 @@ input {
   border-bottom: none;
 }
 
-.tabla-estadisticas tbody tr:hover {
-  background: #0a1623;
-}
-
-
-/* ==========================================
-   COLUMNAS ESPECIALES
-   ========================================== */
-
 .tabla-estadisticas td:nth-child(1) {
   font-weight: bold;
   color: #79d8ff;
@@ -401,7 +473,7 @@ input {
 
 
 /* ==========================================
-   SCROLL TABLAS
+   SCROLL
    ========================================== */
 
 .tabla-wrap::-webkit-scrollbar {
@@ -528,6 +600,10 @@ footer small {
     font-size: 12px;
   }
 
+  .comparador-grid {
+    grid-template-columns: 1fr;
+  }
+
   .tabla-estadisticas {
     font-size: 11px;
   }
@@ -570,5 +646,5 @@ footer small {
 
 
 /* ==========================================
-   FIN FIX8
+   FIN FIX9
    ========================================== */
