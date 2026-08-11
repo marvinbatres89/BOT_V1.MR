@@ -1,102 +1,247 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BOT V1 MR · DEMO</title>
-  <link rel="stylesheet" href="./bot.css">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>
+    BOT V1 MR · FIX6
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="./bot.css"
+  >
+
 </head>
 
+
 <body>
+
   <main class="app">
 
+
     <header class="hero">
+
       <div>
-        <p class="eyebrow">TRADING ANALYZER · BOT SINCRONIZADO · DEMO</p>
-        <h1>BOT V1 <span>MR</span></h1>
-        <p class="subtitulo">Trading Analyzer decide · El bot cotiza y ejecuta SOLO en DEMO</p>
+
+        <p class="eyebrow">
+          TRADING ANALYZER · BOT SINCRONIZADO
+        </p>
+
+        <h1>
+          BOT V1 <span>MR</span>
+        </h1>
+
+        <p class="subtitulo">
+          FIX6 · Ejecución controlada únicamente en DEMO
+        </p>
+
       </div>
 
-      <div id="estadoBot" class="estado-bot apagado">
+
+      <div
+        id="estadoBot"
+        class="estado-bot apagado"
+      >
         BOT OFF
       </div>
+
     </header>
 
+
+
+    <!-- ======================================
+         SINCRONIZACIÓN
+         ====================================== -->
+
     <section class="tarjeta">
-      <h2>Sincronización</h2>
+
+      <h2>
+        Sincronización
+      </h2>
+
 
       <div class="datos-grid">
-        <div class="dato">
-          <small>Mercado</small>
-          <strong id="mercado">--</strong>
-        </div>
+
 
         <div class="dato">
-          <small>Estrategia</small>
-          <strong id="estrategia">--</strong>
+
+          <small>
+            Mercado
+          </small>
+
+          <strong id="mercado">
+            --
+          </strong>
+
         </div>
 
-        <div class="dato">
-          <small>Dirección</small>
-          <strong id="direccion">--</strong>
-        </div>
 
         <div class="dato">
-          <small>Confianza</small>
-          <strong id="confianza">--</strong>
+
+          <small>
+            Estrategia
+          </small>
+
+          <strong id="estrategia">
+            --
+          </strong>
+
         </div>
 
-        <div class="dato">
-          <small>Momento de entrada</small>
-          <strong id="entrada">--</strong>
-        </div>
 
         <div class="dato">
-          <small>Precio</small>
-          <strong id="precio">--</strong>
+
+          <small>
+            Dirección
+          </small>
+
+          <strong id="direccion">
+            --
+          </strong>
+
         </div>
+
+
+        <div class="dato">
+
+          <small>
+            Confianza
+          </small>
+
+          <strong id="confianza">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Momento de entrada
+          </small>
+
+          <strong id="entrada">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Precio
+          </small>
+
+          <strong id="precio">
+            --
+          </strong>
+
+        </div>
+
+
       </div>
 
+
       <div class="botones">
-        <button id="botonConectar" class="boton conectar">
+
+        <button
+          id="botonConectar"
+          class="boton conectar"
+        >
           CONECTAR PUENTE
         </button>
 
-        <button id="botonPausar" class="boton pausar" disabled>
+
+        <button
+          id="botonPausar"
+          class="boton pausar"
+          disabled
+        >
           PAUSAR
         </button>
+
       </div>
+
     </section>
 
+
+
+    <!-- ======================================
+         DERIV DEMO
+         ====================================== -->
+
     <section class="tarjeta">
-      <h2>Deriv DEMO</h2>
+
+      <h2>
+        Deriv DEMO
+      </h2>
+
 
       <p class="descripcion">
-        Conexión autenticada mediante PAT. El bot verifica que la cuenta detectada sea DEMO
-        antes de permitir cualquier compra.
+
+        Conexión autenticada con Deriv.
+
+        La cuenta debe verificarse como DEMO
+        antes de habilitar cualquier ejecución.
+
       </p>
+
 
       <p class="aviso">
-        Dinero real bloqueado. Esta versión no permite ejecutar si la cuenta no fue verificada como DEMO.
+
+        Dinero real bloqueado durante
+        esta fase del proyecto.
+
       </p>
 
-      <div id="estadoDeriv" class="ultima-senal">
+
+      <div
+        id="estadoDeriv"
+        class="ultima-senal"
+      >
         Deriv desconectado.
       </div>
 
-      <div class="campo">
-        <label for="derivAppId">Deriv App ID</label>
+
+      <br>
+
+
+      <div class="dato">
+
+        <small>
+          Deriv App ID
+        </small>
+
         <input
           id="derivAppId"
           type="text"
-          inputmode="text"
+          inputmode="numeric"
           placeholder="Pegue aquí su App ID"
           autocomplete="off"
         >
+
       </div>
 
-      <div class="campo">
-        <label for="derivAccountId">ID cuenta DEMO</label>
+
+      <br>
+
+
+      <div class="dato">
+
+        <small>
+          ID cuenta DEMO
+        </small>
+
         <input
           id="derivAccountId"
           type="text"
@@ -104,144 +249,349 @@
           autocomplete="off"
           disabled
         >
+
       </div>
 
-      <div class="campo">
-        <label for="derivToken">Token PAT</label>
+
+      <br>
+
+
+      <div class="dato">
+
+        <small>
+          Token PAT
+        </small>
+
         <input
           id="derivToken"
           type="password"
-          placeholder="Pegue aquí su token PAT"
+          placeholder="Pegue aquí su Token PAT"
           autocomplete="off"
         >
+
       </div>
 
+
+      <p class="descripcion">
+
+        El Token PAT se utiliza solamente
+        durante la sesión y no debe colocarse
+        dentro de los archivos del proyecto.
+
+      </p>
+
+
       <div class="botones">
-        <button id="botonConectarDeriv" class="boton conectar">
+
+        <button
+          id="botonConectarDeriv"
+          class="boton conectar"
+        >
           CONECTAR DERIV DEMO
         </button>
 
-        <button id="botonDesconectarDeriv" class="boton pausar" disabled>
+
+        <button
+          id="botonDesconectarDeriv"
+          class="boton pausar"
+          disabled
+        >
           DESCONECTAR
         </button>
+
       </div>
 
-      <div class="datos-grid separacion">
-        <div class="dato">
-          <small>Cuenta</small>
-          <strong id="derivCuenta">--</strong>
-        </div>
+
+      <br>
+
+
+      <div class="datos-grid">
+
 
         <div class="dato">
-          <small>Estado</small>
-          <strong id="derivConexion">OFF</strong>
+
+          <small>
+            Cuenta
+          </small>
+
+          <strong id="derivCuenta">
+            --
+          </strong>
+
         </div>
+
+
+        <div class="dato">
+
+          <small>
+            Estado
+          </small>
+
+          <strong id="derivConexion">
+            OFF
+          </strong>
+
+        </div>
+
+
       </div>
+
     </section>
 
+
+
+    <!-- ======================================
+         EJECUCIÓN DEMO
+         ====================================== -->
+
     <section class="tarjeta">
-      <h2>Ejecución DEMO controlada</h2>
+
+      <h2>
+        Ejecución DEMO
+      </h2>
+
 
       <p class="descripcion">
-        La ejecución está apagada al abrir la página. Debe activarse manualmente en cada sesión.
-        Se permite una sola operación DEMO a la vez y el monto queda fijado en 1 USD para esta fase.
+
+        La ejecución comienza desactivada
+        cada vez que se abre la página.
+
       </p>
 
-      <div class="estado-ejecucion apagado-ejecucion" id="estadoEjecucionDemo">
-        EJECUCIÓN DEMO OFF
-      </div>
 
-      <div class="datos-grid separacion">
+      <p class="aviso">
+
+        Solo una operación DEMO puede estar
+        activa al mismo tiempo.
+
+      </p>
+
+
+      <div class="datos-grid">
+
+
         <div class="dato">
-          <small>Monto DEMO</small>
-          <strong>1 USD</strong>
+
+          <small>
+            Estado ejecución
+          </small>
+
+          <strong id="estadoEjecucion">
+            DESACTIVADA
+          </strong>
+
         </div>
 
+
         <div class="dato">
-          <small>Operaciones simultáneas</small>
-          <strong>1 máximo</strong>
+
+          <small>
+            Monto de prueba
+          </small>
+
+          <strong>
+            1 USD
+          </strong>
+
         </div>
+
+
       </div>
+
 
       <div class="botones">
-        <button id="botonActivarEjecucion" class="boton activar-demo">
+
+        <button
+          id="botonActivarDemo"
+          class="boton ejecutar"
+          disabled
+        >
           ACTIVAR EJECUCIÓN DEMO
         </button>
 
-        <button id="botonDesactivarEjecucion" class="boton pausar" disabled>
+
+        <button
+          id="botonDesactivarDemo"
+          class="boton detener"
+          disabled
+        >
           DESACTIVAR
         </button>
+
       </div>
+
     </section>
 
+
+
+    <!-- ======================================
+         PRUEBA
+         ====================================== -->
+
     <section class="tarjeta">
-      <h2>Modo de prueba</h2>
+
+      <h2>
+        Modo de prueba
+      </h2>
+
 
       <p class="descripcion">
-        Primero pruebe con una señal DEMO. Si Deriv está conectado pero la ejecución DEMO está OFF,
-        el bot solo cotizará. Si la ejecución DEMO está ON, comprará únicamente en la cuenta DEMO.
+
+        Este botón genera una señal interna
+        Rise para comprobar el flujo del BOT.
+
       </p>
 
-      <button id="botonProbar" class="boton probar">
+
+      <button
+        id="botonProbar"
+        class="boton probar"
+      >
         PROBAR SEÑAL DEMO
       </button>
+
     </section>
 
+
+
+    <!-- ======================================
+         ÚLTIMA SEÑAL
+         ====================================== -->
+
     <section class="tarjeta">
-      <h2>Última señal recibida</h2>
-      <div id="ultimaSenal" class="ultima-senal">
+
+      <h2>
+        Última señal recibida
+      </h2>
+
+
+      <div
+        id="ultimaSenal"
+        class="ultima-senal"
+      >
         Esperando señal de Trading Analyzer...
       </div>
+
     </section>
 
+
+
+    <!-- ======================================
+         CONTRATO
+         ====================================== -->
+
     <section class="tarjeta">
-      <h2>Contrato preparado</h2>
-      <div id="ultimoContrato" class="ultima-senal">
+
+      <h2>
+        Contrato preparado
+      </h2>
+
+
+      <div
+        id="ultimoContrato"
+        class="ultima-senal"
+      >
         Esperando una señal válida...
       </div>
+
     </section>
 
+
+
+    <!-- ======================================
+         PROPUESTA
+         ====================================== -->
+
     <section class="tarjeta">
-      <h2>Respaldo simulado</h2>
-      <div id="ultimaPropuestaSimulada" class="ultima-senal">
-        Todavía no existe una propuesta simulada.
+
+      <h2>
+        Propuesta / Cotización Deriv
+      </h2>
+
+
+      <div
+        id="ultimaPropuesta"
+        class="ultima-senal"
+      >
+        Todavía no existe una propuesta.
       </div>
+
     </section>
 
-    <section class="tarjeta">
-      <h2>Cotización real Deriv DEMO</h2>
-      <div id="ultimaPropuestaDeriv" class="ultima-senal">
-        Todavía no existe una cotización real.
-      </div>
-    </section>
+
+
+    <!-- ======================================
+         OPERACIÓN Y RESULTADO
+         ====================================== -->
 
     <section class="tarjeta">
-      <h2>Operación DEMO</h2>
-      <div id="operacionDemo" class="ultima-senal">
+
+      <h2>
+        Operación DEMO y resultado
+      </h2>
+
+
+      <div
+        id="operacionDemo"
+        class="operacion-demo"
+      >
         No existe una operación DEMO activa.
       </div>
+
     </section>
 
-    <section class="tarjeta">
-      <h2>Resultado</h2>
-      <div id="resultadoDemo" class="ultima-senal">
-        Esperando una operación DEMO.
-      </div>
-    </section>
+
+
+    <!-- ======================================
+         REGISTRO
+         ====================================== -->
 
     <section class="tarjeta">
-      <h2>Registro del bot</h2>
-      <div id="registroBot" class="registro">
-        <p>BOT V1 MR preparado.</p>
+
+      <h2>
+        Registro del bot
+      </h2>
+
+
+      <div
+        id="registroBot"
+        class="registro"
+      >
+
+        <p>
+          BOT V1 MR FIX6 preparado.
+        </p>
+
       </div>
+
     </section>
+
+
 
     <footer>
-      <p>BOT V1 MR · Ejecución DEMO controlada</p>
-      <small>Trading Analyzer → Señal → BOT → Cotización → Compra DEMO → Resultado</small>
+
+      <p>
+        BOT V1 MR · FIX6
+      </p>
+
+      <small>
+        Trading Analyzer → Señal → BOT →
+        Deriv DEMO → Resultado
+      </small>
+
     </footer>
+
+
   </main>
 
-  <script type="module" src="./bot.js"></script>
+
+
+  <script
+    type="module"
+    src="./bot.js"
+  ></script>
+
+
 </body>
+
 </html>
