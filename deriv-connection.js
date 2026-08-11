@@ -251,10 +251,6 @@ class DerivConnection {
     }
 
 
-    /*
-      La API puede envolver la lista
-      de cuentas en data/accounts.
-    */
     if (
       Array.isArray(
         datos
@@ -610,10 +606,6 @@ class DerivConnection {
     this.detenerKeepAlive();
 
 
-    /*
-      Deriv recomienda mantener viva
-      la conexión con ping periódico.
-    */
     this.temporizadorPing =
       setInterval(
         () => {
@@ -803,10 +795,6 @@ class DerivConnection {
         socket.onerror =
           () => {
 
-            /*
-              El cierre posterior contiene
-              el resultado definitivo.
-            */
             console.warn(
               "Evento WebSocket Deriv detectado."
             );
@@ -1119,10 +1107,6 @@ class DerivConnection {
 
           try {
 
-            /*
-              El OTP es de un solo uso:
-              siempre pedimos uno NUEVO.
-            */
             const wsUrl =
               await this.obtenerWebSocketUrl();
 
@@ -1272,10 +1256,6 @@ class DerivConnection {
       null;
 
 
-    /*
-      Se borra el PAT de memoria
-      al desconectar.
-    */
     this.token =
       null;
 
