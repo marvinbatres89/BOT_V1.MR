@@ -1,23 +1,22 @@
 /* ==========================================
    BOT V1 MR
    BOT.JS
-   FIX9 - COMPARADOR DE TIMING
+   FIX10 - CALIBRADOR MULTIMERCADO
 
-   CONSERVA FIX8:
+   CONSERVA:
    - PUENTE
    - DERIV DEMO
    - COTIZACIÓN
    - BUY
    - RESULTADO FINAL
-   - 10 MERCADOS
    - TELEMETRÍA
+   - COMPARADORES R_50 / 1HZ75V
+   - DATOS ANTERIORES
 
-   AGREGA FIX9:
-   - COMPARADOR R_50
-   - COMPARADOR 1HZ75V
-   - GANADAS VS PERDIDAS
-   - PROMEDIO / MÍNIMO / MÁXIMO
-   - DIFERENCIA DE TIMING
+   AGREGA:
+   - 1HZ15V
+   - 1HZ30V
+   - 12 MERCADOS EN TOTAL
    ========================================== */
 
 import {
@@ -153,7 +152,7 @@ const UI = {
 
 
 /* ==========================================
-   FILAS DE MERCADO
+   12 FILAS DE MERCADO
    ========================================== */
 
 const FILAS_MERCADO = {
@@ -206,12 +205,28 @@ const FILAS_MERCADO = {
     latencia: $("hz10Latencia")
   },
 
+  "1HZ15V": {
+    pruebas: $("hz15Pruebas"),
+    ganadas: $("hz15Ganadas"),
+    perdidas: $("hz15Perdidas"),
+    accuracy: $("hz15Accuracy"),
+    latencia: $("hz15Latencia")
+  },
+
   "1HZ25V": {
     pruebas: $("hz25Pruebas"),
     ganadas: $("hz25Ganadas"),
     perdidas: $("hz25Perdidas"),
     accuracy: $("hz25Accuracy"),
     latencia: $("hz25Latencia")
+  },
+
+  "1HZ30V": {
+    pruebas: $("hz30Pruebas"),
+    ganadas: $("hz30Ganadas"),
+    perdidas: $("hz30Perdidas"),
+    accuracy: $("hz30Accuracy"),
+    latencia: $("hz30Latencia")
   },
 
   "1HZ50V": {
@@ -242,7 +257,7 @@ const FILAS_MERCADO = {
 
 
 /* ==========================================
-   COMPARADORES FIX9
+   COMPARADORES DESTACADOS
    ========================================== */
 
 const COMPARADORES = {
@@ -394,9 +409,7 @@ function registrarActividad(
 
 
   const linea =
-    document.createElement(
-      "p"
-    );
+    document.createElement("p");
 
 
   linea.textContent =
@@ -482,7 +495,7 @@ function formatoPorcentaje(
 
 
 /* ==========================================
-   SEÑAL
+   MOSTRAR SEÑAL
    ========================================== */
 
 function mostrarSenal(
@@ -490,20 +503,26 @@ function mostrarSenal(
 ) {
 
   if (UI.mercado) {
+
     UI.mercado.textContent =
       senal.mercado || "--";
+
   }
 
 
   if (UI.estrategia) {
+
     UI.estrategia.textContent =
       senal.estrategia || "--";
+
   }
 
 
   if (UI.direccion) {
+
     UI.direccion.textContent =
       senal.direccion || "--";
+
   }
 
 
@@ -644,7 +663,7 @@ function mostrarContrato(
 
 
 /* ==========================================
-   PROPUESTA
+   COTIZACIÓN
    ========================================== */
 
 function mostrarPropuestaDeriv(
@@ -694,7 +713,7 @@ function mostrarPropuestaDeriv(
 
     <strong>ID propuesta:</strong>
     ${propuesta.id ?? "--"}
-    <br><br>
+    <br>
 
     <strong>Precio:</strong>
     ${propuesta.askPrice ?? "--"}
@@ -713,7 +732,7 @@ function mostrarPropuestaDeriv(
 
 
 /* ==========================================
-   COMPRA
+   COMPRA DEMO
    ========================================== */
 
 function mostrarCompraDemo(
@@ -748,8 +767,7 @@ function mostrarCompraDemo(
 
 
   const dato =
-    compra.compra ||
-    {};
+    compra.compra || {};
 
 
   UI.operacionDemo.innerHTML = `
@@ -992,13 +1010,9 @@ function mostrarResultadoDemo(
 
 function recuperarResultadoEngine() {
 
-  const estado =
-    botEngine
-      .obtenerEstado();
-
-
   const ultimo =
-    estado
+    botEngine
+      .obtenerEstado()
       ?.ultimoResultadoDemo;
 
 
@@ -1015,7 +1029,6 @@ function recuperarResultadoEngine() {
       ultimo
     );
 
-
     return true;
 
   }
@@ -1027,7 +1040,7 @@ function recuperarResultadoEngine() {
 
 
 /* ==========================================
-   TELEMETRÍA ACTUAL
+   TELEMETRÍA
    ========================================== */
 
 function mostrarTelemetria(
@@ -1118,7 +1131,7 @@ function mostrarTelemetria(
 
 
 /* ==========================================
-   TABLAS
+   TABLAS DE LOS 12 MERCADOS
    ========================================== */
 
 function renderFilaMercado(
@@ -1145,8 +1158,7 @@ function renderFilaMercado(
   if (fila.pruebas) {
 
     fila.pruebas.textContent =
-      resumen.pruebas ??
-      0;
+      resumen.pruebas ?? 0;
 
   }
 
@@ -1154,8 +1166,7 @@ function renderFilaMercado(
   if (fila.ganadas) {
 
     fila.ganadas.textContent =
-      resumen.ganadas ??
-      0;
+      resumen.ganadas ?? 0;
 
   }
 
@@ -1163,8 +1174,7 @@ function renderFilaMercado(
   if (fila.perdidas) {
 
     fila.perdidas.textContent =
-      resumen.perdidas ??
-      0;
+      resumen.perdidas ?? 0;
 
   }
 
@@ -1224,7 +1234,7 @@ function actualizarTablaMercados() {
 
 
 /* ==========================================
-   COMPARADOR FIX9
+   COMPARADORES
    ========================================== */
 
 function renderComparador(
@@ -1259,129 +1269,109 @@ function renderComparador(
 
 
   if (ui.ganadasCantidad) {
-
     ui.ganadasCantidad.textContent =
-      ganadas.cantidad ??
-      0;
-
+      ganadas.cantidad ?? 0;
   }
 
 
   if (ui.ganadasSignalBuy) {
-
     ui.ganadasSignalBuy.textContent =
       formatoMs(
         ganadas.promedioSignalToBuyMs
       );
-
   }
 
 
   if (ui.ganadasMin) {
-
     ui.ganadasMin.textContent =
       formatoMs(
         ganadas.minimoSignalToBuyMs
       );
-
   }
 
 
   if (ui.ganadasMax) {
-
     ui.ganadasMax.textContent =
       formatoMs(
         ganadas.maximoSignalToBuyMs
       );
-
   }
 
 
   if (ui.ganadasProposal) {
-
     ui.ganadasProposal.textContent =
       formatoMs(
         ganadas.promedioProposalMs
       );
-
   }
 
 
   if (ui.ganadasBuy) {
-
     ui.ganadasBuy.textContent =
       formatoMs(
         ganadas.promedioBuyMs
       );
-
   }
 
 
   if (ui.perdidasCantidad) {
-
     ui.perdidasCantidad.textContent =
-      perdidas.cantidad ??
-      0;
-
+      perdidas.cantidad ?? 0;
   }
 
 
   if (ui.perdidasSignalBuy) {
-
     ui.perdidasSignalBuy.textContent =
       formatoMs(
         perdidas.promedioSignalToBuyMs
       );
-
   }
 
 
   if (ui.perdidasMin) {
-
     ui.perdidasMin.textContent =
       formatoMs(
         perdidas.minimoSignalToBuyMs
       );
-
   }
 
 
   if (ui.perdidasMax) {
-
     ui.perdidasMax.textContent =
       formatoMs(
         perdidas.maximoSignalToBuyMs
       );
-
   }
 
 
   if (ui.perdidasProposal) {
-
     ui.perdidasProposal.textContent =
       formatoMs(
         perdidas.promedioProposalMs
       );
-
   }
 
 
   if (ui.perdidasBuy) {
-
     ui.perdidasBuy.textContent =
       formatoMs(
         perdidas.promedioBuyMs
       );
-
   }
 
+
+  /*
+    FIX10:
+    usamos la MEDIANA como lectura principal
+    para reducir el efecto de valores extremos.
+  */
 
   if (ui.diferencia) {
 
     ui.diferencia.textContent =
       formatoMs(
         comparacion
-          .diferenciaSignalToBuyMs
+          .diferenciaMedianaMs
       );
 
   }
@@ -1405,17 +1395,24 @@ function actualizarComparadores() {
       .obtenerEstado();
 
 
+  const comparaciones =
+    estado?.comparaciones ||
+    {};
+
+
   renderComparador(
     "R_50",
-    estado
-      ?.comparacionR50
+    comparaciones[
+      "R_50"
+    ]
   );
 
 
   renderComparador(
     "1HZ75V",
-    estado
-      ?.comparacion1HZ75V
+    comparaciones[
+      "1HZ75V"
+    ]
   );
 
 }
@@ -1456,6 +1453,22 @@ function renderEjecucionDemo() {
         ? "EJECUCIÓN DEMO ON"
         : "EJECUCIÓN DEMO OFF";
 
+
+    UI.estadoEjecucion
+      .classList
+      .toggle(
+        "encendido-ejecucion",
+        activa
+      );
+
+
+    UI.estadoEjecucion
+      .classList
+      .toggle(
+        "apagado-ejecucion",
+        !activa
+      );
+
   }
 
 
@@ -1479,7 +1492,7 @@ function renderEjecucionDemo() {
 
 
 /* ==========================================
-   RECIBIR SEÑAL
+   RECIBIR SEÑAL REAL
    ========================================== */
 
 signalBridge.onSenal(
@@ -1529,7 +1542,7 @@ signalBridge.onSenal(
 
 
     registrarActividad(
-      "Procesando señal FIX9...",
+      "Procesando señal FIX10...",
       "aviso"
     );
 
@@ -1578,7 +1591,9 @@ signalBridge.onSenal(
       );
 
 
-      if (resultado.contrato) {
+      if (
+        resultado.contrato
+      ) {
 
         mostrarContrato(
           resultado.contrato
@@ -1593,7 +1608,9 @@ signalBridge.onSenal(
       );
 
 
-      if (resultado.compraDemo) {
+      if (
+        resultado.compraDemo
+      ) {
 
         mostrarCompraDemo(
           resultado.compraDemo
@@ -1602,7 +1619,9 @@ signalBridge.onSenal(
       }
 
 
-      if (resultado.resultadoDemo) {
+      if (
+        resultado.resultadoDemo
+      ) {
 
         mostrarResultadoDemo(
           resultado.resultadoDemo
@@ -1654,11 +1673,15 @@ signalBridge.onSenal(
       ) {
 
         registrarActividad(
-          `TIMING ${senal.mercado} · ${resultado.comparacionMercado.lectura} · diferencia ${
+          `TIMING ${senal.mercado} · ${
+            resultado
+              .comparacionMercado
+              .lectura
+          } · Δ MEDIANA ${
             formatoMs(
               resultado
                 .comparacionMercado
-                .diferenciaSignalToBuyMs
+                .diferenciaMedianaMs
             )
           }`,
           "aviso"
@@ -1702,9 +1725,13 @@ window.addEventListener(
       {};
 
 
-    if (datos.conectado) {
+    if (
+      datos.conectado
+    ) {
 
-      if (UI.estadoBot) {
+      if (
+        UI.estadoBot
+      ) {
 
         UI.estadoBot.textContent =
           "BOT SYNC";
@@ -1726,15 +1753,23 @@ window.addEventListener(
       }
 
 
-      if (UI.botonConectar) {
+      if (
+        UI.botonConectar
+      ) {
+
         UI.botonConectar.disabled =
           true;
+
       }
 
 
-      if (UI.botonPausar) {
+      if (
+        UI.botonPausar
+      ) {
+
         UI.botonPausar.disabled =
           false;
+
       }
 
 
@@ -1746,9 +1781,12 @@ window.addEventListener(
 
     }
 
+
     else {
 
-      if (UI.estadoBot) {
+      if (
+        UI.estadoBot
+      ) {
 
         UI.estadoBot.textContent =
           "BOT OFF";
@@ -1770,15 +1808,23 @@ window.addEventListener(
       }
 
 
-      if (UI.botonConectar) {
+      if (
+        UI.botonConectar
+      ) {
+
         UI.botonConectar.disabled =
           false;
+
       }
 
 
-      if (UI.botonPausar) {
+      if (
+        UI.botonPausar
+      ) {
+
         UI.botonPausar.disabled =
           true;
+
       }
 
     }
@@ -1833,7 +1879,9 @@ window.addEventListener(
    CONECTAR BOT
    ========================================== */
 
-if (UI.botonConectar) {
+if (
+  UI.botonConectar
+) {
 
   UI.botonConectar
     .addEventListener(
@@ -1862,10 +1910,12 @@ if (UI.botonConectar) {
 
 
 /* ==========================================
-   PAUSAR
+   PAUSAR / REANUDAR
    ========================================== */
 
-if (UI.botonPausar) {
+if (
+  UI.botonPausar
+) {
 
   UI.botonPausar
     .addEventListener(
@@ -1877,7 +1927,9 @@ if (UI.botonPausar) {
             .obtenerEstado();
 
 
-        if (!estado?.pausado) {
+        if (
+          !estado?.pausado
+        ) {
 
           const resultado =
             botEngine
@@ -1895,6 +1947,7 @@ if (UI.botonPausar) {
           );
 
         }
+
 
         else {
 
@@ -1925,7 +1978,9 @@ if (UI.botonPausar) {
    ACTIVAR DEMO
    ========================================== */
 
-if (UI.botonActivarDemo) {
+if (
+  UI.botonActivarDemo
+) {
 
   UI.botonActivarDemo
     .addEventListener(
@@ -1939,7 +1994,7 @@ if (UI.botonActivarDemo) {
 
         registrarActividad(
           resultado?.mensaje ||
-          "Cambio de ejecución.",
+          "Cambio de ejecución DEMO.",
           resultado?.ok
             ? "correcto"
             : "aviso"
@@ -1958,7 +2013,9 @@ if (UI.botonActivarDemo) {
    DESACTIVAR DEMO
    ========================================== */
 
-if (UI.botonDesactivarDemo) {
+if (
+  UI.botonDesactivarDemo
+) {
 
   UI.botonDesactivarDemo
     .addEventListener(
@@ -1989,7 +2046,9 @@ if (UI.botonDesactivarDemo) {
    PRUEBA INTERNA
    ========================================== */
 
-if (UI.botonProbar) {
+if (
+  UI.botonProbar
+) {
 
   UI.botonProbar
     .addEventListener(
@@ -2000,10 +2059,10 @@ if (UI.botonProbar) {
           .recibirSenal({
 
             id:
-              `FIX9-${Date.now()}`,
+              `FIX10-${Date.now()}`,
 
             mercado:
-              "R_50",
+              "1HZ15V",
 
             estrategia:
               "even_odd",
@@ -2036,7 +2095,7 @@ if (UI.botonProbar) {
               10,
 
             modo:
-              "FIX9_TEST",
+              "FIX10_TEST",
 
             timestamp:
               Date.now(),
@@ -2062,7 +2121,9 @@ derivConnection.on(
     accountId
   }) => {
 
-    if (UI.derivAccountId) {
+    if (
+      UI.derivAccountId
+    ) {
 
       UI.derivAccountId.value =
         accountId ||
@@ -2071,7 +2132,9 @@ derivConnection.on(
     }
 
 
-    if (UI.derivCuenta) {
+    if (
+      UI.derivCuenta
+    ) {
 
       UI.derivCuenta.textContent =
         accountId ||
@@ -2103,7 +2166,9 @@ derivConnection.on(
     mensaje
   }) => {
 
-    if (UI.estadoDeriv) {
+    if (
+      UI.estadoDeriv
+    ) {
 
       UI.estadoDeriv.textContent =
         mensaje ||
@@ -2118,7 +2183,9 @@ derivConnection.on(
         "connected"
     ) {
 
-      if (UI.derivConexion) {
+      if (
+        UI.derivConexion
+      ) {
 
         UI.derivConexion.textContent =
           "DEMO CONECTADO";
@@ -2126,7 +2193,9 @@ derivConnection.on(
       }
 
 
-      if (UI.derivCuenta) {
+      if (
+        UI.derivCuenta
+      ) {
 
         UI.derivCuenta.textContent =
           derivConnection
@@ -2137,7 +2206,9 @@ derivConnection.on(
       }
 
 
-      if (UI.botonConectarDeriv) {
+      if (
+        UI.botonConectarDeriv
+      ) {
 
         UI.botonConectarDeriv.disabled =
           true;
@@ -2145,7 +2216,9 @@ derivConnection.on(
       }
 
 
-      if (UI.botonDesconectarDeriv) {
+      if (
+        UI.botonDesconectarDeriv
+      ) {
 
         UI.botonDesconectarDeriv.disabled =
           false;
@@ -2153,15 +2226,23 @@ derivConnection.on(
       }
 
 
-      if (UI.derivAppId) {
+      if (
+        UI.derivAppId
+      ) {
+
         UI.derivAppId.disabled =
           true;
+
       }
 
 
-      if (UI.derivToken) {
+      if (
+        UI.derivToken
+      ) {
+
         UI.derivToken.disabled =
           true;
+
       }
 
 
@@ -2181,7 +2262,9 @@ derivConnection.on(
         "connecting"
     ) {
 
-      if (UI.derivConexion) {
+      if (
+        UI.derivConexion
+      ) {
 
         UI.derivConexion.textContent =
           "CONECTANDO";
@@ -2193,7 +2276,9 @@ derivConnection.on(
 
     else {
 
-      if (UI.derivConexion) {
+      if (
+        UI.derivConexion
+      ) {
 
         UI.derivConexion.textContent =
           "OFF";
@@ -2201,7 +2286,9 @@ derivConnection.on(
       }
 
 
-      if (UI.botonConectarDeriv) {
+      if (
+        UI.botonConectarDeriv
+      ) {
 
         UI.botonConectarDeriv.disabled =
           false;
@@ -2209,7 +2296,9 @@ derivConnection.on(
       }
 
 
-      if (UI.botonDesconectarDeriv) {
+      if (
+        UI.botonDesconectarDeriv
+      ) {
 
         UI.botonDesconectarDeriv.disabled =
           true;
@@ -2217,15 +2306,23 @@ derivConnection.on(
       }
 
 
-      if (UI.derivAppId) {
+      if (
+        UI.derivAppId
+      ) {
+
         UI.derivAppId.disabled =
           false;
+
       }
 
 
-      if (UI.derivToken) {
+      if (
+        UI.derivToken
+      ) {
+
         UI.derivToken.disabled =
           false;
+
       }
 
 
@@ -2283,7 +2380,9 @@ derivConnection.on(
    CONECTAR DERIV
    ========================================== */
 
-if (UI.botonConectarDeriv) {
+if (
+  UI.botonConectarDeriv
+) {
 
   UI.botonConectarDeriv
     .addEventListener(
@@ -2304,7 +2403,9 @@ if (UI.botonConectarDeriv) {
           "";
 
 
-        if (!appId) {
+        if (
+          !appId
+        ) {
 
           registrarActividad(
             "Falta Deriv App ID.",
@@ -2316,7 +2417,9 @@ if (UI.botonConectarDeriv) {
         }
 
 
-        if (!token) {
+        if (
+          !token
+        ) {
 
           registrarActividad(
             "Falta Token PAT.",
@@ -2328,7 +2431,9 @@ if (UI.botonConectarDeriv) {
         }
 
 
-        if (UI.derivAccountId) {
+        if (
+          UI.derivAccountId
+        ) {
 
           UI.derivAccountId.value =
             "Buscando automáticamente...";
@@ -2352,7 +2457,9 @@ if (UI.botonConectarDeriv) {
               });
 
 
-          if (!resultado?.ok) {
+          if (
+            !resultado?.ok
+          ) {
 
             registrarActividad(
               `No se pudo conectar: ${
@@ -2366,12 +2473,17 @@ if (UI.botonConectarDeriv) {
 
         }
 
-        catch (error) {
+
+        catch (
+          error
+        ) {
 
           registrarActividad(
             `Error conectando Deriv: ${
               error?.message ||
-              String(error)
+              String(
+                error
+              )
             }`,
             "error"
           );
@@ -2388,7 +2500,9 @@ if (UI.botonConectarDeriv) {
    DESCONECTAR DERIV
    ========================================== */
 
-if (UI.botonDesconectarDeriv) {
+if (
+  UI.botonDesconectarDeriv
+) {
 
   UI.botonDesconectarDeriv
     .addEventListener(
@@ -2403,7 +2517,9 @@ if (UI.botonDesconectarDeriv) {
           .desconectar();
 
 
-        if (UI.derivToken) {
+        if (
+          UI.derivToken
+        ) {
 
           UI.derivToken.value =
             "";
@@ -2411,7 +2527,9 @@ if (UI.botonDesconectarDeriv) {
         }
 
 
-        if (UI.derivAccountId) {
+        if (
+          UI.derivAccountId
+        ) {
 
           UI.derivAccountId.value =
             "Se detectará automáticamente";
@@ -2447,10 +2565,12 @@ window.addEventListener(
 
 
 /* ==========================================
-   INICIO FIX9
+   INICIO FIX10
    ========================================== */
 
-if (UI.derivAccountId) {
+if (
+  UI.derivAccountId
+) {
 
   UI.derivAccountId.value =
     "Se detectará automáticamente";
@@ -2471,17 +2591,22 @@ recuperarResultadoEngine();
 
 
 registrarActividad(
-  "BOT V1 MR FIX9 preparado."
+  "BOT V1 MR FIX10 preparado."
 );
 
 
 registrarActividad(
-  "Comparador GANADAS vs PERDIDAS activado."
+  "Calibrador de 12 mercados activado."
 );
 
 
 registrarActividad(
-  "Datos anteriores de FIX8 conservados."
+  "1HZ15V y 1HZ30V agregados."
+);
+
+
+registrarActividad(
+  "Datos anteriores conservados."
 );
 
 
