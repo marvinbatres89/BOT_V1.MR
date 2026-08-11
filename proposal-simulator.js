@@ -1,7 +1,8 @@
 /* ==========================================
    BOT V1 MR
-   RESPALDO DE PROPUESTAS SIMULADAS
-   SIN DINERO REAL
+   SIMULADOR DE PROPUESTAS
+   FIX6
+   FASE SEGURA - SIN DINERO REAL
    ========================================== */
 
 class ProposalSimulator {
@@ -20,6 +21,10 @@ class ProposalSimulator {
   }
 
 
+  /* ========================================
+     CREAR IDENTIFICADOR
+     ======================================== */
+
   crearId() {
 
     return `SIM-${Date.now()}-${Math.floor(
@@ -28,6 +33,10 @@ class ProposalSimulator {
 
   }
 
+
+  /* ========================================
+     VALIDAR CONTRATO
+     ======================================== */
 
   validarContrato(
     contrato
@@ -110,6 +119,10 @@ class ProposalSimulator {
   }
 
 
+  /* ========================================
+     CREAR PROPUESTA SIMULADA
+     ======================================== */
+
   crearPropuesta(
     contrato,
     opciones = {}
@@ -174,6 +187,24 @@ class ProposalSimulator {
         opciones.duracion ??
         1
       );
+
+
+    if (
+      !Number.isFinite(
+        duracion
+      ) ||
+      duracion <= 0
+    ) {
+
+      return {
+        ok:
+          false,
+
+        error:
+          "Duración inválida."
+      };
+
+    }
 
 
     const unidadDuracion =
@@ -268,12 +299,20 @@ class ProposalSimulator {
   }
 
 
+  /* ========================================
+     OBTENER ÚLTIMA PROPUESTA
+     ======================================== */
+
   obtenerUltimaPropuesta() {
 
     return this.ultimaPropuesta;
 
   }
 
+
+  /* ========================================
+     OBTENER HISTORIAL
+     ======================================== */
 
   obtenerHistorial() {
 
@@ -283,6 +322,10 @@ class ProposalSimulator {
 
   }
 
+
+  /* ========================================
+     LIMPIAR
+     ======================================== */
 
   limpiar() {
 
@@ -296,6 +339,10 @@ class ProposalSimulator {
 
 }
 
+
+/* ==========================================
+   INSTANCIA ÚNICA
+   ========================================== */
 
 export const proposalSimulator =
   new ProposalSimulator();
