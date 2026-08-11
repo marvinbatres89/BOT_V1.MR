@@ -11,7 +11,7 @@
   >
 
   <title>
-    BOT V1 MR · FIX6
+    BOT V1 MR · FIX7
   </title>
 
   <link
@@ -27,6 +27,10 @@
   <main class="app">
 
 
+    <!-- ======================================
+         ENCABEZADO
+         ====================================== -->
+
     <header class="hero">
 
       <div>
@@ -40,7 +44,7 @@
         </h1>
 
         <p class="subtitulo">
-          FIX6 · Ejecución controlada únicamente en DEMO
+          FIX7 · Calibrador de ejecución DEMO
         </p>
 
       </div>
@@ -126,7 +130,7 @@
         <div class="dato">
 
           <small>
-            Momento de entrada
+            Punto de entrada
           </small>
 
           <strong id="entrada">
@@ -200,7 +204,7 @@
       <p class="aviso">
 
         Dinero real bloqueado durante
-        esta fase del proyecto.
+        esta fase de calibración.
 
       </p>
 
@@ -275,8 +279,7 @@
       <p class="descripcion">
 
         El Token PAT se utiliza solamente
-        durante la sesión y no debe colocarse
-        dentro de los archivos del proyecto.
+        durante la sesión.
 
       </p>
 
@@ -353,16 +356,16 @@
 
       <p class="descripcion">
 
-        La ejecución comienza desactivada
-        cada vez que se abre la página.
+        FIX7 conserva el motor de ejecución
+        funcional del FIX6.
 
       </p>
 
 
       <p class="aviso">
 
-        Solo una operación DEMO puede estar
-        activa al mismo tiempo.
+        Una sola operación DEMO activa
+        al mismo tiempo.
 
       </p>
 
@@ -377,7 +380,7 @@
           </small>
 
           <strong id="estadoEjecucion">
-            DESACTIVADA
+            EJECUCIÓN DEMO OFF
           </strong>
 
         </div>
@@ -425,7 +428,361 @@
 
 
     <!-- ======================================
-         PRUEBA
+         CALIBRADOR FIX7
+         ====================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Calibrador FIX7
+      </h2>
+
+
+      <p class="descripcion">
+
+        Mide el tiempo real entre la señal
+        de Trading Analyzer y la ejecución
+        del BUY en Deriv DEMO.
+
+      </p>
+
+
+      <p class="aviso">
+
+        FIX7 mide el timing.
+        No agrega retrasos artificiales
+        a la operación.
+
+      </p>
+
+
+      <div class="datos-grid">
+
+
+        <div class="dato">
+
+          <small>
+            Familia actual
+          </small>
+
+          <strong id="calibradorFamilia">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Punto de entrada
+          </small>
+
+          <strong id="calibradorPunto">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Referencia
+          </small>
+
+          <strong id="calibradorReferencia">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Señal → BUY
+          </small>
+
+          <strong id="calibradorSignalBuy">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Cotización
+          </small>
+
+          <strong id="calibradorPropuesta">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            BUY → confirmación
+          </small>
+
+          <strong id="calibradorBuy">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Señal → confirmación
+          </small>
+
+          <strong id="calibradorConfirmacion">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Resultado
+          </small>
+
+          <strong id="calibradorResultado">
+            --
+          </strong>
+
+        </div>
+
+
+      </div>
+
+    </section>
+
+
+
+    <!-- ======================================
+         ESTADÍSTICAS STANDARD
+         ====================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Mercados estándar · R_
+      </h2>
+
+
+      <p class="descripcion">
+
+        Estadísticas independientes para
+        Volatility estándar.
+
+      </p>
+
+
+      <div class="datos-grid">
+
+
+        <div class="dato">
+
+          <small>
+            Pruebas
+          </small>
+
+          <strong id="standardPruebas">
+            0
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Ganadas
+          </small>
+
+          <strong id="standardGanadas">
+            0
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Perdidas
+          </small>
+
+          <strong id="standardPerdidas">
+            0
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Acierto
+          </small>
+
+          <strong id="standardAccuracy">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Promedio señal → BUY
+          </small>
+
+          <strong id="standardLatencia">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Referencia probada
+          </small>
+
+          <strong>
+            10 · 0.0 s
+          </strong>
+
+        </div>
+
+
+      </div>
+
+    </section>
+
+
+
+    <!-- ======================================
+         ESTADÍSTICAS 1S
+         ====================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Mercados 1 segundo · 1HZ
+      </h2>
+
+
+      <p class="descripcion">
+
+        Estadísticas independientes para
+        Volatility 1s.
+
+      </p>
+
+
+      <div class="datos-grid">
+
+
+        <div class="dato">
+
+          <small>
+            Pruebas
+          </small>
+
+          <strong id="oneSecondPruebas">
+            0
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Ganadas
+          </small>
+
+          <strong id="oneSecondGanadas">
+            0
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Perdidas
+          </small>
+
+          <strong id="oneSecondPerdidas">
+            0
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Acierto
+          </small>
+
+          <strong id="oneSecondAccuracy">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Promedio señal → BUY
+          </small>
+
+          <strong id="oneSecondLatencia">
+            --
+          </strong>
+
+        </div>
+
+
+        <div class="dato">
+
+          <small>
+            Referencia probada
+          </small>
+
+          <strong>
+            10 · 0.1 s
+          </strong>
+
+        </div>
+
+
+      </div>
+
+    </section>
+
+
+
+    <!-- ======================================
+         PRUEBA INTERNA
          ====================================== -->
 
     <section class="tarjeta">
@@ -437,8 +794,8 @@
 
       <p class="descripcion">
 
-        Este botón genera una señal interna
-        Rise para comprobar el flujo del BOT.
+        Genera una señal interna únicamente
+        para comprobar el flujo técnico.
 
       </p>
 
@@ -521,13 +878,13 @@
 
 
     <!-- ======================================
-         OPERACIÓN Y RESULTADO
+         OPERACIÓN
          ====================================== -->
 
     <section class="tarjeta">
 
       <h2>
-        Operación DEMO y resultado
+        Operación DEMO
       </h2>
 
 
@@ -536,6 +893,28 @@
         class="operacion-demo"
       >
         No existe una operación DEMO activa.
+      </div>
+
+    </section>
+
+
+
+    <!-- ======================================
+         RESULTADO
+         ====================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Resultado final
+      </h2>
+
+
+      <div
+        id="resultadoDemo"
+        class="operacion-demo"
+      >
+        Esperando una operación...
       </div>
 
     </section>
@@ -559,7 +938,7 @@
       >
 
         <p>
-          BOT V1 MR FIX6 preparado.
+          BOT V1 MR FIX7 preparado.
         </p>
 
       </div>
@@ -568,15 +947,23 @@
 
 
 
+    <!-- ======================================
+         PIE
+         ====================================== -->
+
     <footer>
 
       <p>
-        BOT V1 MR · FIX6
+        BOT V1 MR · FIX7
       </p>
 
       <small>
-        Trading Analyzer → Señal → BOT →
-        Deriv DEMO → Resultado
+        Trading Analyzer
+        → Señal
+        → Calibración
+        → BOT
+        → Deriv DEMO
+        → Resultado
       </small>
 
     </footer>
