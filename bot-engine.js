@@ -2,43 +2,31 @@
    BOT V1 MR
    BOT ENGINE
    FIX11 - CALIBRACIÓN BIDIRECCIONAL
+   CORRECCIÓN DE EJECUCIÓN
 
-   BASE:
-   FIX10 MULTIMERCADO
+   FLUJO FIX11:
 
-   CONSERVA:
-   - TELEMETRÍA FIX8 / FIX9 / FIX10
-   - 12 MERCADOS
-   - CONTRATO
-   - PROPUESTA
-   - BUY DEMO
-   - RESULTADO FINAL
-   - GANADAS VS PERDIDAS
-   - PROMEDIO
-   - MEDIANA
-   - MÍNIMO / MÁXIMO
-   - DATOS HISTÓRICOS
+   1. Trading Analyzer envía señal anticipada
+   2. BOT recibe targetExecutionAt
+   3. BOT solicita cotización primero
+   4. BOT calcula target + calibración
+   5. BOT espera solamente el tiempo restante
+   6. BOT envía BUY
+   7. BOT mide desviación real
+   8. BOT espera resultado
 
-   AGREGA FIX11:
-   - CALIBRACIÓN POR MERCADO
-   - -0.3 s
-   - -0.2 s
-   - -0.1 s
-   -  0.0 s
-   - +0.1 s
-   - +0.2 s
-   - +0.3 s
+   CALIBRACIÓN:
+   -0.3 s
+   -0.2 s
+   -0.1 s
+    0.0 s
+   +0.1 s
+   +0.2 s
+   +0.3 s
 
    IMPORTANTE:
-   Para ejecutar ANTES del punto objetivo,
-   Trading Analyzer debe enviar:
-   targetExecutionAt
-
-   Sin targetExecutionAt:
-   - FIX11 NO INVENTA ANTICIPACIÓN.
-   - Mantiene ejecución segura actual.
-
-   SOLO DEMO DURANTE CALIBRACIÓN.
+   - SOLO DEMO DURANTE CALIBRACIÓN
+   - CONSERVA DATOS FIX8/FIX9/FIX10
    ========================================== */
 
 import {
@@ -60,10 +48,13 @@ import {
 
 /* ==========================================
    STORAGE
-
-   MISMA CLAVE DE FIX8/FIX9/FIX10
-   PARA CONSERVAR TODAS LAS PRUEBAS.
    ========================================== */
+
+/*
+  Conservamos esta misma clave
+  para mantener todas las pruebas
+  anteriores.
+*/
 
 const TELEMETRY_KEY =
   "BOT_V1_MR_FIX8_TELEMETRY";
@@ -74,7 +65,7 @@ const CALIBRATION_KEY =
 
 
 /* ==========================================
-   MERCADOS
+   MERCADOS STANDARD
    ========================================== */
 
 const MERCADOS_STANDARD = [
@@ -87,6 +78,10 @@ const MERCADOS_STANDARD = [
 
 ];
 
+
+/* ==========================================
+   MERCADOS 1S
+   ========================================== */
 
 const MERCADOS_1S = [
 
@@ -101,6 +96,10 @@ const MERCADOS_1S = [
 ];
 
 
+/* ==========================================
+   TODOS
+   ========================================== */
+
 const MERCADOS_CONTROLADOS = [
 
   ...MERCADOS_STANDARD,
@@ -111,7 +110,6 @@ const MERCADOS_CONTROLADOS = [
 
 /* ==========================================
    AJUSTES PERMITIDOS
-
    MILISEGUNDOS
    ========================================== */
 
@@ -130,11 +128,6 @@ const AJUSTES_PERMITIDOS_MS = [
 
 /* ==========================================
    CALIBRACIÓN INICIAL
-
-   IMPORTANTE:
-   TODAVÍA NO FORZAMOS AJUSTES.
-
-   TODOS EMPIEZAN EN 0 ms.
    ========================================== */
 
 const CALIBRACION_INICIAL = {
@@ -651,7 +644,7 @@ class BotEngine {
 
 
   /* ========================================
-     CARGAR CALIBRACIÓN FIX11
+     CARGAR CALIBRACIÓN
      ======================================== */
 
   cargarCalibracion() {
@@ -783,10 +776,7 @@ class BotEngine {
 
 
   /* ========================================
-     CAMBIAR AJUSTE
-
-     SOLO VALORES:
-     -300 ... +300 ms
+     ESTABLECER AJUSTE
      ======================================== */
 
   establecerAjusteMercado(
@@ -870,7 +860,8 @@ class BotEngine {
 
       mensaje:
         `Calibración ${symbol}: ${
-          valor >= 0
+          valor >
+            0
             ? "+"
             : ""
         }${valor} ms`
@@ -909,15 +900,7 @@ class BotEngine {
 
 
   /* ========================================
-     OBTENER TARGET DE LA SEÑAL
-
-     FIX11 ACEPTA:
-
-     senal.targetExecutionAt
-
-     o:
-
-     senal.metadata.targetExecutionAt
+     TARGET DE LA SEÑAL
      ======================================== */
 
   obtenerTargetExecutionAt(
@@ -971,10 +954,7 @@ class BotEngine {
 
 
   /* ========================================
-     CALCULAR PROGRAMACIÓN FIX11
-
-     targetExecutionAt usa Date.now()
-     en milisegundos absolutos.
+     PROGRAMACIÓN
      ======================================== */
 
   calcularProgramacion(
@@ -1042,21 +1022,12 @@ class BotEngine {
       ajusteMs;
 
 
-    const ahora =
-      Date.now();
-
-
     const esperaMs =
       Math.max(
         0,
         programmedAt -
-        ahora
+        Date.now()
       );
-
-
-    const puedeAnticipar =
-      programmedAt >
-      ahora;
 
 
     return {
@@ -1078,10 +1049,13 @@ class BotEngine {
 
       esperaMs,
 
-      puedeAnticipar,
+      puedeAnticipar:
+        programmedAt >
+        Date.now(),
 
       motivo:
-        puedeAnticipar
+        programmedAt >
+          Date.now()
           ? "Programación válida."
           : "El instante programado ya ocurrió."
 
@@ -1325,7 +1299,10 @@ class BotEngine {
             1000
           : null,
 
-      /* FIX11 */
+
+      /* ====================================
+         CALIBRACIÓN FIX11
+         ==================================== */
 
       calibracionMs:
         programacion.ajusteMs,
@@ -1357,6 +1334,11 @@ class BotEngine {
         programacion
           .motivo,
 
+
+      /* ====================================
+         RELOJES
+         ==================================== */
+
       modo:
         senal?.modo ??
         null,
@@ -1375,16 +1357,16 @@ class BotEngine {
       processStartedPerf:
         ahora,
 
-      calibrationWaitStartedPerf:
-        null,
-
-      calibrationWaitEndedPerf:
-        null,
-
       proposalRequestedPerf:
         null,
 
       proposalReceivedPerf:
+        null,
+
+      calibrationWaitStartedPerf:
+        null,
+
+      calibrationWaitEndedPerf:
         null,
 
       buyRequestedPerf:
@@ -1396,16 +1378,18 @@ class BotEngine {
       resultReceivedPerf:
         null,
 
-      bridgeToProcessMs:
-        null,
 
-      calibrationWaitActualMs:
+      /* ====================================
+         MÉTRICAS
+         ==================================== */
+
+      bridgeToProcessMs:
         null,
 
       proposalLatencyMs:
         null,
 
-      buyLatencyMs:
+      calibrationWaitActualMs:
         null,
 
       processToBuyMs:
@@ -1417,8 +1401,22 @@ class BotEngine {
       signalToBuyConfirmMs:
         null,
 
+      buyLatencyMs:
+        null,
+
+      buyTargetDeviationMs:
+        null,
+
+      buyConfirmTargetDeviationMs:
+        null,
+
       totalUntilResultMs:
         null,
+
+
+      /* ====================================
+         RESULTADO
+         ==================================== */
 
       contractId:
         null,
@@ -1468,24 +1466,6 @@ class BotEngine {
 
     if (
       Number.isFinite(
-        t.calibrationWaitStartedPerf
-      ) &&
-      Number.isFinite(
-        t.calibrationWaitEndedPerf
-      )
-    ) {
-
-      t.calibrationWaitActualMs =
-        this.redondear(
-          t.calibrationWaitEndedPerf -
-          t.calibrationWaitStartedPerf
-        );
-
-    }
-
-
-    if (
-      Number.isFinite(
         t.proposalRequestedPerf
       ) &&
       Number.isFinite(
@@ -1504,17 +1484,17 @@ class BotEngine {
 
     if (
       Number.isFinite(
-        t.buyRequestedPerf
+        t.calibrationWaitStartedPerf
       ) &&
       Number.isFinite(
-        t.buyConfirmedPerf
+        t.calibrationWaitEndedPerf
       )
     ) {
 
-      t.buyLatencyMs =
+      t.calibrationWaitActualMs =
         this.redondear(
-          t.buyConfirmedPerf -
-          t.buyRequestedPerf
+          t.calibrationWaitEndedPerf -
+          t.calibrationWaitStartedPerf
         );
 
     }
@@ -1551,6 +1531,24 @@ class BotEngine {
         this.redondear(
           t.buyRequestedPerf -
           t.signalReceivedPerf
+        );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        t.buyRequestedPerf
+      ) &&
+      Number.isFinite(
+        t.buyConfirmedPerf
+      )
+    ) {
+
+      t.buyLatencyMs =
+        this.redondear(
+          t.buyConfirmedPerf -
+          t.buyRequestedPerf
         );
 
     }
@@ -1792,7 +1790,7 @@ class BotEngine {
 
 
   /* ========================================
-     MÉTRICAS GRUPO
+     MÉTRICAS DE GRUPO
      ======================================== */
 
   construirMetricasGrupo(
@@ -1824,6 +1822,13 @@ class BotEngine {
       datos.map(
         (item) =>
           item.signalToBuyConfirmMs
+      );
+
+
+    const desviacionTarget =
+      datos.map(
+        (item) =>
+          item.buyTargetDeviationMs
       );
 
 
@@ -1870,6 +1875,16 @@ class BotEngine {
       promedioSignalToConfirmMs:
         this.promedio(
           confirmacion
+        ),
+
+      promedioDesviacionTargetMs:
+        this.promedio(
+          desviacionTarget
+        ),
+
+      medianaDesviacionTargetMs:
+        this.mediana(
+          desviacionTarget
         )
 
     };
@@ -1878,7 +1893,7 @@ class BotEngine {
 
 
   /* ========================================
-     COMPARADOR GANADAS / PERDIDAS
+     COMPARADOR TIMING
      ======================================== */
 
   construirComparadorTiming(
@@ -2033,7 +2048,7 @@ class BotEngine {
 
 
   /* ========================================
-     RESUMEN DE MERCADO
+     RESUMEN MERCADO
      ======================================== */
 
   obtenerResumenMercado(
@@ -2161,6 +2176,22 @@ class BotEngine {
           )
         ),
 
+      promedioDesviacionTargetMs:
+        this.promedio(
+          finalizadas.map(
+            (item) =>
+              item.buyTargetDeviationMs
+          )
+        ),
+
+      medianaDesviacionTargetMs:
+        this.mediana(
+          finalizadas.map(
+            (item) =>
+              item.buyTargetDeviationMs
+          )
+        ),
+
       retrasoReferenciaMs:
         this.obtenerRetrasoReferencia(
           symbol
@@ -2177,137 +2208,7 @@ class BotEngine {
 
 
   /* ========================================
-     RESUMEN DE CALIBRACIÓN
-
-     CONTROL vs AJUSTES FIX11
-     ======================================== */
-
-  obtenerResumenCalibracion(
-    mercado
-  ) {
-
-    const symbol =
-      this.normalizarMercado(
-        mercado
-      );
-
-
-    const resultado =
-      {};
-
-
-    for (
-      const ajuste
-      of AJUSTES_PERMITIDOS_MS
-    ) {
-
-      const datos =
-        this
-          .obtenerTelemetriaPorCalibracion(
-            symbol,
-            ajuste
-          )
-          .filter(
-            (item) =>
-              item.resultado ===
-                "GANADA" ||
-              item.resultado ===
-                "PERDIDA"
-          );
-
-
-      const ganadas =
-        datos.filter(
-          (item) =>
-            item.resultado ===
-              "GANADA"
-        ).length;
-
-
-      const perdidas =
-        datos.filter(
-          (item) =>
-            item.resultado ===
-              "PERDIDA"
-        ).length;
-
-
-      const pruebas =
-        datos.length;
-
-
-      resultado[
-        String(
-          ajuste
-        )
-      ] = {
-
-        ajusteMs:
-          ajuste,
-
-        ajusteSeg:
-          ajuste /
-          1000,
-
-        pruebas,
-
-        ganadas,
-
-        perdidas,
-
-        accuracy:
-          pruebas >
-            0
-            ? this.redondear(
-                (
-                  ganadas /
-                  pruebas
-                ) *
-                100
-              )
-            : null,
-
-        promedioSignalToBuyMs:
-          this.promedio(
-            datos.map(
-              (item) =>
-                item.signalToBuyMs
-            )
-          ),
-
-        medianaSignalToBuyMs:
-          this.mediana(
-            datos.map(
-              (item) =>
-                item.signalToBuyMs
-            )
-          )
-
-      };
-
-    }
-
-
-    return {
-
-      mercado:
-        symbol,
-
-      ajusteActualMs:
-        this.obtenerAjusteMercado(
-          symbol
-        ),
-
-      ajustes:
-        resultado
-
-    };
-
-  }
-
-
-  /* ========================================
-     TODOS LOS MERCADOS
+     RESUMEN TODOS LOS MERCADOS
      ======================================== */
 
   obtenerResumenMercados() {
@@ -2489,7 +2390,143 @@ class BotEngine {
 
 
   /* ========================================
-     PROCESAR SEÑAL
+     RESUMEN DE CALIBRACIÓN
+     ======================================== */
+
+  obtenerResumenCalibracion(
+    mercado
+  ) {
+
+    const symbol =
+      this.normalizarMercado(
+        mercado
+      );
+
+
+    const resultado =
+      {};
+
+
+    for (
+      const ajuste
+      of AJUSTES_PERMITIDOS_MS
+    ) {
+
+      const datos =
+        this
+          .obtenerTelemetriaPorCalibracion(
+            symbol,
+            ajuste
+          )
+          .filter(
+            (item) =>
+              item.resultado ===
+                "GANADA" ||
+              item.resultado ===
+                "PERDIDA"
+          );
+
+
+      const ganadas =
+        datos.filter(
+          (item) =>
+            item.resultado ===
+              "GANADA"
+        ).length;
+
+
+      const perdidas =
+        datos.filter(
+          (item) =>
+            item.resultado ===
+              "PERDIDA"
+        ).length;
+
+
+      const pruebas =
+        datos.length;
+
+
+      resultado[
+        String(
+          ajuste
+        )
+      ] = {
+
+        ajusteMs:
+          ajuste,
+
+        ajusteSeg:
+          ajuste /
+          1000,
+
+        pruebas,
+
+        ganadas,
+
+        perdidas,
+
+        accuracy:
+          pruebas >
+            0
+            ? this.redondear(
+                (
+                  ganadas /
+                  pruebas
+                ) *
+                100
+              )
+            : null,
+
+        promedioSignalToBuyMs:
+          this.promedio(
+            datos.map(
+              (item) =>
+                item.signalToBuyMs
+            )
+          ),
+
+        medianaSignalToBuyMs:
+          this.mediana(
+            datos.map(
+              (item) =>
+                item.signalToBuyMs
+            )
+          ),
+
+        promedioDesviacionTargetMs:
+          this.promedio(
+            datos.map(
+              (item) =>
+                item.buyTargetDeviationMs
+            )
+          )
+
+      };
+
+    }
+
+
+    return {
+
+      mercado:
+        symbol,
+
+      ajusteActualMs:
+        this.obtenerAjusteMercado(
+          symbol
+        ),
+
+      ajustes:
+        resultado
+
+    };
+
+  }
+
+
+  /* ========================================
+     PROCESAR SEÑAL FIX11
      ======================================== */
 
   async procesarSenal(
@@ -2571,7 +2608,7 @@ class BotEngine {
     try {
 
       /* ====================================
-         CONTRATO
+         1. CONTRATO
          ==================================== */
 
       const contrato =
@@ -2616,7 +2653,7 @@ class BotEngine {
 
 
       /* ====================================
-         SIMULACIÓN
+         2. SIMULACIÓN
          ==================================== */
 
       const propuestaSimulada =
@@ -2676,43 +2713,10 @@ class BotEngine {
 
 
       /* ====================================
-         PROGRAMACIÓN FIX11
+         3. COTIZACIÓN PRIMERO
 
-         SI EXISTE targetExecutionAt:
-         espera hasta target + calibración.
-
-         SI NO EXISTE:
-         no aplica espera artificial.
-         ==================================== */
-
-      if (
-        telemetria
-          .programacionDisponible &&
-        telemetria
-          .esperaProgramadaMs >
-          0
-      ) {
-
-        telemetria
-          .calibrationWaitStartedPerf =
-          this.ahora();
-
-
-        await this.esperar(
-          telemetria
-            .esperaProgramadaMs
-        );
-
-
-        telemetria
-          .calibrationWaitEndedPerf =
-          this.ahora();
-
-      }
-
-
-      /* ====================================
-         COTIZACIÓN DERIV
+         FIX11:
+         YA NO ESPERAMOS ANTES.
          ==================================== */
 
       telemetria.proposalRequestedPerf =
@@ -2763,18 +2767,215 @@ class BotEngine {
 
 
       /* ====================================
-         BUY DEMO
+         SI COTIZACIÓN FALLÓ
          ==================================== */
 
       if (
-        propuestaDeriv.ok &&
+        !propuestaDeriv.ok
+      ) {
+
+        telemetria.resultado =
+          "PROPUESTA_RECHAZADA";
+
+
+        this.guardarTelemetria(
+          telemetria
+        );
+
+
+        return {
+
+          aceptada:
+            true,
+
+          modo:
+            this.modo,
+
+          mercado:
+            senal.mercado,
+
+          familia:
+            telemetria
+              .familiaMercado,
+
+          estrategia:
+            senal.estrategia,
+
+          direccion:
+            senal.direccion,
+
+          confianza:
+            senal.confianza,
+
+          segundoEntrada:
+            senal.segundosEntrada,
+
+          calibracionMs:
+            telemetria.calibracionMs,
+
+          calibracionSeg:
+            telemetria.calibracionSeg,
+
+          programacionDisponible:
+            telemetria.programacionDisponible,
+
+          contrato,
+
+          propuesta:
+            propuestaSimulada,
+
+          propuestaDeriv,
+
+          compraDemo:
+            null,
+
+          resultadoDemo:
+            null,
+
+          telemetria:
+            {
+              ...telemetria
+            },
+
+          resumenMercado:
+            this.obtenerResumenMercado(
+              telemetria.mercado
+            ),
+
+          comparacionMercado:
+            this.obtenerComparacionMercado(
+              telemetria.mercado
+            ),
+
+          resumenCalibracion:
+            this.obtenerResumenCalibracion(
+              telemetria.mercado
+            ),
+
+          resumenMercados:
+            this.obtenerResumenMercados(),
+
+          resumenStandard:
+            this.obtenerResumenFamilia(
+              "STANDARD"
+            ),
+
+          resumen1S:
+            this.obtenerResumenFamilia(
+              "1S"
+            ),
+
+          ejecucionDemoActiva:
+            derivTrade
+              .obtenerEstado()
+              .ejecucionActiva
+
+        };
+
+      }
+
+
+      /* ====================================
+         4. RECALCULAR ESPERA
+
+         MUY IMPORTANTE:
+
+         Ya pasó el tiempo de cotización,
+         por lo tanto debemos calcular
+         nuevamente cuánto falta para:
+
+         targetExecutionAt + calibracionMs
+         ==================================== */
+
+      if (
+        telemetria
+          .programacionDisponible &&
+        Number.isFinite(
+          telemetria
+            .programmedExecutionAt
+        )
+      ) {
+
+        const restanteMs =
+          Math.max(
+            0,
+            telemetria
+              .programmedExecutionAt -
+            Date.now()
+          );
+
+
+        telemetria.esperaProgramadaMs =
+          this.redondear(
+            restanteMs
+          );
+
+
+        if (
+          restanteMs >
+          0
+        ) {
+
+          telemetria
+            .calibrationWaitStartedPerf =
+            this.ahora();
+
+
+          await this.esperar(
+            restanteMs
+          );
+
+
+          telemetria
+            .calibrationWaitEndedPerf =
+            this.ahora();
+
+        }
+
+      }
+
+
+      /* ====================================
+         5. BUY EN EL INSTANTE PROGRAMADO
+         ==================================== */
+
+      if (
         derivTrade
           .obtenerEstado()
           .ejecucionActiva
       ) {
 
+        /*
+          Guardamos el reloj absoluto
+          justo antes de mandar BUY.
+
+          Esto permite medir qué tan cerca
+          estuvimos realmente del target.
+        */
+
+        const buyRequestedAt =
+          Date.now();
+
+
         telemetria.buyRequestedPerf =
           this.ahora();
+
+
+        if (
+          Number.isFinite(
+            telemetria
+              .programmedExecutionAt
+          )
+        ) {
+
+          telemetria.buyTargetDeviationMs =
+            this.redondear(
+              buyRequestedAt -
+              telemetria
+                .programmedExecutionAt
+            );
+
+        }
 
 
         compraDemo =
@@ -2783,9 +2984,34 @@ class BotEngine {
           );
 
 
+        const buyConfirmedAt =
+          Date.now();
+
+
         telemetria.buyConfirmedPerf =
           this.ahora();
 
+
+        if (
+          Number.isFinite(
+            telemetria
+              .programmedExecutionAt
+          )
+        ) {
+
+          telemetria.buyConfirmTargetDeviationMs =
+            this.redondear(
+              buyConfirmedAt -
+              telemetria
+                .programmedExecutionAt
+            );
+
+        }
+
+
+        /* ==================================
+           COMPRA ACEPTADA
+           ================================== */
 
         if (
           compraDemo.ok
@@ -2802,7 +3028,7 @@ class BotEngine {
 
 
           /* ==================================
-             RESULTADO
+             6. RESULTADO
              ================================== */
 
           const seguimiento =
@@ -2888,12 +3114,14 @@ class BotEngine {
       else {
 
         telemetria.resultado =
-          propuestaDeriv.ok
-            ? "SOLO_COTIZACION"
-            : "PROPUESTA_RECHAZADA";
+          "SOLO_COTIZACION";
 
       }
 
+
+      /* ====================================
+         MARCAR ID
+         ==================================== */
 
       if (
         id
@@ -2905,10 +3133,18 @@ class BotEngine {
       }
 
 
+      /* ====================================
+         GUARDAR TELEMETRÍA
+         ==================================== */
+
       this.guardarTelemetria(
         telemetria
       );
 
+
+      /* ====================================
+         RESPUESTA
+         ==================================== */
 
       return {
 
@@ -2948,6 +3184,18 @@ class BotEngine {
         programacionDisponible:
           telemetria
             .programacionDisponible,
+
+        targetExecutionAt:
+          telemetria
+            .targetExecutionAt,
+
+        programmedExecutionAt:
+          telemetria
+            .programmedExecutionAt,
+
+        buyTargetDeviationMs:
+          telemetria
+            .buyTargetDeviationMs,
 
         contrato,
 
