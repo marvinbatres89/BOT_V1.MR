@@ -1,20 +1,28 @@
 /* ==========================================
    BOT V1 MR
    BOT.CSS
-   FIX10 - CALIBRADOR MULTIMERCADO
+   FIX11 - CALIBRACIÓN POR MERCADO
 
-   CONSERVA FIX9:
+   CONSERVA:
    - DISEÑO MÓVIL
    - TARJETAS
    - TABLAS
    - COMPARADORES
    - RESULTADO FINAL
    - REGISTRO
+   - 12 MERCADOS
 
    AGREGA:
-   - SOPORTE VISUAL 1HZ15V
-   - SOPORTE VISUAL 1HZ30V
-   - TABLAS DE 12 MERCADOS
+   - PANEL CALIBRACIÓN FIX11
+   - SELECTORES -0.3 A +0.3
+   - ESTADO DE TARGET
+   - PROGRAMACIÓN
+   - TELEMETRÍA DE AJUSTE
+   ========================================== */
+
+
+/* ==========================================
+   GENERAL
    ========================================== */
 
 * {
@@ -33,7 +41,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font-family: inherit;
 }
 
@@ -208,6 +217,33 @@ input {
 
 
 /* ==========================================
+   SELECTORES FIX11
+   ========================================== */
+
+.selector {
+  width: 100%;
+  border: 1px solid #29435d;
+  border-radius: 10px;
+  padding: 12px;
+  background: #07111f;
+  color: #eaf2ff;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+}
+
+.selector:focus {
+  border-color: #43d9a3;
+}
+
+.selector option,
+.selector optgroup {
+  background: #0a1623;
+  color: #eaf2ff;
+}
+
+
+/* ==========================================
    BOTONES
    ========================================== */
 
@@ -238,7 +274,7 @@ input {
 
 .conectar {
   background: #2a74ff;
-  color: white;
+  color: #ffffff;
 }
 
 .pausar {
@@ -277,7 +313,46 @@ input {
 
 
 /* ==========================================
-   CONTENIDO
+   CALIBRACIÓN FIX11
+   ========================================== */
+
+#calibracionMercadoActual {
+  color: #79d8ff;
+}
+
+#calibracionAjusteActual {
+  color: #ffd37a;
+}
+
+#calibracionTargetDisponible {
+  color: #79d8ff;
+}
+
+#calibracionProgramacion {
+  color: #ffd37a;
+}
+
+
+/* ==========================================
+   TELEMETRÍA FIX11
+   ========================================== */
+
+#calibradorFamilia,
+#calibradorMercado,
+#calibradorPunto,
+#calibradorReferencia,
+#calibradorAjuste,
+#calibradorEspera,
+#calibradorSignalBuy,
+#calibradorPropuesta,
+#calibradorBuy,
+#calibradorResultado {
+  color: #79d8ff;
+}
+
+
+/* ==========================================
+   TARJETAS DE CONTENIDO
    ========================================== */
 
 .ultima-senal,
@@ -325,23 +400,7 @@ input {
 
 
 /* ==========================================
-   CALIBRADOR
-   ========================================== */
-
-#calibradorFamilia,
-#calibradorMercado,
-#calibradorPunto,
-#calibradorReferencia,
-#calibradorSignalBuy,
-#calibradorPropuesta,
-#calibradorBuy,
-#calibradorResultado {
-  color: #79d8ff;
-}
-
-
-/* ==========================================
-   COMPARADOR FIX10
+   COMPARADOR FIX11
    ========================================== */
 
 .comparador-grid {
@@ -385,7 +444,7 @@ input {
 
 
 /* ==========================================
-   CONCLUSIÓN DEL TIMING
+   CONCLUSIÓN TIMING
    ========================================== */
 
 .comparador-conclusion {
@@ -418,7 +477,7 @@ input {
 
 
 /* ==========================================
-   TABLAS MULTIMERCADO
+   TABLAS
    ========================================== */
 
 .tabla-wrap {
@@ -487,7 +546,7 @@ input {
 
 
 /* ==========================================
-   NUEVOS MERCADOS FIX10
+   NUEVOS MERCADOS
    ========================================== */
 
 #hz15Pruebas,
@@ -618,6 +677,11 @@ footer small {
     font-size: 14px;
   }
 
+  .selector {
+    padding: 11px 9px;
+    font-size: 13px;
+  }
+
   .tarjeta {
     padding: 14px;
     border-radius: 15px;
@@ -678,5 +742,5 @@ footer small {
 
 
 /* ==========================================
-   FIN FIX10
+   FIN BOT.CSS FIX11
    ========================================== */
