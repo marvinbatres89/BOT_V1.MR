@@ -1,7 +1,7 @@
 /* ==========================================
    BOT V1 MR
    BOT.JS
-   FIX11 - CALIBRACIÓN POR MERCADO
+   FIX11 - BRIDGE CACHE FIX
 
    CONSERVA:
    - PUENTE
@@ -13,17 +13,16 @@
    - ESTADÍSTICAS
    - COMPARADORES
    - TELEMETRÍA
+   - CALIBRACIÓN POR MERCADO
 
    AGREGA:
-   - AJUSTE -0.3 A +0.3 s
-   - AJUSTE INDEPENDIENTE POR MERCADO
-   - ESTADO targetExecutionAt
-   - PROGRAMACIÓN FIX11
+   - CARGA FORZADA SIGNAL-BRIDGE FIX11
+   - DIAGNÓSTICO VISIBLE DE RECEPCIÓN
    ========================================== */
 
 import {
   signalBridge
-} from "./signal-bridge.js";
+} from "./signal-bridge.js?v=FIX11-BRIDGE-2";
 
 import {
   botEngine
@@ -590,6 +589,51 @@ function registrarActividad(
   );
 
 }
+
+
+/* ==========================================
+   DIAGNÓSTICO DEL PUENTE FIX11
+   ========================================== */
+
+window.addEventListener(
+  "bot:signal-source",
+  (
+    evento
+  ) => {
+
+    const datos =
+      evento.detail ||
+      {};
+
+
+    const origen =
+      datos.origen ||
+      "desconocido";
+
+
+    const target =
+      Number(
+        datos.targetExecutionAt
+      );
+
+
+    registrarActividad(
+      `PUENTE FIX11 RECIBIÓ SEÑAL · ${origen} · target ${
+        Number.isFinite(target)
+          ? "SÍ"
+          : "NO"
+      }`,
+      "correcto"
+    );
+
+
+    console.log(
+      "BOT FIX11 · SEÑAL DETECTADA",
+      datos
+    );
+
+  }
+);
 
 
 /* ==========================================
@@ -1956,6 +2000,12 @@ signalBridge.onSenal(
     senal
   ) => {
 
+    registrarActividad(
+      `SEÑAL RECIBIDA → ${senal.mercado} · ${senal.direccion}`,
+      "correcto"
+    );
+
+
     const marcaPuente =
       Number(
         senal
@@ -2222,7 +2272,7 @@ window.addEventListener(
 
 
       registrarActividad(
-        "Puente conectado.",
+        "Puente FIX11 conectado.",
         "correcto"
       );
 
@@ -2304,6 +2354,36 @@ if (
           "Bot iniciado.",
           "correcto"
         );
+
+
+        const estadoPuente =
+          signalBridge
+            .obtenerEstado
+            ? signalBridge
+                .obtenerEstado()
+            : null;
+
+
+        if (
+          estadoPuente
+        ) {
+
+          registrarActividad(
+            `Bridge FIX11 · Broadcast ${
+              estadoPuente.canalDisponible
+                ? "OK"
+                : "NO"
+            } · respaldo ${
+              estadoPuente.respaldoActivo
+                ? "ON"
+                : "OFF"
+            }`,
+            estadoPuente.canalDisponible
+              ? "correcto"
+              : "aviso"
+          );
+
+        }
 
       }
     );
@@ -2436,6 +2516,11 @@ if (
       "click",
       () => {
 
+        const targetExecutionAt =
+          Date.now() +
+          2000;
+
+
         signalBridge
           .recibirSenal({
 
@@ -2478,11 +2563,18 @@ if (
             modo:
               "FIX11_TEST",
 
+            targetExecutionAt,
+
             timestamp:
               Date.now(),
 
-            metadata:
-              {}
+            metadata: {
+              targetExecutionAt,
+              preavisoBotSegundos:
+                2,
+              fix:
+                "FIX11"
+            }
 
           });
 
@@ -2879,6 +2971,17 @@ window.addEventListener(
       .desactivarEjecucionDemo();
 
 
+    if (
+      signalBridge
+        .destruir
+    ) {
+
+      signalBridge
+        .destruir();
+
+    }
+
+
     derivConnection
       .desconectar();
 
@@ -2916,7 +3019,12 @@ recuperarResultadoEngine();
 
 
 registrarActividad(
-  "BOT V1 MR FIX11 preparado."
+  "BOT V1 MR FIX11 BRIDGE-2 preparado."
+);
+
+
+registrarActividad(
+  "Signal Bridge FIX11 forzado sin caché."
 );
 
 
