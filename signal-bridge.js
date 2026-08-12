@@ -1,23 +1,26 @@
 /* ==========================================
    BOT V1 MR
    SIGNAL BRIDGE
-   FIX7 - CALIBRADOR DE EJECUCIÓN
+   FIX11 - PUENTE REFORZADO
 
    TRADING ANALYZER -> BOT
 
    RECEPCIÓN:
-   - BroadcastChannel
-   - localStorage
+   1. BroadcastChannel
+   2. evento localStorage
+   3. comprobación periódica localStorage
 
-   FIX7 AGREGA:
-   - MARCA DE TIEMPO DE ALTA PRECISIÓN
-     DESDE EL INSTANTE EN QUE LA SEÑAL
-     ENTRA AL PUENTE
+   CONSERVA:
+   - protección contra duplicados
+   - protección contra señales antiguas
+   - validación
+   - marca de alta precisión
 
-   PROTECCIÓN:
-   - SEÑALES DUPLICADAS
-   - SEÑALES ANTIGUAS
-   - DATOS INVÁLIDOS
+   AGREGA:
+   - targetExecutionAt
+   - metadata FIX11
+   - respaldo para pestañas Android
+   - diagnóstico de origen
    ========================================== */
 
 
@@ -29,8 +32,28 @@ const STORAGE_SIGNAL_KEY =
   "TA_BOT_SIGNAL_V1";
 
 
+/*
+  Una señal de trading no debe
+  recuperarse indefinidamente.
+
+  Dejamos 20 segundos para dar
+  margen adicional en Android.
+*/
+
 const MAX_ANTIGUEDAD_SENAL =
-  15000;
+  20000;
+
+
+/*
+  Respaldo localStorage.
+
+  Si Chrome suspende temporalmente
+  BroadcastChannel o el evento storage,
+  comprobamos la última señal guardada.
+*/
+
+const INTERVALO_RESPALDO_MS =
+  250;
 
 
 
@@ -58,10 +81,13 @@ class SignalBridge {
       null;
 
 
+    this.temporizadorRespaldo =
+      null;
+
+
     this.iniciarReceptorReal();
 
   }
-
 
 
   /* ========================================
@@ -87,77 +113,193 @@ class SignalBridge {
   }
 
 
-
   /* ========================================
-     INICIAR RECEPTOR
+     OBTENER TARGET FIX11
      ======================================== */
 
-  iniciarReceptorReal() {
+  obtenerTargetExecutionAt(
+    datos
+  ) {
 
+    const directo =
+      Number(
+        datos
+          ?.targetExecutionAt
+      );
 
-    /* --------------------------------------
-       BROADCAST CHANNEL
-       -------------------------------------- */
 
     if (
-      "BroadcastChannel" in
-      window
+      Number.isFinite(
+        directo
+      ) &&
+      directo >
+        0
     ) {
 
-      try {
-
-        this.channel =
-          new BroadcastChannel(
-            BOT_CHANNEL_NAME
-          );
-
-
-        this.channel.onmessage =
-          (evento) => {
-
-            /*
-              FIX7:
-
-              Esta marca se toma inmediatamente
-              cuando el navegador entrega la
-              señal al BOT.
-            */
-
-            const recibidoPerf =
-              this.ahora();
-
-
-            this.recibirSenalExterna(
-              evento.data,
-              "BroadcastChannel",
-              recibidoPerf
-            );
-
-          };
-
-
-      } catch (
-        error
-      ) {
-
-        console.error(
-          "No se pudo iniciar BroadcastChannel:",
-          error
-        );
-
-      }
+      return directo;
 
     }
 
 
+    const metadata =
+      Number(
+        datos
+          ?.metadata
+          ?.targetExecutionAt
+      );
 
-    /* --------------------------------------
-       LOCAL STORAGE
-       -------------------------------------- */
+
+    if (
+      Number.isFinite(
+        metadata
+      ) &&
+      metadata >
+        0
+    ) {
+
+      return metadata;
+
+    }
+
+
+    return null;
+
+  }
+
+
+  /* ========================================
+     ID DE SEÑAL
+     ======================================== */
+
+  obtenerId(
+    datos
+  ) {
+
+    if (
+      datos?.id ===
+        undefined ||
+      datos?.id ===
+        null
+    ) {
+
+      return null;
+
+    }
+
+
+    return String(
+      datos.id
+    );
+
+  }
+
+
+  /* ========================================
+     INICIAR RECEPTORES
+     ======================================== */
+
+  iniciarReceptorReal() {
+
+    this.iniciarBroadcastChannel();
+
+    this.iniciarStorageListener();
+
+  }
+
+
+  /* ========================================
+     BROADCAST CHANNEL
+     ======================================== */
+
+  iniciarBroadcastChannel() {
+
+    if (
+      !(
+        "BroadcastChannel" in
+        window
+      )
+    ) {
+
+      console.warn(
+        "BroadcastChannel no disponible."
+      );
+
+
+      return;
+
+    }
+
+
+    try {
+
+      this.channel =
+        new BroadcastChannel(
+          BOT_CHANNEL_NAME
+        );
+
+
+      this.channel.onmessage =
+        (
+          evento
+        ) => {
+
+          const recibidoPerf =
+            this.ahora();
+
+
+          console.log(
+            "FIX11 · señal detectada por BroadcastChannel",
+            evento.data
+          );
+
+
+          this.recibirSenalExterna(
+            evento.data,
+            "BroadcastChannel",
+            recibidoPerf
+          );
+
+        };
+
+
+      this.channel.onmessageerror =
+        (
+          evento
+        ) => {
+
+          console.error(
+            "Error leyendo BroadcastChannel:",
+            evento
+          );
+
+        };
+
+
+    } catch (
+      error
+    ) {
+
+      console.error(
+        "No se pudo iniciar BroadcastChannel:",
+        error
+      );
+
+    }
+
+  }
+
+
+  /* ========================================
+     EVENTO STORAGE
+     ======================================== */
+
+  iniciarStorageListener() {
 
     window.addEventListener(
       "storage",
-      (evento) => {
+      (
+        evento
+      ) => {
 
         if (
           evento.key !==
@@ -169,12 +311,6 @@ class SignalBridge {
 
         }
 
-
-        /*
-          FIX7:
-          medir desde que Chrome recibe
-          el evento storage.
-        */
 
         const recibidoPerf =
           this.ahora();
@@ -188,9 +324,15 @@ class SignalBridge {
             );
 
 
+          console.log(
+            "FIX11 · señal detectada por evento storage",
+            datos
+          );
+
+
           this.recibirSenalExterna(
             datos,
-            "localStorage",
+            "localStorage-event",
             recibidoPerf
           );
 
@@ -200,7 +342,7 @@ class SignalBridge {
         ) {
 
           console.error(
-            "Error leyendo señal localStorage:",
+            "Error leyendo señal de localStorage:",
             error
           );
 
@@ -211,6 +353,131 @@ class SignalBridge {
 
   }
 
+
+  /* ========================================
+     RESPALDO POR SONDEO
+
+     ÚTIL CUANDO UNA PESTAÑA ESTÁ
+     EN SEGUNDO PLANO EN ANDROID.
+     ======================================== */
+
+  iniciarRespaldoLocalStorage() {
+
+    this.detenerRespaldoLocalStorage();
+
+
+    this.temporizadorRespaldo =
+      setInterval(
+        () => {
+
+          if (
+            !this.conectado
+          ) {
+
+            return;
+
+          }
+
+
+          try {
+
+            const guardada =
+              localStorage.getItem(
+                STORAGE_SIGNAL_KEY
+              );
+
+
+            if (
+              !guardada
+            ) {
+
+              return;
+
+            }
+
+
+            const datos =
+              JSON.parse(
+                guardada
+              );
+
+
+            const id =
+              this.obtenerId(
+                datos
+              );
+
+
+            if (
+              id &&
+              id ===
+                String(
+                  this.ultimoIdRecibido
+                )
+            ) {
+
+              return;
+
+            }
+
+
+            if (
+              !this.esSenalReciente(
+                datos
+              )
+            ) {
+
+              return;
+
+            }
+
+
+            const recibidoPerf =
+              this.ahora();
+
+
+            console.log(
+              "FIX11 · señal recuperada por respaldo localStorage",
+              datos
+            );
+
+
+            this.recibirSenalExterna(
+              datos,
+              "localStorage-poll",
+              recibidoPerf
+            );
+
+
+          } catch (
+            error
+          ) {
+
+            console.warn(
+              "Error comprobando respaldo localStorage:",
+              error
+            );
+
+          }
+
+        },
+        INTERVALO_RESPALDO_MS
+      );
+
+  }
+
+
+  detenerRespaldoLocalStorage() {
+
+    clearInterval(
+      this.temporizadorRespaldo
+    );
+
+
+    this.temporizadorRespaldo =
+      null;
+
+  }
 
 
   /* ========================================
@@ -223,9 +490,12 @@ class SignalBridge {
       true;
 
 
+    this.iniciarRespaldoLocalStorage();
+
+
     /*
-      Recuperar una señal guardada
-      solamente si sigue siendo reciente.
+      Al conectar, comprobar inmediatamente
+      si existe una señal reciente.
     */
 
     try {
@@ -246,27 +516,23 @@ class SignalBridge {
           );
 
 
-        const timestamp =
-          Number(
-            datos?.timestamp ??
-            0
-          );
-
-
-        const antiguedad =
-          Date.now() -
-          timestamp;
-
-
         if (
-          timestamp > 0 &&
-          antiguedad >= 0 &&
-          antiguedad <=
-            MAX_ANTIGUEDAD_SENAL
+          this.esSenalReciente(
+            datos
+          )
         ) {
 
           setTimeout(
             () => {
+
+              if (
+                !this.conectado
+              ) {
+
+                return;
+
+              }
+
 
               const recibidoPerf =
                 this.ahora();
@@ -279,7 +545,7 @@ class SignalBridge {
               );
 
             },
-            150
+            100
           );
 
         }
@@ -309,11 +575,23 @@ class SignalBridge {
               true,
 
             mensaje:
-              "BOT V1 MR escuchando Trading Analyzer"
+              "BOT V1 MR FIX11 escuchando Trading Analyzer"
 
           }
         }
       )
+    );
+
+
+    console.log(
+      "FIX11 · puente conectado",
+      {
+        canal:
+          BOT_CHANNEL_NAME,
+
+        storage:
+          STORAGE_SIGNAL_KEY
+      }
     );
 
 
@@ -322,15 +600,17 @@ class SignalBridge {
   }
 
 
-
   /* ========================================
-     DESCONECTAR
+     DESCONECTAR BOT
      ======================================== */
 
   desconectar() {
 
     this.conectado =
       false;
+
+
+    this.detenerRespaldoLocalStorage();
 
 
     window.dispatchEvent(
@@ -356,7 +636,6 @@ class SignalBridge {
   }
 
 
-
   /* ========================================
      VALIDAR ANTIGÜEDAD
      ======================================== */
@@ -364,11 +643,6 @@ class SignalBridge {
   esSenalReciente(
     datos
   ) {
-
-    /*
-      Las señales internas de prueba
-      pueden no traer timestamp.
-    */
 
     if (
       datos?.timestamp ===
@@ -392,7 +666,8 @@ class SignalBridge {
       !Number.isFinite(
         timestamp
       ) ||
-      timestamp <= 0
+      timestamp <=
+        0
     ) {
 
       return false;
@@ -406,13 +681,13 @@ class SignalBridge {
 
 
     return (
-      antiguedad >= 0 &&
+      antiguedad >=
+        0 &&
       antiguedad <=
         MAX_ANTIGUEDAD_SENAL
     );
 
   }
-
 
 
   /* ========================================
@@ -424,7 +699,9 @@ class SignalBridge {
   ) {
 
     if (
-      !senal
+      !senal ||
+      typeof senal !==
+        "object"
     ) {
 
       return false;
@@ -477,11 +754,49 @@ class SignalBridge {
 
 
     if (
-      confianza < 0 ||
-      confianza > 100
+      confianza <
+        0 ||
+      confianza >
+        100
     ) {
 
       return false;
+
+    }
+
+
+    /*
+      targetExecutionAt es opcional
+      para mantener compatibilidad
+      con señales antiguas.
+
+      Si existe, debe ser válido.
+    */
+
+    if (
+      senal.targetExecutionAt !==
+        null &&
+      senal.targetExecutionAt !==
+        undefined
+    ) {
+
+      const target =
+        Number(
+          senal.targetExecutionAt
+        );
+
+
+      if (
+        !Number.isFinite(
+          target
+        ) ||
+        target <=
+          0
+      ) {
+
+        return false;
+
+      }
 
     }
 
@@ -490,6 +805,38 @@ class SignalBridge {
 
   }
 
+
+  /* ========================================
+     DUPLICADOS
+     ======================================== */
+
+  esDuplicada(
+    datos
+  ) {
+
+    const id =
+      this.obtenerId(
+        datos
+      );
+
+
+    if (
+      !id
+    ) {
+
+      return false;
+
+    }
+
+
+    return (
+      id ===
+      String(
+        this.ultimoIdRecibido
+      )
+    );
+
+  }
 
 
   /* ========================================
@@ -507,7 +854,23 @@ class SignalBridge {
     ) {
 
       console.log(
-        "Señal recibida pero BOT desconectado."
+        `Señal detectada por ${origen}, pero BOT desconectado.`
+      );
+
+
+      return false;
+
+    }
+
+
+    if (
+      !datos ||
+      typeof datos !==
+        "object"
+    ) {
+
+      console.warn(
+        "Señal ignorada: formato inválido."
       );
 
 
@@ -523,7 +886,14 @@ class SignalBridge {
     ) {
 
       console.warn(
-        "Señal antigua ignorada."
+        "Señal antigua ignorada.",
+        {
+          origen,
+          id:
+            datos?.id,
+          timestamp:
+            datos?.timestamp
+        }
       );
 
 
@@ -533,22 +903,15 @@ class SignalBridge {
 
 
     if (
-      datos?.id !==
-        undefined &&
-      datos?.id !==
-        null &&
-      String(
-        datos.id
-      ) ===
-        String(
-          this.ultimoIdRecibido
-        )
+      this.esDuplicada(
+        datos
+      )
     ) {
 
-      console.log(
-        "Señal duplicada ignorada."
-      );
-
+      /*
+        Es normal recibir la misma señal
+        por BroadcastChannel y localStorage.
+      */
 
       return false;
 
@@ -566,15 +929,18 @@ class SignalBridge {
       resultado
     ) {
 
+      const id =
+        this.obtenerId(
+          datos
+        );
+
+
       if (
-        datos?.id !==
-          undefined &&
-        datos?.id !==
-          null
+        id
       ) {
 
         this.ultimoIdRecibido =
-          datos.id;
+          id;
 
       }
 
@@ -587,12 +953,39 @@ class SignalBridge {
 
               origen,
 
-              recibidoPerf:
-                recibidoPerf
+              recibidoPerf,
+
+              id:
+                datos?.id ??
+                null,
+
+              targetExecutionAt:
+                this.obtenerTargetExecutionAt(
+                  datos
+                )
 
             }
           }
         )
+      );
+
+
+      console.log(
+        "FIX11 · señal aceptada por el puente",
+        {
+          origen,
+
+          id:
+            datos?.id,
+
+          mercado:
+            datos?.mercado,
+
+          targetExecutionAt:
+            this.obtenerTargetExecutionAt(
+              datos
+            )
+        }
       );
 
     }
@@ -603,9 +996,8 @@ class SignalBridge {
   }
 
 
-
   /* ========================================
-     RECIBIR SEÑAL
+     NORMALIZAR Y ENTREGAR SEÑAL
      ======================================== */
 
   recibirSenal(
@@ -636,14 +1028,51 @@ class SignalBridge {
         : this.ahora();
 
 
+    const targetExecutionAt =
+      this.obtenerTargetExecutionAt(
+        datos
+      );
+
+
+    const metadata =
+      datos.metadata &&
+      typeof datos.metadata ===
+        "object"
+        ? {
+            ...datos.metadata
+          }
+        : {};
+
+
+    /*
+      Mantener target tanto arriba
+      como dentro de metadata.
+    */
+
+    if (
+      targetExecutionAt !==
+        null
+    ) {
+
+      metadata.targetExecutionAt =
+        targetExecutionAt;
+
+    }
+
+
     const senal = {
 
       id:
         datos.id ??
-        Date.now(),
+        `${Date.now()}-${Math.random()}`,
 
       mercado:
-        datos.mercado,
+        String(
+          datos.mercado ||
+          ""
+        )
+          .trim()
+          .toUpperCase(),
 
       estrategia:
         datos.estrategia,
@@ -716,14 +1145,17 @@ class SignalBridge {
         datos.origen ??
         null,
 
+
+      /* ====================================
+         FIX11
+         ==================================== */
+
+      targetExecutionAt:
+        targetExecutionAt,
+
       metadata:
-        datos.metadata &&
-        typeof datos.metadata ===
-          "object"
-          ? {
-              ...datos.metadata
-            }
-          : {},
+        metadata,
+
 
       timestamp:
         datos.timestamp ??
@@ -731,10 +1163,7 @@ class SignalBridge {
 
 
       /*
-        FIX7:
-
-        Marca interna de alta precisión
-        del momento de entrada al puente.
+        Marca de entrada al puente.
       */
 
       bridgeReceivedPerf:
@@ -749,6 +1178,12 @@ class SignalBridge {
       )
     ) {
 
+      console.error(
+        "FIX11 · señal rechazada",
+        senal
+      );
+
+
       window.dispatchEvent(
         new CustomEvent(
           "bot:error",
@@ -756,7 +1191,7 @@ class SignalBridge {
             detail: {
 
               mensaje:
-                "Señal rechazada: datos inválidos"
+                "Señal rechazada: datos inválidos."
 
             }
           }
@@ -772,6 +1207,10 @@ class SignalBridge {
     this.ultimaSenal =
       senal;
 
+
+    /*
+      Entregar al bot.js
+    */
 
     for (
       const callback
@@ -790,7 +1229,7 @@ class SignalBridge {
       ) {
 
         console.error(
-          "Error enviando señal al bot:",
+          "Error entregando señal al BOT:",
           error
         );
 
@@ -798,6 +1237,10 @@ class SignalBridge {
 
     }
 
+
+    /*
+      Evento adicional para diagnóstico.
+    */
 
     window.dispatchEvent(
       new CustomEvent(
@@ -813,7 +1256,6 @@ class SignalBridge {
     return true;
 
   }
-
 
 
   /* ========================================
@@ -847,7 +1289,6 @@ class SignalBridge {
   }
 
 
-
   /* ========================================
      ÚLTIMA SEÑAL
      ======================================== */
@@ -859,7 +1300,6 @@ class SignalBridge {
   }
 
 
-
   /* ========================================
      ESTADO
      ======================================== */
@@ -867,6 +1307,67 @@ class SignalBridge {
   estaConectado() {
 
     return this.conectado;
+
+  }
+
+
+  obtenerEstado() {
+
+    return {
+
+      conectado:
+        this.conectado,
+
+      canalDisponible:
+        Boolean(
+          this.channel
+        ),
+
+      canal:
+        BOT_CHANNEL_NAME,
+
+      storageKey:
+        STORAGE_SIGNAL_KEY,
+
+      ultimaSenal:
+        this.ultimaSenal,
+
+      ultimoIdRecibido:
+        this.ultimoIdRecibido,
+
+      respaldoActivo:
+        Boolean(
+          this.temporizadorRespaldo
+        )
+
+    };
+
+  }
+
+
+  /* ========================================
+     CERRAR
+     ======================================== */
+
+  destruir() {
+
+    this.detenerRespaldoLocalStorage();
+
+
+    try {
+
+      this.channel
+        ?.close();
+
+    } catch {}
+
+
+    this.channel =
+      null;
+
+
+    this.conectado =
+      false;
 
   }
 
