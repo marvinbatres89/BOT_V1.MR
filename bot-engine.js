@@ -1,52 +1,46 @@
 /* ==========================================
    BOT V1 MR
    BOT ENGINE
-   FIX13 - PERFIL DE SEÑAL + TIMING FIX12
+   FIX13.1 - PERFIL DE SEÑAL + TIMING CORREGIDO
 
    CONSERVA:
-   - FIX12 TELEMETRÍA LIMPIA
+   - FIX12 TIMING LIMPIO
+   - FIX13 PERFIL DE SEÑAL
    - TARGET REAL
    - DERIV DEMO
    - COTIZACIÓN ANTES DEL BUY
    - CALIBRACIÓN POR MERCADO
-   - HISTORIAL FIX8/FIX9/FIX10/FIX11/FIX12
+   - HISTORIAL FIX8/FIX9/FIX10/FIX11/FIX12/FIX13
    - ESTADÍSTICAS GANADAS / PERDIDAS
    - 12 MERCADOS
-   - COMPARADORES DE TIMING
+   - COMPARADORES
 
-   FIX13 AGREGA:
-   - PERFIL COMPLETO DE LA SEÑAL
+   FIX13.1 CORRIGE:
+   - BRIDGE -> PROCESO YA NO COMPARA
+     PERFORMANCE.NOW ENTRE DOS PÁGINAS
+   - BRIDGE -> PROCESO USA EPOCH / DATE.NOW
+   - CONSERVA LA PRECISIÓN DEL TARGET
+   - NO MODIFICA LA PROGRAMACIÓN DEL BUY
+
+   FIX13 / FIX13.1:
    - CONFIANZA
+   - DIRECCIÓN
    - TENDENCIA
    - RSI
    - MOMENTUM
    - VOLATILIDAD
    - ÚLTIMO DÍGITO
-   - DIRECCIÓN
-   - ANÁLISIS GANADAS VS PERDIDAS
-   - RESUMEN DE CALIDAD DE SEÑAL
+   - PERFIL GANADAS VS PERDIDAS
 
    IMPORTANTE:
-   FIX13 SOLO OBSERVA.
-   NO BLOQUEA OPERACIONES TODAVÍA.
+   FIX13.1 SOLO OBSERVA EL PERFIL.
+   NO BLOQUEA OPERACIONES.
    ========================================== */
 
-
-import {
-  contractMapper
-} from "./contract-mapper.js";
-
-import {
-  proposalSimulator
-} from "./proposal-simulator.js";
-
-import {
-  derivProposal
-} from "./deriv-proposal.js";
-
-import {
-  derivTrade
-} from "./deriv-trade.js";
+import { contractMapper } from "./contract-mapper.js";
+import { proposalSimulator } from "./proposal-simulator.js";
+import { derivProposal } from "./deriv-proposal.js";
+import { derivTrade } from "./deriv-trade.js";
 
 
 /* ==========================================
@@ -55,7 +49,6 @@ import {
 
 const TELEMETRY_KEY =
   "BOT_V1_MR_FIX8_TELEMETRY";
-
 
 const CALIBRATION_KEY =
   "BOT_V1_MR_FIX11_CALIBRATION";
@@ -66,10 +59,21 @@ const CALIBRATION_KEY =
    ========================================== */
 
 const TELEMETRY_VERSION =
-  "FIX13";
+  "FIX13.1";
 
 const TIMING_BASE_VERSION =
   "FIX12";
+
+const TIMING_COMPATIBLE_VERSIONS = [
+  "FIX12",
+  "FIX13",
+  "FIX13.1"
+];
+
+const SIGNAL_PROFILE_VERSIONS = [
+  "FIX13",
+  "FIX13.1"
+];
 
 
 /* ==========================================
@@ -77,46 +81,27 @@ const TIMING_BASE_VERSION =
    ========================================== */
 
 const TIMING_LIMITS = {
-
-  bridgeToProcessMaxMs:
-    1000,
-
-  proposalMaxMs:
-    1500,
-
-  buyConfirmationMaxMs:
-    1500,
-
-  targetDeviationMaxAbsMs:
-    750,
-
-  waitOvershootMaxMs:
-    500
-
+  bridgeToProcessMaxMs: 1000,
+  proposalMaxMs: 1500,
+  buyConfirmationMaxMs: 1500,
+  targetDeviationMaxAbsMs: 750,
+  waitOvershootMaxMs: 500
 };
 
 
 /* ==========================================
-   MERCADOS STANDARD
+   MERCADOS
    ========================================== */
 
 const MERCADOS_STANDARD = [
-
   "R_10",
   "R_25",
   "R_50",
   "R_75",
   "R_100"
-
 ];
 
-
-/* ==========================================
-   MERCADOS 1S
-   ========================================== */
-
 const MERCADOS_1S = [
-
   "1HZ10V",
   "1HZ15V",
   "1HZ25V",
@@ -124,28 +109,19 @@ const MERCADOS_1S = [
   "1HZ50V",
   "1HZ75V",
   "1HZ100V"
-
 ];
-
-
-/* ==========================================
-   TODOS
-   ========================================== */
 
 const MERCADOS_CONTROLADOS = [
-
   ...MERCADOS_STANDARD,
   ...MERCADOS_1S
-
 ];
 
 
 /* ==========================================
-   AJUSTES
+   CALIBRACIÓN
    ========================================== */
 
 const AJUSTES_PERMITIDOS_MS = [
-
   -300,
   -200,
   -100,
@@ -153,52 +129,22 @@ const AJUSTES_PERMITIDOS_MS = [
   100,
   200,
   300
-
 ];
 
-
-/* ==========================================
-   CALIBRACIÓN INICIAL
-   ========================================== */
-
 const CALIBRACION_INICIAL = {
+  R_10: 0,
+  R_25: 0,
+  R_50: 0,
+  R_75: 0,
+  R_100: 0,
 
-  R_10:
-    0,
-
-  R_25:
-    0,
-
-  R_50:
-    0,
-
-  R_75:
-    0,
-
-  R_100:
-    0,
-
-  "1HZ10V":
-    0,
-
-  "1HZ15V":
-    0,
-
-  "1HZ25V":
-    0,
-
-  "1HZ30V":
-    0,
-
-  "1HZ50V":
-    0,
-
-  "1HZ75V":
-    0,
-
-  "1HZ100V":
-    0
-
+  "1HZ10V": 0,
+  "1HZ15V": 0,
+  "1HZ25V": 0,
+  "1HZ30V": 0,
+  "1HZ50V": 0,
+  "1HZ75V": 0,
+  "1HZ100V": 0
 };
 
 
@@ -210,56 +156,28 @@ class BotEngine {
 
   constructor() {
 
-    this.activo =
-      false;
+    this.activo = false;
+    this.pausado = false;
 
-    this.pausado =
-      false;
-
-    this.ultimaSenalProcesada =
-      null;
-
-    this.senalesEnProceso =
-      new Set();
+    this.ultimaSenalProcesada = null;
+    this.senalesEnProceso = new Set();
 
     this.modo =
-      "DERIV DEMO + FIX13 SIGNAL PROFILE";
+      "DERIV DEMO + FIX13.1 SIGNAL PROFILE";
 
-    this.ultimoContrato =
-      null;
-
-    this.ultimaPropuesta =
-      null;
-
-    this.ultimaPropuestaDeriv =
-      null;
-
-    this.ultimaCompraDemo =
-      null;
-
-    this.ultimoResultadoDemo =
-      null;
-
-    this.ultimaTelemetria =
-      null;
-
+    this.ultimoContrato = null;
+    this.ultimaPropuesta = null;
+    this.ultimaPropuestaDeriv = null;
+    this.ultimaCompraDemo = null;
+    this.ultimoResultadoDemo = null;
+    this.ultimaTelemetria = null;
 
     this.configuracion = {
-
-      monto:
-        1,
-
-      moneda:
-        "USD",
-
-      duracion:
-        1,
-
-      unidadDuracion:
-        "t"
-
+      monto: 1,
+      moneda: "USD",
+      duracion: 1,
+      unidadDuracion: "t"
     };
-
 
     this.calibracion =
       this.cargarCalibracion();
@@ -274,16 +192,11 @@ class BotEngine {
   ahora() {
 
     if (
-      typeof performance !==
-        "undefined" &&
-      typeof performance.now ===
-        "function"
+      typeof performance !== "undefined" &&
+      typeof performance.now === "function"
     ) {
-
       return performance.now();
-
     }
-
 
     return Date.now();
 
@@ -294,37 +207,21 @@ class BotEngine {
      ESPERA
      ======================================== */
 
-  esperar(
-    ms
-  ) {
+  esperar(ms) {
 
     const tiempo =
-      Number(
-        ms
-      );
-
+      Number(ms);
 
     if (
-      !Number.isFinite(
-        tiempo
-      ) ||
-      tiempo <=
-        0
+      !Number.isFinite(tiempo) ||
+      tiempo <= 0
     ) {
-
       return Promise.resolve();
-
     }
-
 
     return new Promise(
       (resolve) => {
-
-        setTimeout(
-          resolve,
-          tiempo
-        );
-
+        setTimeout(resolve, tiempo);
       }
     );
 
@@ -332,277 +229,154 @@ class BotEngine {
 
 
   /* ========================================
-     REDONDEAR
+     UTILIDADES NUMÉRICAS
      ======================================== */
 
-  redondear(
-    valor
-  ) {
+  redondear(valor) {
 
     const numero =
-      Number(
-        valor
-      );
+      Number(valor);
 
-
-    if (
-      !Number.isFinite(
-        numero
-      )
-    ) {
-
+    if (!Number.isFinite(numero)) {
       return null;
-
     }
 
-
-    return Math.round(
-      numero *
+    return (
+      Math.round(numero * 100) /
       100
-    ) /
-    100;
-
-  }
-
-
-  /* ========================================
-     VALORES VÁLIDOS
-     ======================================== */
-
-  valoresValidos(
-    valores
-  ) {
-
-    return valores
-      .map(
-        Number
-      )
-      .filter(
-        Number.isFinite
-      );
-
-  }
-
-
-  /* ========================================
-     PROMEDIO
-     ======================================== */
-
-  promedio(
-    valores
-  ) {
-
-    const validos =
-      this.valoresValidos(
-        valores
-      );
-
-
-    if (
-      !validos.length
-    ) {
-
-      return null;
-
-    }
-
-
-    const suma =
-      validos.reduce(
-        (
-          acumulado,
-          valor
-        ) =>
-          acumulado +
-          valor,
-        0
-      );
-
-
-    return this.redondear(
-      suma /
-      validos.length
     );
 
   }
 
 
-  /* ========================================
-     MEDIANA
-     ======================================== */
+  valoresValidos(valores) {
 
-  mediana(
-    valores
-  ) {
+    return valores
+      .map(Number)
+      .filter(Number.isFinite);
+
+  }
+
+
+  promedio(valores) {
 
     const validos =
-      this.valoresValidos(
-        valores
-      )
-      .sort(
-        (
-          a,
-          b
-        ) =>
-          a - b
-      );
+      this.valoresValidos(valores);
 
-
-    if (
-      !validos.length
-    ) {
-
+    if (!validos.length) {
       return null;
-
     }
 
+    const suma =
+      validos.reduce(
+        (acumulado, valor) =>
+          acumulado + valor,
+        0
+      );
+
+    return this.redondear(
+      suma / validos.length
+    );
+
+  }
+
+
+  mediana(valores) {
+
+    const validos =
+      this.valoresValidos(valores)
+        .sort(
+          (a, b) => a - b
+        );
+
+    if (!validos.length) {
+      return null;
+    }
 
     const mitad =
       Math.floor(
-        validos.length /
-        2
+        validos.length / 2
       );
 
-
     if (
-      validos.length %
-        2 ===
-      0
+      validos.length % 2 === 0
     ) {
 
       return this.redondear(
         (
-          validos[
-            mitad - 1
-          ] +
-          validos[
-            mitad
-          ]
-        ) /
-        2
+          validos[mitad - 1] +
+          validos[mitad]
+        ) / 2
       );
 
     }
 
-
     return this.redondear(
-      validos[
-        mitad
-      ]
+      validos[mitad]
     );
 
   }
 
 
-  /* ========================================
-     MÍNIMO
-     ======================================== */
-
-  minimo(
-    valores
-  ) {
+  minimo(valores) {
 
     const validos =
-      this.valoresValidos(
-        valores
-      );
+      this.valoresValidos(valores);
 
-
-    if (
-      !validos.length
-    ) {
-
+    if (!validos.length) {
       return null;
-
     }
 
-
     return this.redondear(
-      Math.min(
-        ...validos
-      )
+      Math.min(...validos)
     );
 
   }
 
 
-  /* ========================================
-     MÁXIMO
-     ======================================== */
-
-  maximo(
-    valores
-  ) {
+  maximo(valores) {
 
     const validos =
-      this.valoresValidos(
-        valores
-      );
+      this.valoresValidos(valores);
 
-
-    if (
-      !validos.length
-    ) {
-
+    if (!validos.length) {
       return null;
-
     }
 
-
     return this.redondear(
-      Math.max(
-        ...validos
-      )
+      Math.max(...validos)
     );
 
   }
 
 
   /* ========================================
-     NORMALIZAR TEXTO
+     NORMALIZACIÓN
      ======================================== */
 
-  normalizarTexto(
-    valor
-  ) {
+  normalizarTexto(valor) {
 
     if (
-      valor ===
-        undefined ||
-      valor ===
-        null
+      valor === undefined ||
+      valor === null
     ) {
-
       return null;
-
     }
-
 
     const texto =
-      String(
-        valor
-      )
+      String(valor)
         .trim()
         .toUpperCase();
 
-
-    return texto ||
-      null;
+    return texto || null;
 
   }
 
 
-  /* ========================================
-     NORMALIZAR MERCADO
-     ======================================== */
-
-  normalizarMercado(
-    mercado
-  ) {
+  normalizarMercado(mercado) {
 
     return String(
-      mercado ||
-      ""
+      mercado || ""
     )
       .trim()
       .toUpperCase();
@@ -611,97 +385,58 @@ class BotEngine {
 
 
   /* ========================================
-     FAMILIA
+     FAMILIA DE MERCADO
      ======================================== */
 
-  obtenerFamiliaMercado(
-    mercado
-  ) {
+  obtenerFamiliaMercado(mercado) {
 
     const symbol =
       this.normalizarMercado(
         mercado
       );
 
-
     if (
-      symbol.startsWith(
-        "1HZ"
-      )
+      symbol.startsWith("1HZ")
     ) {
-
       return "1S";
-
     }
-
 
     if (
-      symbol.startsWith(
-        "R_"
-      )
+      symbol.startsWith("R_")
     ) {
-
       return "STANDARD";
-
     }
-
 
     return "OTHER";
 
   }
 
 
-  /* ========================================
-     MERCADO CONTROLADO
-     ======================================== */
+  mercadoControlado(mercado) {
 
-  mercadoControlado(
-    mercado
-  ) {
-
-    return MERCADOS_CONTROLADOS
-      .includes(
-        this.normalizarMercado(
-          mercado
-        )
-      );
+    return MERCADOS_CONTROLADOS.includes(
+      this.normalizarMercado(
+        mercado
+      )
+    );
 
   }
 
 
-  /* ========================================
-     REFERENCIA
-     ======================================== */
-
-  obtenerRetrasoReferencia(
-    mercado
-  ) {
+  obtenerRetrasoReferencia(mercado) {
 
     const familia =
       this.obtenerFamiliaMercado(
         mercado
       );
 
-
-    if (
-      familia ===
-        "1S"
-    ) {
-
+    if (familia === "1S") {
       return 100;
-
     }
 
-
-    if (
-      familia ===
-        "STANDARD"
-    ) {
-
+    if (familia === "STANDARD") {
       return 0;
-
     }
-
 
     return null;
 
@@ -720,16 +455,12 @@ class BotEngine {
         JSON.parse(
           localStorage.getItem(
             CALIBRATION_KEY
-          ) ||
-          "{}"
+          ) || "{}"
         );
 
-
-      const resultado =
-        {
-          ...CALIBRACION_INICIAL
-        };
-
+      const resultado = {
+        ...CALIBRACION_INICIAL
+      };
 
       for (
         const mercado
@@ -738,33 +469,25 @@ class BotEngine {
 
         const valor =
           Number(
-            guardada[
-              mercado
-            ]
+            guardada[mercado]
           );
 
-
         if (
-          AJUSTES_PERMITIDOS_MS
-            .includes(
-              valor
-            )
+          AJUSTES_PERMITIDOS_MS.includes(
+            valor
+          )
         ) {
-
-          resultado[
-            mercado
-          ] =
+          resultado[mercado] =
             valor;
-
         }
 
       }
 
-
       return resultado;
 
+    }
 
-    } catch {
+    catch {
 
       return {
         ...CALIBRACION_INICIAL
@@ -774,10 +497,6 @@ class BotEngine {
 
   }
 
-
-  /* ========================================
-     GUARDAR CALIBRACIÓN
-     ======================================== */
 
   guardarCalibracion() {
 
@@ -790,11 +509,11 @@ class BotEngine {
         )
       );
 
-
       return true;
 
+    }
 
-    } catch {
+    catch {
 
       return false;
 
@@ -803,19 +522,12 @@ class BotEngine {
   }
 
 
-  /* ========================================
-     OBTENER AJUSTE
-     ======================================== */
-
-  obtenerAjusteMercado(
-    mercado
-  ) {
+  obtenerAjusteMercado(mercado) {
 
     const symbol =
       this.normalizarMercado(
         mercado
       );
-
 
     const valor =
       Number(
@@ -824,20 +536,18 @@ class BotEngine {
         ]
       );
 
-
-    return AJUSTES_PERMITIDOS_MS
-      .includes(
+    if (
+      AJUSTES_PERMITIDOS_MS.includes(
         valor
       )
-        ? valor
-        : 0;
+    ) {
+      return valor;
+    }
+
+    return 0;
 
   }
 
-
-  /* ========================================
-     ESTABLECER AJUSTE
-     ======================================== */
 
   establecerAjusteMercado(
     mercado,
@@ -849,12 +559,8 @@ class BotEngine {
         mercado
       );
 
-
     const valor =
-      Number(
-        ajusteMs
-      );
-
+      Number(ajusteMs);
 
     if (
       !this.mercadoControlado(
@@ -863,98 +569,62 @@ class BotEngine {
     ) {
 
       return {
-
-        ok:
-          false,
-
+        ok: false,
         mensaje:
           "Mercado no controlado."
-
       };
 
     }
 
-
     if (
-      !AJUSTES_PERMITIDOS_MS
-        .includes(
-          valor
-        )
+      !AJUSTES_PERMITIDOS_MS.includes(
+        valor
+      )
     ) {
 
       return {
-
-        ok:
-          false,
-
+        ok: false,
         mensaje:
           "Ajuste no permitido."
-
       };
 
     }
 
-
     this.calibracion[
       symbol
-    ] =
-      valor;
-
+    ] = valor;
 
     this.guardarCalibracion();
 
-
     return {
-
-      ok:
-        true,
-
-      mercado:
-        symbol,
-
-      ajusteMs:
-        valor,
-
+      ok: true,
+      mercado: symbol,
+      ajusteMs: valor,
       ajusteSeg:
-        valor /
-        1000,
-
+        valor / 1000,
       mensaje:
         `Calibración ${symbol}: ${
-          valor >
-            0
+          valor > 0
             ? "+"
             : ""
         }${valor} ms`
-
     };
 
   }
 
 
-  /* ========================================
-     RESET
-     ======================================== */
-
   restablecerCalibracion() {
 
-    this.calibracion =
-      {
-        ...CALIBRACION_INICIAL
-      };
-
+    this.calibracion = {
+      ...CALIBRACION_INICIAL
+    };
 
     this.guardarCalibracion();
 
-
     return {
-
-      ok:
-        true,
-
+      ok: true,
       mensaje:
         "Calibración restablecida a 0 ms."
-
     };
 
   }
@@ -964,29 +634,19 @@ class BotEngine {
      TARGET
      ======================================== */
 
-  obtenerTargetExecutionAt(
-    senal
-  ) {
+  obtenerTargetExecutionAt(senal) {
 
     const directo =
       Number(
-        senal
-          ?.targetExecutionAt
+        senal?.targetExecutionAt
       );
 
-
     if (
-      Number.isFinite(
-        directo
-      ) &&
-      directo >
-        0
+      Number.isFinite(directo) &&
+      directo > 0
     ) {
-
       return directo;
-
     }
-
 
     const metadata =
       Number(
@@ -995,132 +655,84 @@ class BotEngine {
           ?.targetExecutionAt
       );
 
-
     if (
-      Number.isFinite(
-        metadata
-      ) &&
-      metadata >
-        0
+      Number.isFinite(metadata) &&
+      metadata > 0
     ) {
-
       return metadata;
-
     }
-
 
     return null;
 
   }
 
 
-  /* ========================================
-     PROGRAMACIÓN
-     ======================================== */
-
-  calcularProgramacion(
-    senal
-  ) {
+  calcularProgramacion(senal) {
 
     const mercado =
       this.normalizarMercado(
         senal?.mercado
       );
 
-
     const ajusteMs =
       this.obtenerAjusteMercado(
         mercado
       );
-
 
     const targetExecutionAt =
       this.obtenerTargetExecutionAt(
         senal
       );
 
-
     if (
-      targetExecutionAt ===
-        null
+      targetExecutionAt === null
     ) {
 
       return {
-
-        disponible:
-          false,
-
+        disponible: false,
         mercado,
-
         ajusteMs,
-
         ajusteSeg:
-          ajusteMs /
-          1000,
-
-        targetExecutionAt:
-          null,
-
-        programmedAt:
-          null,
-
-        esperaMs:
-          0,
-
-        puedeAnticipar:
-          false,
-
+          ajusteMs / 1000,
+        targetExecutionAt: null,
+        programmedAt: null,
+        esperaMs: 0,
+        puedeAnticipar: false,
         motivo:
           "La señal no incluye targetExecutionAt."
-
       };
 
     }
-
 
     const programmedAt =
       targetExecutionAt +
       ajusteMs;
 
-
     const ahoraEpoch =
       Date.now();
 
-
     return {
-
-      disponible:
-        true,
-
+      disponible: true,
       mercado,
-
       ajusteMs,
-
       ajusteSeg:
-        ajusteMs /
-        1000,
-
+        ajusteMs / 1000,
       targetExecutionAt,
-
       programmedAt,
-
       esperaMs:
         Math.max(
           0,
           programmedAt -
           ahoraEpoch
         ),
-
       puedeAnticipar:
         programmedAt >
         ahoraEpoch,
-
       motivo:
         programmedAt >
           ahoraEpoch
           ? "Programación válida."
           : "El instante programado ya ocurrió."
-
     };
 
   }
@@ -1132,21 +744,13 @@ class BotEngine {
 
   iniciar() {
 
-    this.activo =
-      true;
-
-    this.pausado =
-      false;
-
+    this.activo = true;
+    this.pausado = false;
 
     return {
-
-      ok:
-        true,
-
+      ok: true,
       mensaje:
         "Bot iniciado."
-
     };
 
   }
@@ -1154,18 +758,12 @@ class BotEngine {
 
   pausar() {
 
-    this.pausado =
-      true;
-
+    this.pausado = true;
 
     return {
-
-      ok:
-        true,
-
+      ok: true,
       mensaje:
         "Bot pausado."
-
     };
 
   }
@@ -1173,18 +771,12 @@ class BotEngine {
 
   reanudar() {
 
-    this.pausado =
-      false;
-
+    this.pausado = false;
 
     return {
-
-      ok:
-        true,
-
+      ok: true,
       mensaje:
         "Bot reanudado."
-
     };
 
   }
@@ -1192,21 +784,13 @@ class BotEngine {
 
   detener() {
 
-    this.activo =
-      false;
-
-    this.pausado =
-      false;
-
+    this.activo = false;
+    this.pausado = false;
 
     return {
-
-      ok:
-        true,
-
+      ok: true,
       mensaje:
         "Bot detenido."
-
     };
 
   }
@@ -1214,91 +798,67 @@ class BotEngine {
 
   activarEjecucionDemo() {
 
-    return derivTrade
-      .activar();
+    return derivTrade.activar();
 
   }
 
 
   desactivarEjecucionDemo() {
 
-    return derivTrade
-      .desactivar();
+    return derivTrade.desactivar();
 
   }
 
 
   puedeProcesar() {
 
-    if (
-      !this.activo
-    ) {
+    if (!this.activo) {
 
       return {
-
-        ok:
-          false,
-
+        ok: false,
         motivo:
           "El bot está apagado."
-
       };
 
     }
 
-
-    if (
-      this.pausado
-    ) {
+    if (this.pausado) {
 
       return {
-
-        ok:
-          false,
-
+        ok: false,
         motivo:
           "El bot está pausado."
-
       };
 
     }
 
-
     return {
-
-      ok:
-        true
-
+      ok: true
     };
 
   }
 
 
   /* ========================================
-     CREAR PERFIL DE SEÑAL FIX13
+     PERFIL DE SEÑAL FIX13.1
      ======================================== */
 
-  crearPerfilSenal(
-    senal
-  ) {
+  crearPerfilSenal(senal) {
 
     const confianza =
       Number(
         senal?.confianza
       );
 
-
     const rsi =
       Number(
         senal?.rsi
       );
 
-
     const ultimoDigito =
       Number(
         senal?.ultimoDigito
       );
-
 
     return {
 
@@ -1320,9 +880,7 @@ class BotEngine {
         ),
 
       rsi:
-        Number.isFinite(
-          rsi
-        )
+        Number.isFinite(rsi)
           ? rsi
           : null,
 
@@ -1347,9 +905,7 @@ class BotEngine {
         Number.isFinite(
           ultimoDigito
         )
-          ? ultimoDigito %
-              2 ===
-            0
+          ? ultimoDigito % 2 === 0
           : null,
 
       modo:
@@ -1358,6 +914,7 @@ class BotEngine {
 
       origen:
         senal?.origen ??
+        senal?.metadata?.origen ??
         null
 
     };
@@ -1366,7 +923,7 @@ class BotEngine {
 
 
   /* ========================================
-     CREAR TELEMETRÍA FIX13
+     CREAR TELEMETRÍA FIX13.1
      ======================================== */
 
   crearTelemetria(
@@ -1374,36 +931,66 @@ class BotEngine {
     senalRecibidaPerf = null
   ) {
 
+    /*
+      senalRecibidaPerf se conserva como
+      parámetro para compatibilidad con
+      bot.js, pero FIX13.1 NO usa un
+      performance.now externo para
+      Bridge -> Proceso.
+    */
+
+    void senalRecibidaPerf;
+
     const ahoraPerf =
       this.ahora();
 
-
     const ahoraEpoch =
       Date.now();
-
 
     const mercado =
       this.normalizarMercado(
         senal?.mercado
       );
 
-
     const retrasoReferenciaMs =
       this.obtenerRetrasoReferencia(
         mercado
       );
-
 
     const programacion =
       this.calcularProgramacion(
         senal
       );
 
-
     const perfilSenal =
       this.crearPerfilSenal(
         senal
       );
+
+
+    /*
+      FIX13.1:
+      Para Bridge -> Proceso usamos
+      reloj absoluto.
+
+      Orden de preferencia:
+      1. bridgeReceivedEpoch
+      2. timestamp de la señal
+      3. ahoraEpoch como respaldo
+    */
+
+    const marcaEpochSenal =
+      Number(
+        senal?.bridgeReceivedEpoch ??
+        senal?.timestamp
+      );
+
+    const signalReceivedEpoch =
+      Number.isFinite(
+        marcaEpochSenal
+      )
+        ? marcaEpochSenal
+        : ahoraEpoch;
 
 
     return {
@@ -1464,10 +1051,9 @@ class BotEngine {
       ultimoDigitoPar:
         perfilSenal.ultimoDigitoPar,
 
-      perfilSenal:
-        {
-          ...perfilSenal
-        },
+      perfilSenal: {
+        ...perfilSenal
+      },
 
       puntoEntrada:
         senal?.segundosEntrada ??
@@ -1476,10 +1062,8 @@ class BotEngine {
       retrasoReferenciaMs,
 
       retrasoReferenciaSeg:
-        retrasoReferenciaMs !==
-          null
-          ? retrasoReferenciaMs /
-            1000
+        retrasoReferenciaMs !== null
+          ? retrasoReferenciaMs / 1000
           : null,
 
 
@@ -1519,11 +1103,7 @@ class BotEngine {
          EPOCH
          ==================================== */
 
-      signalReceivedEpoch:
-        Number(
-          senal?.timestamp
-        ) ||
-        null,
+      signalReceivedEpoch,
 
       processStartedEpoch:
         ahoraEpoch,
@@ -1551,23 +1131,22 @@ class BotEngine {
 
 
       /* ====================================
-         PERFORMANCE
+         PERFORMANCE LOCAL DEL BOT
          ==================================== */
 
       modo:
         senal?.modo ??
         null,
 
+      /*
+        FIX13.1:
+        performance.now empieza en el BOT.
+        No se importa performance.now
+        desde Trading Analyzer.
+      */
+
       signalReceivedPerf:
-        Number.isFinite(
-          Number(
-            senalRecibidaPerf
-          )
-        )
-          ? Number(
-              senalRecibidaPerf
-            )
-          : ahoraPerf,
+        ahoraPerf,
 
       processStartedPerf:
         ahoraPerf,
@@ -1645,7 +1224,7 @@ class BotEngine {
 
 
       /* ====================================
-         TIMING
+         CALIDAD DE TIMING
          ==================================== */
 
       timingValido:
@@ -1697,9 +1276,7 @@ class BotEngine {
      CALCULAR TELEMETRÍA
      ======================================== */
 
-  calcularTelemetria(
-    t
-  ) {
+  calcularTelemetria(t) {
 
     const diferencia = (
       inicio,
@@ -1707,33 +1284,63 @@ class BotEngine {
     ) => {
 
       if (
-        Number.isFinite(
-          inicio
-        ) &&
-        Number.isFinite(
-          fin
-        )
+        Number.isFinite(inicio) &&
+        Number.isFinite(fin)
       ) {
 
         return this.redondear(
-          fin -
-          inicio
+          fin - inicio
         );
 
       }
-
 
       return null;
 
     };
 
 
-    t.bridgeToProcessMs =
-      diferencia(
-        t.signalReceivedPerf,
-        t.processStartedPerf
-      );
+    /* ======================================
+       FIX13.1
+       BRIDGE -> PROCESO CON EPOCH
+       ====================================== */
 
+    if (
+      Number.isFinite(
+        Number(
+          t.signalReceivedEpoch
+        )
+      ) &&
+      Number.isFinite(
+        Number(
+          t.processStartedEpoch
+        )
+      )
+    ) {
+
+      t.bridgeToProcessMs =
+        this.redondear(
+          Number(
+            t.processStartedEpoch
+          ) -
+          Number(
+            t.signalReceivedEpoch
+          )
+        );
+
+    }
+
+    else {
+
+      t.bridgeToProcessMs =
+        null;
+
+    }
+
+
+    /* ======================================
+       RESTO DEL TIMING CON PERFORMANCE
+       DEL MISMO CONTEXTO BOT
+       ====================================== */
 
     t.signalToProposalRequestMs =
       diferencia(
@@ -1741,13 +1348,11 @@ class BotEngine {
         t.proposalRequestedPerf
       );
 
-
     t.signalToProposalReceivedMs =
       diferencia(
         t.signalReceivedPerf,
         t.proposalReceivedPerf
       );
-
 
     t.processToProposalRequestMs =
       diferencia(
@@ -1755,13 +1360,11 @@ class BotEngine {
         t.proposalRequestedPerf
       );
 
-
     t.proposalLatencyMs =
       diferencia(
         t.proposalRequestedPerf,
         t.proposalReceivedPerf
       );
-
 
     t.calibrationWaitActualMs =
       diferencia(
@@ -1794,13 +1397,11 @@ class BotEngine {
         t.buyRequestedPerf
       );
 
-
     t.processToBuyMs =
       diferencia(
         t.processStartedPerf,
         t.buyRequestedPerf
       );
-
 
     t.signalToBuyMs =
       diferencia(
@@ -1808,20 +1409,17 @@ class BotEngine {
         t.buyRequestedPerf
       );
 
-
     t.buyLatencyMs =
       diferencia(
         t.buyRequestedPerf,
         t.buyConfirmedPerf
       );
 
-
     t.signalToBuyConfirmMs =
       diferencia(
         t.signalReceivedPerf,
         t.buyConfirmedPerf
       );
-
 
     t.totalUntilResultMs =
       diferencia(
@@ -1830,17 +1428,13 @@ class BotEngine {
       );
 
 
-    this.clasificarTiming(
-      t
-    );
+    this.clasificarTiming(t);
 
 
     t.usableForSignalProfile =
       (
-        t.resultado ===
-          "GANADA" ||
-        t.resultado ===
-          "PERDIDA"
+        t.resultado === "GANADA" ||
+        t.resultado === "PERDIDA"
       );
 
 
@@ -1853,35 +1447,26 @@ class BotEngine {
      CLASIFICAR TIMING
      ======================================== */
 
-  clasificarTiming(
-    t
-  ) {
+  clasificarTiming(t) {
 
-    const anomalias =
-      [];
+    const anomalias = [];
 
 
     if (
-      ![
-        "FIX12",
-        "FIX13"
-      ].includes(
+      !TIMING_COMPATIBLE_VERSIONS.includes(
         String(
           t.version
         )
       )
     ) {
 
-      t.timingValido =
-        false;
-
+      t.timingValido = false;
       t.timingClasificacion =
         "LEGACY";
 
-      t.timingAnomalias =
-        [
-          "Registro anterior al timing limpio."
-        ];
+      t.timingAnomalias = [
+        "Registro anterior al timing limpio."
+      ];
 
       t.usableForTimingComparator =
         false;
@@ -1894,11 +1479,9 @@ class BotEngine {
     if (
       !t.programacionDisponible
     ) {
-
       anomalias.push(
         "Sin targetExecutionAt."
       );
-
     }
 
 
@@ -1906,9 +1489,12 @@ class BotEngine {
       Number.isFinite(
         t.bridgeToProcessMs
       ) &&
-      t.bridgeToProcessMs >
-        TIMING_LIMITS
-          .bridgeToProcessMaxMs
+      (
+        t.bridgeToProcessMs < 0 ||
+        t.bridgeToProcessMs >
+          TIMING_LIMITS
+            .bridgeToProcessMaxMs
+      )
     ) {
 
       anomalias.push(
@@ -1923,8 +1509,7 @@ class BotEngine {
         t.proposalLatencyMs
       ) &&
       (
-        t.proposalLatencyMs <
-          0 ||
+        t.proposalLatencyMs < 0 ||
         t.proposalLatencyMs >
           TIMING_LIMITS
             .proposalMaxMs
@@ -1943,8 +1528,7 @@ class BotEngine {
         t.buyLatencyMs
       ) &&
       (
-        t.buyLatencyMs <
-          0 ||
+        t.buyLatencyMs < 0 ||
         t.buyLatencyMs >
           TIMING_LIMITS
             .buyConfirmationMaxMs
@@ -1999,11 +1583,9 @@ class BotEngine {
         t.proposalLatencyMs
       )
     ) {
-
       anomalias.push(
         "Cotización sin medición."
       );
-
     }
 
 
@@ -2012,11 +1594,9 @@ class BotEngine {
         t.buyTargetDeviationMs
       )
     ) {
-
       anomalias.push(
         "Desviación target sin medición."
       );
-
     }
 
 
@@ -2025,38 +1605,29 @@ class BotEngine {
         t.buyLatencyMs
       )
     ) {
-
       anomalias.push(
         "BUY sin confirmación medible."
       );
-
     }
 
 
     t.timingAnomalias =
       anomalias;
 
-
     t.timingValido =
-      anomalias.length ===
-      0;
-
+      anomalias.length === 0;
 
     t.timingClasificacion =
       t.timingValido
         ? "VALIDO"
         : "ANOMALO";
 
-
     t.usableForTimingComparator =
       t.timingValido &&
       (
-        t.resultado ===
-          "GANADA" ||
-        t.resultado ===
-          "PERDIDA"
+        t.resultado === "GANADA" ||
+        t.resultado === "PERDIDA"
       );
-
 
     return t;
 
@@ -2075,19 +1646,16 @@ class BotEngine {
         JSON.parse(
           localStorage.getItem(
             TELEMETRY_KEY
-          ) ||
-          "[]"
+          ) || "[]"
         );
 
-
-      return Array.isArray(
-        datos
-      )
+      return Array.isArray(datos)
         ? datos
         : [];
 
+    }
 
-    } catch {
+    catch {
 
       return [];
 
@@ -2096,44 +1664,30 @@ class BotEngine {
   }
 
 
-  guardarTelemetria(
-    telemetria
-  ) {
+  guardarTelemetria(telemetria) {
 
     this.calcularTelemetria(
       telemetria
     );
 
-
-    this.ultimaTelemetria =
-      {
-        ...telemetria
-      };
-
+    this.ultimaTelemetria = {
+      ...telemetria
+    };
 
     try {
 
       const historial =
         this.obtenerHistorialTelemetria();
 
-
-      historial.unshift(
-        {
-          ...telemetria
-        }
-      );
-
+      historial.unshift({
+        ...telemetria
+      });
 
       if (
-        historial.length >
-        2000
+        historial.length > 2000
       ) {
-
-        historial.length =
-          2000;
-
+        historial.length = 2000;
       }
-
 
       localStorage.setItem(
         TELEMETRY_KEY,
@@ -2142,18 +1696,16 @@ class BotEngine {
         )
       );
 
+    }
 
-    } catch (
-      error
-    ) {
+    catch (error) {
 
       console.warn(
-        "No se pudo guardar telemetría FIX13:",
+        "No se pudo guardar telemetría FIX13.1:",
         error
       );
 
     }
-
 
     return telemetria;
 
@@ -2161,7 +1713,7 @@ class BotEngine {
 
 
   /* ========================================
-     FILTROS HISTORIAL
+     FILTROS
      ======================================== */
 
   obtenerTelemetriaPorMercado(
@@ -2173,15 +1725,13 @@ class BotEngine {
         mercado
       );
 
-
     return this
       .obtenerHistorialTelemetria()
       .filter(
         (item) =>
           this.normalizarMercado(
             item?.mercado
-          ) ===
-          buscado
+          ) === buscado
       );
 
   }
@@ -2193,12 +1743,10 @@ class BotEngine {
 
     const buscada =
       String(
-        familia ||
-        ""
+        familia || ""
       )
         .trim()
         .toUpperCase();
-
 
     return this
       .obtenerHistorialTelemetria()
@@ -2225,7 +1773,6 @@ class BotEngine {
         ajusteMs
       );
 
-
     return this
       .obtenerTelemetriaPorMercado(
         mercado
@@ -2235,51 +1782,50 @@ class BotEngine {
           Number(
             item?.calibracionMs ??
             0
-          ) ===
-          ajuste
+          ) === ajuste
       );
 
   }
 
 
-  filtrarTimingValido(
-    datos
-  ) {
+  filtrarTimingValido(datos) {
 
     return datos.filter(
       (item) =>
-        [
-          "FIX12",
-          "FIX13"
-        ].includes(
-          String(
-            item?.version
-          )
-        ) &&
-        item?.timingValido ===
-          true &&
-        item?.usableForTimingComparator ===
+        TIMING_COMPATIBLE_VERSIONS
+          .includes(
+            String(
+              item?.version
+            )
+          ) &&
+        item?.timingValido === true &&
+        item
+          ?.usableForTimingComparator ===
           true
     );
 
   }
 
 
-  filtrarPerfilFix13(
-    datos
-  ) {
+  filtrarPerfilFix13(datos) {
 
     return datos.filter(
       (item) =>
-        item?.version ===
-          "FIX13" &&
-        item?.usableForSignalProfile ===
-          true &&
+        SIGNAL_PROFILE_VERSIONS
+          .includes(
+            String(
+              item?.version
+            )
+          ) &&
         (
-          item.resultado ===
-            "GANADA" ||
-          item.resultado ===
-            "PERDIDA"
+          item?.usableForSignalProfile ===
+            true ||
+          item?.resultado === "GANADA" ||
+          item?.resultado === "PERDIDA"
+        ) &&
+        (
+          item?.resultado === "GANADA" ||
+          item?.resultado === "PERDIDA"
         )
     );
 
@@ -2287,21 +1833,64 @@ class BotEngine {
 
 
   /* ========================================
-     MÉTRICAS TIMING
+     MÉTRICAS DE TIMING
      ======================================== */
 
-  construirMetricasGrupo(
-    datos
-  ) {
+  construirMetricasGrupo(datos) {
 
-    const extraer = (
-      campo
-    ) =>
+    const signalBuy =
       datos.map(
         (item) =>
-          item?.[
-            campo
-          ]
+          item.signalToBuyMs
+      );
+
+    const proposal =
+      datos.map(
+        (item) =>
+          item.proposalLatencyMs
+      );
+
+    const proposalBuy =
+      datos.map(
+        (item) =>
+          item.proposalToBuyMs
+      );
+
+    const espera =
+      datos.map(
+        (item) =>
+          item.calibrationWaitActualMs
+      );
+
+    const excesoEspera =
+      datos.map(
+        (item) =>
+          item.calibrationWaitOvershootMs
+      );
+
+    const buy =
+      datos.map(
+        (item) =>
+          item.buyLatencyMs
+      );
+
+    const confirmacion =
+      datos.map(
+        (item) =>
+          item.signalToBuyConfirmMs
+      );
+
+    const desviacionTarget =
+      datos.map(
+        (item) =>
+          item.buyTargetDeviationMs
+      );
+
+    const desviacionConfirmacion =
+      datos.map(
+        (item) =>
+          item
+            .buyConfirmTargetDeviationMs
       );
 
 
@@ -2311,87 +1900,74 @@ class BotEngine {
         datos.length,
 
       promedioSignalToBuyMs:
-        this.promedio(
-          extraer(
-            "signalToBuyMs"
-          )
-        ),
+        this.promedio(signalBuy),
 
       medianaSignalToBuyMs:
-        this.mediana(
-          extraer(
-            "signalToBuyMs"
-          )
-        ),
+        this.mediana(signalBuy),
 
       minimoSignalToBuyMs:
-        this.minimo(
-          extraer(
-            "signalToBuyMs"
-          )
-        ),
+        this.minimo(signalBuy),
 
       maximoSignalToBuyMs:
-        this.maximo(
-          extraer(
-            "signalToBuyMs"
-          )
-        ),
+        this.maximo(signalBuy),
 
       promedioProposalMs:
-        this.promedio(
-          extraer(
-            "proposalLatencyMs"
-          )
-        ),
+        this.promedio(proposal),
 
       medianaProposalMs:
-        this.mediana(
-          extraer(
-            "proposalLatencyMs"
-          )
-        ),
+        this.mediana(proposal),
 
       promedioProposalToBuyMs:
-        this.promedio(
-          extraer(
-            "proposalToBuyMs"
-          )
-        ),
+        this.promedio(proposalBuy),
+
+      medianaProposalToBuyMs:
+        this.mediana(proposalBuy),
 
       promedioEsperaMs:
+        this.promedio(espera),
+
+      medianaEsperaMs:
+        this.mediana(espera),
+
+      promedioExcesoEsperaMs:
         this.promedio(
-          extraer(
-            "calibrationWaitActualMs"
-          )
+          excesoEspera
         ),
 
       promedioBuyMs:
-        this.promedio(
-          extraer(
-            "buyLatencyMs"
-          )
-        ),
+        this.promedio(buy),
 
       medianaBuyMs:
-        this.mediana(
-          extraer(
-            "buyLatencyMs"
-          )
+        this.mediana(buy),
+
+      promedioSignalToConfirmMs:
+        this.promedio(
+          confirmacion
         ),
 
       promedioDesviacionTargetMs:
         this.promedio(
-          extraer(
-            "buyTargetDeviationMs"
-          )
+          desviacionTarget
         ),
 
       medianaDesviacionTargetMs:
         this.mediana(
-          extraer(
-            "buyTargetDeviationMs"
-          )
+          desviacionTarget
+        ),
+
+      minimoDesviacionTargetMs:
+        this.minimo(
+          desviacionTarget
+        ),
+
+      maximoDesviacionTargetMs:
+        this.maximo(
+          desviacionTarget
+        ),
+
+      promedioDesviacionConfirmacionMs:
+        this.promedio(
+          desviacionConfirmacion
         )
 
     };
@@ -2403,47 +1979,36 @@ class BotEngine {
      COMPARADOR TIMING
      ======================================== */
 
-  construirComparadorTiming(
-    datos
-  ) {
+  construirComparadorTiming(datos) {
 
     const finalizadas =
       datos.filter(
         (item) =>
-          item.resultado ===
-            "GANADA" ||
-          item.resultado ===
-            "PERDIDA"
+          item.resultado === "GANADA" ||
+          item.resultado === "PERDIDA"
       );
-
 
     const timingValido =
       this.filtrarTimingValido(
         finalizadas
       );
 
-
     const ganadas =
       timingValido.filter(
         (item) =>
-          item.resultado ===
-            "GANADA"
+          item.resultado === "GANADA"
       );
-
 
     const perdidas =
       timingValido.filter(
         (item) =>
-          item.resultado ===
-            "PERDIDA"
+          item.resultado === "PERDIDA"
       );
-
 
     const metricasGanadas =
       this.construirMetricasGrupo(
         ganadas
       );
-
 
     const metricasPerdidas =
       this.construirMetricasGrupo(
@@ -2451,68 +2016,88 @@ class BotEngine {
       );
 
 
-    const diferenciaPromedioMs =
-      metricasGanadas
-          .promedioSignalToBuyMs !==
-        null &&
-      metricasPerdidas
-          .promedioSignalToBuyMs !==
-        null
-        ? this.redondear(
-            metricasPerdidas
-              .promedioSignalToBuyMs -
-            metricasGanadas
-              .promedioSignalToBuyMs
-          )
-        : null;
+    let diferenciaPromedioMs =
+      null;
 
+    let diferenciaMedianaMs =
+      null;
 
-    const diferenciaMedianaMs =
-      metricasGanadas
-          .medianaSignalToBuyMs !==
-        null &&
-      metricasPerdidas
-          .medianaSignalToBuyMs !==
-        null
-        ? this.redondear(
-            metricasPerdidas
-              .medianaSignalToBuyMs -
-            metricasGanadas
-              .medianaSignalToBuyMs
-          )
-        : null;
-
-
-    const diferenciaTargetMedianaMs =
-      metricasGanadas
-          .medianaDesviacionTargetMs !==
-        null &&
-      metricasPerdidas
-          .medianaDesviacionTargetMs !==
-        null
-        ? this.redondear(
-            metricasPerdidas
-              .medianaDesviacionTargetMs -
-            metricasGanadas
-              .medianaDesviacionTargetMs
-          )
-        : null;
-
-
-    let lectura =
-      "ESPERANDO MUESTRAS DE TIMING";
+    let diferenciaTargetMedianaMs =
+      null;
 
 
     if (
-      ganadas.length >=
-        3 &&
-      perdidas.length >=
-        3
+      metricasGanadas
+        .promedioSignalToBuyMs !==
+        null &&
+      metricasPerdidas
+        .promedioSignalToBuyMs !==
+        null
+    ) {
+
+      diferenciaPromedioMs =
+        this.redondear(
+          metricasPerdidas
+            .promedioSignalToBuyMs -
+          metricasGanadas
+            .promedioSignalToBuyMs
+        );
+
+    }
+
+
+    if (
+      metricasGanadas
+        .medianaSignalToBuyMs !==
+        null &&
+      metricasPerdidas
+        .medianaSignalToBuyMs !==
+        null
+    ) {
+
+      diferenciaMedianaMs =
+        this.redondear(
+          metricasPerdidas
+            .medianaSignalToBuyMs -
+          metricasGanadas
+            .medianaSignalToBuyMs
+        );
+
+    }
+
+
+    if (
+      metricasGanadas
+        .medianaDesviacionTargetMs !==
+        null &&
+      metricasPerdidas
+        .medianaDesviacionTargetMs !==
+        null
+    ) {
+
+      diferenciaTargetMedianaMs =
+        this.redondear(
+          metricasPerdidas
+            .medianaDesviacionTargetMs -
+          metricasGanadas
+            .medianaDesviacionTargetMs
+        );
+
+    }
+
+
+    let lectura =
+      "ESPERANDO MUESTRAS FIX12+";
+
+
+    if (
+      ganadas.length >= 3 &&
+      perdidas.length >= 3
     ) {
 
       if (
         diferenciaTargetMedianaMs !==
-          null
+        null
       ) {
 
         if (
@@ -2539,6 +2124,40 @@ class BotEngine {
 
           lectura =
             "TARGET MUY SIMILAR";
+
+        }
+
+      }
+
+      else if (
+        diferenciaMedianaMs !==
+        null
+      ) {
+
+        if (
+          diferenciaMedianaMs >
+          40
+        ) {
+
+          lectura =
+            "GANADAS ENTRAN MÁS RÁPIDO";
+
+        }
+
+        else if (
+          diferenciaMedianaMs <
+          -40
+        ) {
+
+          lectura =
+            "GANADAS ENTRAN MÁS TARDE";
+
+        }
+
+        else {
+
+          lectura =
+            "TIMING MUY SIMILAR";
 
         }
 
@@ -2579,7 +2198,107 @@ class BotEngine {
 
 
   /* ========================================
-     CONTADOR CATEGÓRICO
+     PERFIL NUMÉRICO FIX13
+     ======================================== */
+
+  construirPerfilNumerico(
+    datos,
+    campo
+  ) {
+
+    const ganadas =
+      datos.filter(
+        (item) =>
+          item.resultado === "GANADA"
+      );
+
+    const perdidas =
+      datos.filter(
+        (item) =>
+          item.resultado === "PERDIDA"
+      );
+
+    return {
+
+      promedioTotal:
+        this.promedio(
+          datos.map(
+            (item) =>
+              item?.[campo]
+          )
+        ),
+
+      promedioGanadas:
+        this.promedio(
+          ganadas.map(
+            (item) =>
+              item?.[campo]
+          )
+        ),
+
+      promedioPerdidas:
+        this.promedio(
+          perdidas.map(
+            (item) =>
+              item?.[campo]
+          )
+        ),
+
+      medianaGanadas:
+        this.mediana(
+          ganadas.map(
+            (item) =>
+              item?.[campo]
+          )
+        ),
+
+      medianaPerdidas:
+        this.mediana(
+          perdidas.map(
+            (item) =>
+              item?.[campo]
+          )
+        ),
+
+      minimoGanadas:
+        this.minimo(
+          ganadas.map(
+            (item) =>
+              item?.[campo]
+          )
+        ),
+
+      maximoGanadas:
+        this.maximo(
+          ganadas.map(
+            (item) =>
+              item?.[campo]
+          )
+        ),
+
+      minimoPerdidas:
+        this.minimo(
+          perdidas.map(
+            (item) =>
+              item?.[campo]
+          )
+        ),
+
+      maximoPerdidas:
+        this.maximo(
+          perdidas.map(
+            (item) =>
+              item?.[campo]
+          )
+        )
+
+    };
+
+  }
+
+
+  /* ========================================
+     CONTAR CATEGORÍAS FIX13
      ======================================== */
 
   contarCategorias(
@@ -2587,8 +2306,7 @@ class BotEngine {
     campo
   ) {
 
-    const resultado =
-      {};
+    const resultado = {};
 
 
     for (
@@ -2598,35 +2316,18 @@ class BotEngine {
 
       const valor =
         this.normalizarTexto(
-          item?.[
-            campo
-          ]
+          item?.[campo]
         ) ??
         "SIN_DATO";
 
 
-      if (
-        !resultado[
-          valor
-        ]
-      ) {
+      if (!resultado[valor]) {
 
-        resultado[
-          valor
-        ] = {
-
-          total:
-            0,
-
-          ganadas:
-            0,
-
-          perdidas:
-            0,
-
-          accuracy:
-            null
-
+        resultado[valor] = {
+          total: 0,
+          ganadas: 0,
+          perdidas: 0,
+          accuracy: null
         };
 
       }
@@ -2634,32 +2335,27 @@ class BotEngine {
 
       resultado[
         valor
-      ].total +=
-        1;
+      ].total += 1;
 
 
       if (
-        item.resultado ===
-          "GANADA"
+        item.resultado === "GANADA"
       ) {
 
         resultado[
           valor
-        ].ganadas +=
-          1;
+        ].ganadas += 1;
 
       }
 
 
       if (
-        item.resultado ===
-          "PERDIDA"
+        item.resultado === "PERDIDA"
       ) {
 
         resultado[
           valor
-        ].perdidas +=
-          1;
+        ].perdidas += 1;
 
       }
 
@@ -2668,20 +2364,14 @@ class BotEngine {
 
     for (
       const clave
-      of Object.keys(
-        resultado
-      )
+      of Object.keys(resultado)
     ) {
 
       const fila =
-        resultado[
-          clave
-        ];
-
+        resultado[clave];
 
       fila.accuracy =
-        fila.total >
-          0
+        fila.total > 0
           ? this.redondear(
               (
                 fila.ganadas /
@@ -2700,89 +2390,7 @@ class BotEngine {
 
 
   /* ========================================
-     PERFIL NUMÉRICO
-     ======================================== */
-
-  construirPerfilNumerico(
-    datos,
-    campo
-  ) {
-
-    const ganadas =
-      datos.filter(
-        (item) =>
-          item.resultado ===
-            "GANADA"
-      );
-
-
-    const perdidas =
-      datos.filter(
-        (item) =>
-          item.resultado ===
-            "PERDIDA"
-      );
-
-
-    return {
-
-      total:
-        this.promedio(
-          datos.map(
-            (item) =>
-              item?.[
-                campo
-              ]
-          )
-        ),
-
-      ganadas:
-        this.promedio(
-          ganadas.map(
-            (item) =>
-              item?.[
-                campo
-              ]
-          )
-        ),
-
-      perdidas:
-        this.promedio(
-          perdidas.map(
-            (item) =>
-              item?.[
-                campo
-              ]
-          )
-        ),
-
-      medianaGanadas:
-        this.mediana(
-          ganadas.map(
-            (item) =>
-              item?.[
-                campo
-              ]
-          )
-        ),
-
-      medianaPerdidas:
-        this.mediana(
-          perdidas.map(
-            (item) =>
-              item?.[
-                campo
-              ]
-          )
-        )
-
-    };
-
-  }
-
-
-  /* ========================================
-     RESUMEN PERFIL FIX13
+     RESUMEN PERFIL FIX13 / FIX13.1
      ======================================== */
 
   obtenerResumenPerfilSenal(
@@ -2794,7 +2402,6 @@ class BotEngine {
         mercado
       );
 
-
     const datos =
       this.filtrarPerfilFix13(
         this.obtenerTelemetriaPorMercado(
@@ -2802,25 +2409,35 @@ class BotEngine {
         )
       );
 
-
     const ganadas =
       datos.filter(
         (item) =>
-          item.resultado ===
-            "GANADA"
+          item.resultado === "GANADA"
       );
-
 
     const perdidas =
       datos.filter(
         (item) =>
-          item.resultado ===
-            "PERDIDA"
+          item.resultado === "PERDIDA"
       );
-
 
     const total =
       datos.length;
+
+
+    const datosParidad =
+      datos.map(
+        (item) => ({
+          ...item,
+
+          paridadUltimoDigito:
+            item.ultimoDigitoPar === true
+              ? "PAR"
+              : item.ultimoDigitoPar === false
+                ? "IMPAR"
+                : "SIN_DATO"
+        })
+      );
 
 
     return {
@@ -2838,8 +2455,7 @@ class BotEngine {
         perdidas.length,
 
       accuracy:
-        total >
-          0
+        total > 0
           ? this.redondear(
               (
                 ganadas.length /
@@ -2887,20 +2503,8 @@ class BotEngine {
 
       ultimoDigitoParidad:
         this.contarCategorias(
-          datos.map(
-            (item) => ({
-              ...item,
-              paridad:
-                item.ultimoDigitoPar ===
-                  true
-                  ? "PAR"
-                  : item.ultimoDigitoPar ===
-                      false
-                    ? "IMPAR"
-                    : "SIN_DATO"
-            })
-          ),
-          "paridad"
+          datosParidad,
+          "paridadUltimoDigito"
         )
 
     };
@@ -2921,47 +2525,48 @@ class BotEngine {
         mercado
       );
 
-
     const datos =
       this.obtenerTelemetriaPorMercado(
         symbol
       );
 
-
     const finalizadas =
       datos.filter(
         (item) =>
-          item.resultado ===
-            "GANADA" ||
-          item.resultado ===
-            "PERDIDA"
+          item.resultado === "GANADA" ||
+          item.resultado === "PERDIDA"
       );
-
 
     const timingValido =
       this.filtrarTimingValido(
         finalizadas
       );
 
-
     const ganadas =
       finalizadas.filter(
         (item) =>
-          item.resultado ===
-            "GANADA"
+          item.resultado === "GANADA"
       ).length;
-
 
     const perdidas =
       finalizadas.filter(
         (item) =>
-          item.resultado ===
-            "PERDIDA"
+          item.resultado === "PERDIDA"
       ).length;
-
 
     const pruebas =
       finalizadas.length;
+
+    const accuracy =
+      pruebas > 0
+        ? this.redondear(
+            (
+              ganadas /
+              pruebas
+            ) *
+            100
+          )
+        : null;
 
 
     return {
@@ -2996,17 +2601,7 @@ class BotEngine {
 
       perdidas,
 
-      accuracy:
-        pruebas >
-          0
-          ? this.redondear(
-              (
-                ganadas /
-                pruebas
-              ) *
-              100
-            )
-          : null,
+      accuracy,
 
       muestrasTimingFix12:
         timingValido.length,
@@ -3100,29 +2695,24 @@ class BotEngine {
 
 
   /* ========================================
-     RESUMEN MERCADOS
+     RESUMEN TODOS LOS MERCADOS
      ======================================== */
 
   obtenerResumenMercados() {
 
-    const resultado =
-      {};
-
+    const resultado = {};
 
     for (
       const mercado
       of MERCADOS_CONTROLADOS
     ) {
 
-      resultado[
-        mercado
-      ] =
+      resultado[mercado] =
         this.obtenerResumenMercado(
           mercado
         );
 
     }
-
 
     return resultado;
 
@@ -3142,32 +2732,29 @@ class BotEngine {
         familia
       );
 
-
     const finalizadas =
       datos.filter(
         (item) =>
-          item.resultado ===
-            "GANADA" ||
-          item.resultado ===
-            "PERDIDA"
+          item.resultado === "GANADA" ||
+          item.resultado === "PERDIDA"
       );
 
+    const timingValido =
+      this.filtrarTimingValido(
+        finalizadas
+      );
 
     const ganadas =
       finalizadas.filter(
         (item) =>
-          item.resultado ===
-            "GANADA"
+          item.resultado === "GANADA"
       ).length;
-
 
     const perdidas =
       finalizadas.filter(
         (item) =>
-          item.resultado ===
-            "PERDIDA"
+          item.resultado === "PERDIDA"
       ).length;
-
 
     const pruebas =
       finalizadas.length;
@@ -3178,8 +2765,7 @@ class BotEngine {
       familia:
         String(
           familia
-        )
-          .toUpperCase(),
+        ).toUpperCase(),
 
       pruebas,
 
@@ -3188,8 +2774,7 @@ class BotEngine {
       perdidas,
 
       accuracy:
-        pruebas >
-          0
+        pruebas > 0
           ? this.redondear(
               (
                 ganadas /
@@ -3197,7 +2782,34 @@ class BotEngine {
               ) *
               100
             )
-          : null
+          : null,
+
+      muestrasTimingFix12:
+        timingValido.length,
+
+      promedioSignalToBuyMs:
+        this.promedio(
+          timingValido.map(
+            (item) =>
+              item.signalToBuyMs
+          )
+        ),
+
+      medianaSignalToBuyMs:
+        this.mediana(
+          timingValido.map(
+            (item) =>
+              item.signalToBuyMs
+          )
+        ),
+
+      promedioDesviacionTargetMs:
+        this.promedio(
+          timingValido.map(
+            (item) =>
+              item.buyTargetDeviationMs
+          )
+        )
 
     };
 
@@ -3239,7 +2851,8 @@ class BotEngine {
         resumen.muestrasTimingFix12,
 
       muestrasTimingDescartadas:
-        resumen.muestrasTimingDescartadas,
+        resumen
+          .muestrasTimingDescartadas,
 
       ganadas:
         resumen
@@ -3293,9 +2906,7 @@ class BotEngine {
         mercado
       );
 
-
-    const resultado =
-      {};
+    const resultado = {};
 
 
     for (
@@ -3311,60 +2922,108 @@ class BotEngine {
           )
           .filter(
             (item) =>
-              item.resultado ===
-                "GANADA" ||
-              item.resultado ===
-                "PERDIDA"
+              item.resultado === "GANADA" ||
+              item.resultado === "PERDIDA"
           );
 
+      const timingValido =
+        this.filtrarTimingValido(
+          datos
+        );
 
       const ganadas =
         datos.filter(
           (item) =>
-            item.resultado ===
-              "GANADA"
+            item.resultado === "GANADA"
         ).length;
-
 
       const perdidas =
         datos.filter(
           (item) =>
-            item.resultado ===
-              "PERDIDA"
+            item.resultado === "PERDIDA"
         ).length;
+
+      const pruebas =
+        datos.length;
 
 
       resultado[
-        String(
-          ajuste
-        )
+        String(ajuste)
       ] = {
 
         ajusteMs:
           ajuste,
 
         ajusteSeg:
-          ajuste /
-          1000,
+          ajuste / 1000,
 
-        pruebas:
-          datos.length,
+        pruebas,
 
         ganadas,
 
         perdidas,
 
         accuracy:
-          datos.length >
-            0
+          pruebas > 0
             ? this.redondear(
                 (
                   ganadas /
-                  datos.length
+                  pruebas
                 ) *
                 100
               )
-            : null
+            : null,
+
+        muestrasTimingFix12:
+          timingValido.length,
+
+        promedioSignalToBuyMs:
+          this.promedio(
+            timingValido.map(
+              (item) =>
+                item.signalToBuyMs
+            )
+          ),
+
+        medianaSignalToBuyMs:
+          this.mediana(
+            timingValido.map(
+              (item) =>
+                item.signalToBuyMs
+            )
+          ),
+
+        promedioProposalMs:
+          this.promedio(
+            timingValido.map(
+              (item) =>
+                item.proposalLatencyMs
+            )
+          ),
+
+        promedioBuyMs:
+          this.promedio(
+            timingValido.map(
+              (item) =>
+                item.buyLatencyMs
+            )
+          ),
+
+        promedioDesviacionTargetMs:
+          this.promedio(
+            timingValido.map(
+              (item) =>
+                item.buyTargetDeviationMs
+            )
+          ),
+
+        medianaDesviacionTargetMs:
+          this.mediana(
+            timingValido.map(
+              (item) =>
+                item.buyTargetDeviationMs
+            )
+          )
 
       };
 
@@ -3390,7 +3049,7 @@ class BotEngine {
 
 
   /* ========================================
-     PROCESAR SEÑAL FIX13
+     PROCESAR SEÑAL FIX13.1
      ======================================== */
 
   async procesarSenal(
@@ -3404,19 +3063,12 @@ class BotEngine {
     const estado =
       this.puedeProcesar();
 
-
-    if (
-      !estado.ok
-    ) {
+    if (!estado.ok) {
 
       return {
-
-        aceptada:
-          false,
-
+        aceptada: false,
         motivo:
           estado.motivo
-
       };
 
     }
@@ -3439,26 +3091,16 @@ class BotEngine {
     ) {
 
       return {
-
-        aceptada:
-          false,
-
+        aceptada: false,
         motivo:
           "Señal duplicada."
-
       };
 
     }
 
 
-    if (
-      id
-    ) {
-
-      this.senalesEnProceso.add(
-        id
-      );
-
+    if (id) {
+      this.senalesEnProceso.add(id);
     }
 
 
@@ -3472,7 +3114,7 @@ class BotEngine {
     try {
 
       /* ====================================
-         CONTRATO
+         1. CONTRATO
          ==================================== */
 
       const contrato =
@@ -3481,32 +3123,22 @@ class BotEngine {
         );
 
 
-      if (
-        !contrato.ok
-      ) {
+      if (!contrato.ok) {
 
         telemetria.resultado =
           "CONTRATO_RECHAZADO";
-
 
         this.guardarTelemetria(
           telemetria
         );
 
-
         return {
-
-          aceptada:
-            false,
-
+          aceptada: false,
           etapa:
             "CONTRACT_MAPPER",
-
           motivo:
             contrato.error,
-
           telemetria
-
         };
 
       }
@@ -3517,14 +3149,13 @@ class BotEngine {
 
 
       /* ====================================
-         SIMULACIÓN
+         2. SIMULACIÓN
          ==================================== */
 
       const propuestaSimulada =
         proposalSimulator.crearPropuesta(
           contrato,
           {
-
             monto:
               this.configuracion.monto,
 
@@ -3535,38 +3166,28 @@ class BotEngine {
               this.configuracion.duracion,
 
             unidadDuracion:
-              this.configuracion.unidadDuracion
-
+              this.configuracion
+                .unidadDuracion
           }
         );
 
 
-      if (
-        !propuestaSimulada.ok
-      ) {
+      if (!propuestaSimulada.ok) {
 
         telemetria.resultado =
           "SIMULACION_RECHAZADA";
-
 
         this.guardarTelemetria(
           telemetria
         );
 
-
         return {
-
-          aceptada:
-            false,
-
+          aceptada: false,
           etapa:
             "PROPOSAL_SIMULATOR",
-
           motivo:
             propuestaSimulada.error,
-
           telemetria
-
         };
 
       }
@@ -3577,14 +3198,15 @@ class BotEngine {
 
 
       /* ====================================
-         COTIZACIÓN
+         3. COTIZACIÓN
          ==================================== */
 
-      telemetria.proposalRequestedEpoch =
+      telemetria
+        .proposalRequestedEpoch =
         Date.now();
 
-
-      telemetria.proposalRequestedPerf =
+      telemetria
+        .proposalRequestedPerf =
         this.ahora();
 
 
@@ -3592,7 +3214,6 @@ class BotEngine {
         await derivProposal.solicitar(
           contrato,
           {
-
             monto:
               this.configuracion.monto,
 
@@ -3603,23 +3224,22 @@ class BotEngine {
               this.configuracion.duracion,
 
             unidadDuracion:
-              this.configuracion.unidadDuracion
-
+              this.configuracion
+                .unidadDuracion
           }
         );
 
 
-      telemetria.proposalReceivedEpoch =
+      telemetria
+        .proposalReceivedEpoch =
         Date.now();
 
-
-      telemetria.proposalReceivedPerf =
+      telemetria
+        .proposalReceivedPerf =
         this.ahora();
 
 
-      if (
-        propuestaDeriv.ok
-      ) {
+      if (propuestaDeriv.ok) {
 
         this.ultimaPropuestaDeriv =
           propuestaDeriv;
@@ -3627,21 +3247,18 @@ class BotEngine {
       }
 
 
-      let compraDemo =
-        null;
+      let compraDemo = null;
+      let resultadoDemo = null;
 
 
-      let resultadoDemo =
-        null;
+      /* ====================================
+         PROPUESTA RECHAZADA
+         ==================================== */
 
-
-      if (
-        !propuestaDeriv.ok
-      ) {
+      if (!propuestaDeriv.ok) {
 
         telemetria.resultado =
           "PROPUESTA_RECHAZADA";
-
 
         this.guardarTelemetria(
           telemetria
@@ -3650,8 +3267,7 @@ class BotEngine {
 
         return {
 
-          aceptada:
-            true,
+          aceptada: true,
 
           modo:
             this.modo,
@@ -3660,7 +3276,8 @@ class BotEngine {
             senal.mercado,
 
           familia:
-            telemetria.familiaMercado,
+            telemetria
+              .familiaMercado,
 
           estrategia:
             senal.estrategia,
@@ -3681,7 +3298,8 @@ class BotEngine {
             telemetria.calibracionSeg,
 
           programacionDisponible:
-            telemetria.programacionDisponible,
+            telemetria
+              .programacionDisponible,
 
           contrato,
 
@@ -3690,16 +3308,57 @@ class BotEngine {
 
           propuestaDeriv,
 
-          compraDemo:
-            null,
+          compraDemo: null,
 
-          resultadoDemo:
-            null,
+          resultadoDemo: null,
 
-          telemetria:
-            {
-              ...telemetria
-            }
+          telemetria: {
+            ...telemetria
+          },
+
+          resumenMercado:
+            this.obtenerResumenMercado(
+              telemetria.mercado
+            ),
+
+          comparacionMercado:
+            this
+              .obtenerComparacionMercado(
+                telemetria.mercado
+              ),
+
+          resumenCalibracion:
+            this
+              .obtenerResumenCalibracion(
+                telemetria.mercado
+              ),
+
+          perfilSenal:
+            this
+              .obtenerResumenPerfilSenal(
+                telemetria.mercado
+              ),
+
+          resumenMercados:
+            this
+              .obtenerResumenMercados(),
+
+          resumenStandard:
+            this
+              .obtenerResumenFamilia(
+                "STANDARD"
+              ),
+
+          resumen1S:
+            this
+              .obtenerResumenFamilia(
+                "1S"
+              ),
+
+          ejecucionDemoActiva:
+            derivTrade
+              .obtenerEstado()
+              .ejecucionActiva
 
         };
 
@@ -3707,7 +3366,7 @@ class BotEngine {
 
 
       /* ====================================
-         ESPERA HASTA TARGET
+         4. ESPERA RESTANTE
          ==================================== */
 
       if (
@@ -3728,7 +3387,8 @@ class BotEngine {
           );
 
 
-        telemetria.esperaProgramadaMs =
+        telemetria
+          .esperaProgramadaMs =
           this.redondear(
             restanteMs
           );
@@ -3737,15 +3397,13 @@ class BotEngine {
         telemetria.waitStartedEpoch =
           Date.now();
 
-
         telemetria
           .calibrationWaitStartedPerf =
           this.ahora();
 
 
         if (
-          restanteMs >
-          0
+          restanteMs > 0
         ) {
 
           await this.esperar(
@@ -3758,7 +3416,6 @@ class BotEngine {
         telemetria.waitEndedEpoch =
           Date.now();
 
-
         telemetria
           .calibrationWaitEndedPerf =
           this.ahora();
@@ -3767,7 +3424,7 @@ class BotEngine {
 
 
       /* ====================================
-         BUY
+         5. BUY
          ==================================== */
 
       if (
@@ -3783,7 +3440,6 @@ class BotEngine {
         telemetria.buyRequestedEpoch =
           buyRequestedAt;
 
-
         telemetria.buyRequestedPerf =
           this.ahora();
 
@@ -3795,7 +3451,8 @@ class BotEngine {
           )
         ) {
 
-          telemetria.buyTargetDeviationMs =
+          telemetria
+            .buyTargetDeviationMs =
             this.redondear(
               buyRequestedAt -
               telemetria
@@ -3817,7 +3474,6 @@ class BotEngine {
 
         telemetria.buyConfirmedEpoch =
           buyConfirmedAt;
-
 
         telemetria.buyConfirmedPerf =
           this.ahora();
@@ -3841,13 +3497,14 @@ class BotEngine {
         }
 
 
-        if (
-          compraDemo.ok
-        ) {
+        /* ==================================
+           COMPRA ACEPTADA
+           ================================== */
+
+        if (compraDemo.ok) {
 
           this.ultimaCompraDemo =
             compraDemo.compra;
-
 
           telemetria.contractId =
             compraDemo
@@ -3855,39 +3512,38 @@ class BotEngine {
               .contractId;
 
 
+          /* ==================================
+             6. RESULTADO
+             ================================== */
+
           const seguimiento =
             await derivTrade.esperarResultado(
               compraDemo
                 .compra
                 .contractId,
               {
-
                 onUpdate:
                   onOperacionUpdate
-
               }
             );
 
 
-          telemetria.resultReceivedEpoch =
+          telemetria
+            .resultReceivedEpoch =
             Date.now();
 
-
-          telemetria.resultReceivedPerf =
+          telemetria
+            .resultReceivedPerf =
             this.ahora();
 
 
-          if (
-            seguimiento.ok
-          ) {
+          if (seguimiento.ok) {
 
             resultadoDemo =
               seguimiento.resultado;
 
-
             this.ultimoResultadoDemo =
               resultadoDemo;
-
 
             const profit =
               Number(
@@ -3895,17 +3551,13 @@ class BotEngine {
                 0
               );
 
-
             telemetria.resultado =
-              profit >
-                0
+              profit > 0
                 ? "GANADA"
                 : "PERDIDA";
 
-
             telemetria.profit =
               profit;
-
 
             telemetria.source =
               resultadoDemo.source ??
@@ -3918,9 +3570,11 @@ class BotEngine {
             resultadoDemo =
               seguimiento;
 
-
             telemetria.resultado =
               "SIN_CONFIRMAR";
+
+            telemetria.profit =
+              null;
 
           }
 
@@ -3943,25 +3597,32 @@ class BotEngine {
       }
 
 
-      if (
-        id
-      ) {
+      /* ====================================
+         MARCAR ID
+         ==================================== */
 
+      if (id) {
         this.ultimaSenalProcesada =
           id;
-
       }
 
+
+      /* ====================================
+         GUARDAR TELEMETRÍA
+         ==================================== */
 
       this.guardarTelemetria(
         telemetria
       );
 
 
+      /* ====================================
+         RESPUESTA
+         ==================================== */
+
       return {
 
-        aceptada:
-          true,
+        aceptada: true,
 
         modo:
           this.modo,
@@ -4017,14 +3678,13 @@ class BotEngine {
           telemetria
             .timingClasificacion,
 
-        timingAnomalias:
-          [
-            ...(
-              telemetria
-                .timingAnomalias ||
-              []
-            )
-          ],
+        timingAnomalias: [
+          ...(
+            telemetria
+              .timingAnomalias ||
+            []
+          )
+        ],
 
         contrato,
 
@@ -4037,10 +3697,9 @@ class BotEngine {
 
         resultadoDemo,
 
-        telemetria:
-          {
-            ...telemetria
-          },
+        telemetria: {
+          ...telemetria
+        },
 
         resumenMercado:
           this.obtenerResumenMercado(
@@ -4048,32 +3707,38 @@ class BotEngine {
           ),
 
         comparacionMercado:
-          this.obtenerComparacionMercado(
-            telemetria.mercado
-          ),
+          this
+            .obtenerComparacionMercado(
+              telemetria.mercado
+            ),
 
         resumenCalibracion:
-          this.obtenerResumenCalibracion(
-            telemetria.mercado
-          ),
+          this
+            .obtenerResumenCalibracion(
+              telemetria.mercado
+            ),
 
         perfilSenal:
-          this.obtenerResumenPerfilSenal(
-            telemetria.mercado
-          ),
+          this
+            .obtenerResumenPerfilSenal(
+              telemetria.mercado
+            ),
 
         resumenMercados:
-          this.obtenerResumenMercados(),
+          this
+            .obtenerResumenMercados(),
 
         resumenStandard:
-          this.obtenerResumenFamilia(
-            "STANDARD"
-          ),
+          this
+            .obtenerResumenFamilia(
+              "STANDARD"
+            ),
 
         resumen1S:
-          this.obtenerResumenFamilia(
-            "1S"
-          ),
+          this
+            .obtenerResumenFamilia(
+              "1S"
+            ),
 
         ejecucionDemoActiva:
           derivTrade
@@ -4082,17 +3747,14 @@ class BotEngine {
 
       };
 
+    }
 
-    } finally {
+    finally {
 
-      if (
-        id
-      ) {
-
+      if (id) {
         this.senalesEnProceso.delete(
           id
         );
-
       }
 
     }
@@ -4106,16 +3768,9 @@ class BotEngine {
 
   obtenerEstado() {
 
-    const comparaciones =
-      {};
-
-
-    const calibraciones =
-      {};
-
-
-    const perfilesSenal =
-      {};
+    const comparaciones = {};
+    const calibraciones = {};
+    const perfilesSenal = {};
 
 
     for (
@@ -4123,28 +3778,23 @@ class BotEngine {
       of MERCADOS_CONTROLADOS
     ) {
 
-      comparaciones[
-        mercado
-      ] =
-        this.obtenerComparacionMercado(
-          mercado
-        );
+      comparaciones[mercado] =
+        this
+          .obtenerComparacionMercado(
+            mercado
+          );
 
+      calibraciones[mercado] =
+        this
+          .obtenerResumenCalibracion(
+            mercado
+          );
 
-      calibraciones[
-        mercado
-      ] =
-        this.obtenerResumenCalibracion(
-          mercado
-        );
-
-
-      perfilesSenal[
-        mercado
-      ] =
-        this.obtenerResumenPerfilSenal(
-          mercado
-        );
+      perfilesSenal[mercado] =
+        this
+          .obtenerResumenPerfilSenal(
+            mercado
+          );
 
     }
 
@@ -4166,10 +3816,17 @@ class BotEngine {
       timingBase:
         TIMING_BASE_VERSION,
 
-      limitesTiming:
-        {
-          ...TIMING_LIMITS
-        },
+      versionesTimingCompatibles: [
+        ...TIMING_COMPATIBLE_VERSIONS
+      ],
+
+      versionesPerfilCompatibles: [
+        ...SIGNAL_PROFILE_VERSIONS
+      ],
+
+      limitesTiming: {
+        ...TIMING_LIMITS
+      },
 
       ultimaSenalProcesada:
         this.ultimaSenalProcesada,
@@ -4211,39 +3868,33 @@ class BotEngine {
 
       perfilesSenal,
 
-      calibracionActual:
-        {
-          ...this.calibracion
-        },
+      calibracionActual: {
+        ...this.calibracion
+      },
 
-      ajustesPermitidosMs:
-        [
-          ...AJUSTES_PERMITIDOS_MS
-        ],
+      ajustesPermitidosMs: [
+        ...AJUSTES_PERMITIDOS_MS
+      ],
 
-      mercadosStandard:
-        [
-          ...MERCADOS_STANDARD
-        ],
+      mercadosStandard: [
+        ...MERCADOS_STANDARD
+      ],
 
-      mercados1S:
-        [
-          ...MERCADOS_1S
-        ],
+      mercados1S: [
+        ...MERCADOS_1S
+      ],
 
-      mercadosControlados:
-        [
-          ...MERCADOS_CONTROLADOS
-        ],
+      mercadosControlados: [
+        ...MERCADOS_CONTROLADOS
+      ],
 
       trade:
         derivTrade
           .obtenerEstado(),
 
-      configuracion:
-        {
-          ...this.configuracion
-        }
+      configuracion: {
+        ...this.configuracion
+      }
 
     };
 
@@ -4258,3 +3909,9 @@ class BotEngine {
 
 export const botEngine =
   new BotEngine();
+
+
+/* ==========================================
+   FIN BOT-ENGINE.JS
+   FIX13.1
+   ========================================== */
