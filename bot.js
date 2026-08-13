@@ -1,7 +1,7 @@
 /* ==========================================
    BOT V1 MR
    BOT.JS
-   FIX13.1 - TIMING CORREGIDO + PERFIL
+   FIX13.2 - PERFIL GANADAS VS PERDIDAS
 
    CONSERVA:
    - TRADING ANALYZER -> BOT
@@ -14,22 +14,27 @@
    - ESTADÍSTICAS HISTÓRICAS
    - COMPARADORES R_50 / 1HZ75V
    - CALIBRACIÓN POR MERCADO
-   - HISTORIAL FIX8 A FIX13
+   - TIMING FIX12 / FIX13 / FIX13.1
+   - HISTORIAL FIX8 EN ADELANTE
 
-   FIX13.1:
-   - MOTOR FIX13.1
-   - BRIDGE -> PROCESO CORREGIDO
-   - TARGET REAL CONSERVADO
-   - PERFIL DE SEÑAL
+   FIX13.2 AGREGA:
+   - PERFIL GANADAS VS PERDIDAS
    - CONFIANZA
-   - TENDENCIA
    - RSI
+   - TENDENCIA
    - MOMENTUM
    - VOLATILIDAD
+   - DIRECCIÓN
    - ÚLTIMO DÍGITO
+   - ZONAS DE CONFIANZA
+   - ZONAS RSI
+   - ALINEACIÓN TENDENCIA / MOMENTUM
+   - HALLAZGOS FAVORABLES
+   - HALLAZGOS DE RIESGO
+   - SIN BLOQUEO AUTOMÁTICO
 
    IMPORTANTE:
-   - SOLO DEMO DURANTE PRUEBAS
+   SOLO DEMO DURANTE PRUEBAS.
    ========================================== */
 
 import {
@@ -38,18 +43,23 @@ import {
 
 import {
   botEngine
-} from "./bot-engine.js?v=FIX13-1-TIMING-1";
+} from "./bot-engine.js?v=FIX13-2-PROFILE-1";
 
 import {
   derivConnection
 } from "./deriv-connection.js";
 
 
-const BOT_VERSION = "FIX13.1";
-const BOT_BUILD = "TIMING-1";
+const BOT_VERSION =
+  "FIX13.2";
 
-const $ = (id) =>
-  document.getElementById(id);
+const BOT_BUILD =
+  "PROFILE-1";
+
+
+const $ =
+  (id) =>
+    document.getElementById(id);
 
 
 /* ==========================================
@@ -58,32 +68,65 @@ const $ = (id) =>
 
 const UI = {
 
-  estadoBot: $("estadoBot"),
+  estadoBot:
+    $("estadoBot"),
 
-  mercado: $("mercado"),
-  estrategia: $("estrategia"),
-  direccion: $("direccion"),
-  confianza: $("confianza"),
-  entrada: $("entrada"),
-  precio: $("precio"),
+  mercado:
+    $("mercado"),
 
-  botonConectar: $("botonConectar"),
-  botonPausar: $("botonPausar"),
-  botonProbar: $("botonProbar"),
+  estrategia:
+    $("estrategia"),
 
-  ultimaSenal: $("ultimaSenal"),
-  ultimoContrato: $("ultimoContrato"),
-  ultimaPropuesta: $("ultimaPropuesta"),
-  operacionDemo: $("operacionDemo"),
-  resultadoDemo: $("resultadoDemo"),
+  direccion:
+    $("direccion"),
 
-  registroBot: $("registroBot"),
+  confianza:
+    $("confianza"),
 
-  estadoDeriv: $("estadoDeriv"),
+  entrada:
+    $("entrada"),
 
-  derivAppId: $("derivAppId"),
-  derivAccountId: $("derivAccountId"),
-  derivToken: $("derivToken"),
+  precio:
+    $("precio"),
+
+  botonConectar:
+    $("botonConectar"),
+
+  botonPausar:
+    $("botonPausar"),
+
+  botonProbar:
+    $("botonProbar"),
+
+  ultimaSenal:
+    $("ultimaSenal"),
+
+  ultimoContrato:
+    $("ultimoContrato"),
+
+  ultimaPropuesta:
+    $("ultimaPropuesta"),
+
+  operacionDemo:
+    $("operacionDemo"),
+
+  resultadoDemo:
+    $("resultadoDemo"),
+
+  registroBot:
+    $("registroBot"),
+
+  estadoDeriv:
+    $("estadoDeriv"),
+
+  derivAppId:
+    $("derivAppId"),
+
+  derivAccountId:
+    $("derivAccountId"),
+
+  derivToken:
+    $("derivToken"),
 
   botonConectarDeriv:
     $("botonConectarDeriv"),
@@ -91,8 +134,11 @@ const UI = {
   botonDesconectarDeriv:
     $("botonDesconectarDeriv"),
 
-  derivCuenta: $("derivCuenta"),
-  derivConexion: $("derivConexion"),
+  derivCuenta:
+    $("derivCuenta"),
+
+  derivConexion:
+    $("derivConexion"),
 
   estadoEjecucion:
     $("estadoEjecucion"),
@@ -374,13 +420,16 @@ const COMPARADORES = {
 function ahoraPreciso() {
 
   if (
-    typeof performance !== "undefined" &&
-    typeof performance.now === "function"
+    typeof performance !==
+      "undefined" &&
+    typeof performance.now ===
+      "function"
   ) {
 
     return performance.now();
 
   }
+
 
   return Date.now();
 
@@ -393,9 +442,14 @@ function obtenerHora() {
     .toLocaleTimeString(
       "es-SV",
       {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
+        hour:
+          "2-digit",
+
+        minute:
+          "2-digit",
+
+        second:
+          "2-digit"
       }
     );
 
@@ -406,42 +460,61 @@ function obtenerHora() {
    FORMATOS
    ========================================== */
 
-function formatoMs(valor) {
+function formatoMs(
+  valor
+) {
 
   const numero =
-    Number(valor);
+    Number(
+      valor
+    );
+
 
   if (
-    !Number.isFinite(numero)
+    !Number.isFinite(
+      numero
+    )
   ) {
 
     return "--";
 
   }
+
 
   return `${numero.toFixed(2)} ms`;
 
 }
 
 
-function formatoSegundosDesdeMs(valor) {
+function formatoSegundosDesdeMs(
+  valor
+) {
 
   const numero =
-    Number(valor);
+    Number(
+      valor
+    );
+
 
   if (
-    !Number.isFinite(numero)
+    !Number.isFinite(
+      numero
+    )
   ) {
 
     return "--";
 
   }
 
+
   const segundos =
-    numero / 1000;
+    numero /
+    1000;
+
 
   return `${
-    segundos > 0
+    segundos >
+      0
       ? "+"
       : ""
   }${segundos.toFixed(1)} s`;
@@ -449,18 +522,26 @@ function formatoSegundosDesdeMs(valor) {
 }
 
 
-function formatoPorcentaje(valor) {
+function formatoPorcentaje(
+  valor
+) {
 
   const numero =
-    Number(valor);
+    Number(
+      valor
+    );
+
 
   if (
-    !Number.isFinite(numero)
+    !Number.isFinite(
+      numero
+    )
   ) {
 
     return "--";
 
   }
+
 
   return `${numero.toFixed(1)}%`;
 
@@ -473,7 +554,8 @@ function formatoPorcentaje(valor) {
 
 function registrarActividad(
   mensaje,
-  tipo = "normal"
+  tipo =
+    "normal"
 ) {
 
   if (
@@ -484,14 +566,20 @@ function registrarActividad(
 
   }
 
+
   const linea =
-    document.createElement("p");
+    document.createElement(
+      "p"
+    );
+
 
   linea.textContent =
     `[${obtenerHora()}] ${mensaje}`;
 
+
   if (
-    tipo === "correcto"
+    tipo ===
+      "correcto"
   ) {
 
     linea.style.color =
@@ -499,8 +587,10 @@ function registrarActividad(
 
   }
 
+
   if (
-    tipo === "aviso"
+    tipo ===
+      "aviso"
   ) {
 
     linea.style.color =
@@ -508,14 +598,17 @@ function registrarActividad(
 
   }
 
+
   if (
-    tipo === "error"
+    tipo ===
+      "error"
   ) {
 
     linea.style.color =
       "#ff9fb4";
 
   }
+
 
   UI.registroBot.prepend(
     linea
@@ -530,28 +623,38 @@ function registrarActividad(
 
 window.addEventListener(
   "bot:signal-source",
-  (evento) => {
+  (
+    evento
+  ) => {
 
     const datos =
-      evento.detail || {};
+      evento.detail ||
+      {};
+
 
     const origen =
       datos.origen ||
       "desconocido";
 
+
     const target =
       Number(
-        datos.targetExecutionAt
+        datos
+          .targetExecutionAt
       );
+
 
     registrarActividad(
       `PUENTE ${BOT_VERSION} RECIBIÓ SEÑAL · ${origen} · TARGET ${
-        Number.isFinite(target)
+        Number.isFinite(
+          target
+        )
           ? "SÍ"
           : "NO"
       }`,
       "correcto"
     );
+
 
     console.log(
       `BOT ${BOT_VERSION} · SEÑAL DETECTADA`,
@@ -580,10 +683,13 @@ function obtenerMercadoSeleccionado() {
 function actualizarPanelCalibracion() {
 
   const estado =
-    botEngine.obtenerEstado();
+    botEngine
+      .obtenerEstado();
+
 
   const mercado =
     obtenerMercadoSeleccionado();
+
 
   const ajuste =
     Number(
@@ -592,6 +698,7 @@ function actualizarPanelCalibracion() {
         ?.[mercado] ??
       0
     );
+
 
   if (
     UI.calibracionMercadoActual
@@ -602,6 +709,7 @@ function actualizarPanelCalibracion() {
       mercado;
 
   }
+
 
   if (
     UI.calibracionAjusteActual
@@ -615,13 +723,16 @@ function actualizarPanelCalibracion() {
 
   }
 
+
   if (
     UI.calibracionAjusteSelect
   ) {
 
     UI.calibracionAjusteSelect
       .value =
-      String(ajuste);
+      String(
+        ajuste
+      );
 
   }
 
@@ -657,12 +768,14 @@ if (
         const mercado =
           obtenerMercadoSeleccionado();
 
+
         const ajuste =
           Number(
             UI.calibracionAjusteSelect
               ?.value ??
             0
           );
+
 
         const resultado =
           botEngine
@@ -671,6 +784,7 @@ if (
               ajuste
             );
 
+
         registrarActividad(
           resultado?.mensaje ||
           "No se pudo guardar calibración.",
@@ -678,6 +792,7 @@ if (
             ? "correcto"
             : "error"
         );
+
 
         actualizarPanelCalibracion();
 
@@ -704,11 +819,13 @@ if (
           botEngine
             .restablecerCalibracion();
 
+
         registrarActividad(
           resultado?.mensaje ||
           "Calibración restablecida.",
           "aviso"
         );
+
 
         actualizarPanelCalibracion();
 
@@ -722,24 +839,46 @@ if (
    MOSTRAR SEÑAL
    ========================================== */
 
-function mostrarSenal(senal) {
+function mostrarSenal(
+  senal
+) {
 
-  if (UI.mercado) {
+  if (
+    UI.mercado
+  ) {
+
     UI.mercado.textContent =
-      senal.mercado || "--";
+      senal.mercado ||
+      "--";
+
   }
 
-  if (UI.estrategia) {
+
+  if (
+    UI.estrategia
+  ) {
+
     UI.estrategia.textContent =
-      senal.estrategia || "--";
+      senal.estrategia ||
+      "--";
+
   }
 
-  if (UI.direccion) {
+
+  if (
+    UI.direccion
+  ) {
+
     UI.direccion.textContent =
-      senal.direccion || "--";
+      senal.direccion ||
+      "--";
+
   }
 
-  if (UI.confianza) {
+
+  if (
+    UI.confianza
+  ) {
 
     UI.confianza.textContent =
       Number.isFinite(
@@ -754,19 +893,27 @@ function mostrarSenal(senal) {
 
   }
 
-  if (UI.entrada) {
+
+  if (
+    UI.entrada
+  ) {
 
     UI.entrada.textContent =
-      senal.segundosEntrada != null
+      senal.segundosEntrada !=
+        null
         ? `${senal.segundosEntrada} s`
         : "--";
 
   }
 
-  if (UI.precio) {
+
+  if (
+    UI.precio
+  ) {
 
     UI.precio.textContent =
-      senal.precio != null
+      senal.precio !=
+        null
         ? String(
             senal.precio
           )
@@ -846,9 +993,14 @@ function mostrarEstadoTarget(
   telemetria
 ) {
 
-  if (!telemetria) {
+  if (
+    !telemetria
+  ) {
+
     return;
+
   }
+
 
   if (
     UI.calibracionTargetDisponible
@@ -862,6 +1014,7 @@ function mostrarEstadoTarget(
         : "NO";
 
   }
+
 
   if (
     UI.calibracionProgramacion
@@ -911,6 +1064,7 @@ function mostrarContrato(
 
   }
 
+
   UI.ultimoContrato.innerHTML = `
 
     <strong>Mercado:</strong>
@@ -957,6 +1111,7 @@ function mostrarPropuestaDeriv(
     return;
 
   }
+
 
   if (
     !propuesta?.ok
@@ -1031,6 +1186,7 @@ function mostrarCompraDemo(
 
   }
 
+
   if (
     !compra?.ok
   ) {
@@ -1056,7 +1212,8 @@ function mostrarCompraDemo(
 
 
   const dato =
-    compra.compra || {};
+    compra.compra ||
+    {};
 
 
   UI.operacionDemo.innerHTML = `
@@ -1103,6 +1260,7 @@ function mostrarActualizacionContrato(
     return;
 
   }
+
 
   UI.operacionDemo.innerHTML = `
 
@@ -1152,14 +1310,17 @@ function pintarResultadoFinal(
 
   }
 
+
   const profit =
     Number(
       dato.profit ??
       0
     );
 
+
   const ganada =
-    profit > 0;
+    profit >
+    0;
 
 
   UI.resultadoDemo
@@ -1168,6 +1329,7 @@ function pintarResultadoFinal(
       "ganada",
       "perdida"
     );
+
 
   UI.resultadoDemo
     .classList
@@ -1237,8 +1399,10 @@ function mostrarResultadoDemo(
 
   }
 
+
   if (
-    resultado.ok === true &&
+    resultado.ok ===
+      true &&
     resultado.resultado
   ) {
 
@@ -1249,6 +1413,7 @@ function mostrarResultadoDemo(
     return;
 
   }
+
 
   if (
     resultado.contractId ||
@@ -1272,6 +1437,7 @@ function recuperarResultadoEngine() {
       .obtenerEstado()
       ?.ultimoResultadoDemo;
 
+
   if (
     ultimo &&
     (
@@ -1291,16 +1457,21 @@ function recuperarResultadoEngine() {
 
 
 /* ==========================================
-   TELEMETRÍA FIX13.1
+   TELEMETRÍA FIX13.2
    ========================================== */
 
 function mostrarTelemetria(
   telemetria
 ) {
 
-  if (!telemetria) {
+  if (
+    !telemetria
+  ) {
+
     return;
+
   }
+
 
   if (
     UI.calibradorFamilia
@@ -1313,6 +1484,7 @@ function mostrarTelemetria(
 
   }
 
+
   if (
     UI.calibradorMercado
   ) {
@@ -1323,6 +1495,7 @@ function mostrarTelemetria(
       "--";
 
   }
+
 
   if (
     UI.calibradorPunto
@@ -1335,6 +1508,7 @@ function mostrarTelemetria(
 
   }
 
+
   if (
     UI.calibradorReferencia
   ) {
@@ -1342,11 +1516,13 @@ function mostrarTelemetria(
     UI.calibradorReferencia
       .textContent =
       telemetria
-        .retrasoReferenciaSeg != null
+        .retrasoReferenciaSeg !=
+        null
         ? `${telemetria.retrasoReferenciaSeg} s`
         : "--";
 
   }
+
 
   if (
     UI.calibradorAjuste
@@ -1359,6 +1535,7 @@ function mostrarTelemetria(
       );
 
   }
+
 
   if (
     UI.calibradorEspera
@@ -1373,6 +1550,7 @@ function mostrarTelemetria(
 
   }
 
+
   if (
     UI.calibradorSignalBuy
   ) {
@@ -1384,6 +1562,7 @@ function mostrarTelemetria(
       );
 
   }
+
 
   if (
     UI.calibradorPropuesta
@@ -1397,6 +1576,7 @@ function mostrarTelemetria(
 
   }
 
+
   if (
     UI.calibradorBuy
   ) {
@@ -1408,6 +1588,7 @@ function mostrarTelemetria(
       );
 
   }
+
 
   if (
     UI.calibradorResultado
@@ -1429,25 +1610,32 @@ function mostrarTelemetria(
 
 
 /* ==========================================
-   DIAGNÓSTICO TIMING FIX13.1
+   DIAGNÓSTICO TIMING
    ========================================== */
 
 function registrarDiagnosticoTiming(
   telemetria
 ) {
 
-  if (!telemetria) {
+  if (
+    !telemetria
+  ) {
+
     return;
+
   }
+
 
   const version =
     telemetria.version ||
     "SIN VERSION";
 
+
   const clasificacion =
     telemetria
       .timingClasificacion ||
     "PENDIENTE";
+
 
   registrarActividad(
     `TELEMETRÍA ${version} · ${
@@ -1472,7 +1660,8 @@ function registrarDiagnosticoTiming(
 
   if (
     Array.isArray(
-      telemetria.timingAnomalias
+      telemetria
+        .timingAnomalias
     ) &&
     telemetria
       .timingAnomalias
@@ -1482,7 +1671,9 @@ function registrarDiagnosticoTiming(
     telemetria
       .timingAnomalias
       .forEach(
-        (anomalia) => {
+        (
+          anomalia
+        ) => {
 
           registrarActividad(
             `TIMING → ${anomalia}`,
@@ -1498,29 +1689,43 @@ function registrarDiagnosticoTiming(
 
 
 /* ==========================================
-   PERFIL DE SEÑAL FIX13.1
+   PERFIL DE LA OPERACIÓN
    ========================================== */
 
-function registrarPerfilSenal(
+function registrarPerfilOperacion(
   telemetria
 ) {
 
-  if (!telemetria) {
+  if (
+    !telemetria
+  ) {
+
     return;
+
   }
+
 
   registrarActividad(
     `PERFIL · Conf ${
       telemetria.confianza ??
       "--"
-    } · Tend ${
+    } [${
+      telemetria.zonaConfianza ??
+      "--"
+    }] · Tend ${
       telemetria.tendencia ??
       "--"
     } · RSI ${
       telemetria.rsi ??
       "--"
-    } · Mom ${
+    } [${
+      telemetria.zonaRsi ??
+      "--"
+    }] · Mom ${
       telemetria.momentum ??
+      "--"
+    } · Alineación ${
+      telemetria.tendenciaMomentum ??
       "--"
     } · Vol ${
       telemetria.volatilidad ??
@@ -1531,6 +1736,120 @@ function registrarPerfilSenal(
     }`,
     "normal"
   );
+
+}
+
+
+/* ==========================================
+   HALLAZGOS FIX13.2
+   ========================================== */
+
+function registrarAnalisisPerfil(
+  perfil
+) {
+
+  if (
+    !perfil
+  ) {
+
+    return;
+
+  }
+
+
+  registrarActividad(
+    `ANÁLISIS PERFIL · ${
+      perfil.mercado ||
+      "--"
+    } · muestras ${
+      perfil.muestras ??
+      0
+    } · G ${
+      perfil.ganadas ??
+      0
+    } / P ${
+      perfil.perdidas ??
+      0
+    } · accuracy ${
+      formatoPorcentaje(
+        perfil.accuracy
+      )
+    } · ${
+      perfil.estadoAnalisis ||
+      "SIN_ESTADO"
+    }`,
+    "aviso"
+  );
+
+
+  const hallazgos =
+    Array.isArray(
+      perfil.hallazgos
+    )
+      ? perfil.hallazgos
+      : [];
+
+
+  if (
+    !hallazgos.length
+  ) {
+
+    registrarActividad(
+      "PERFIL → todavía no hay patrones con suficientes muestras.",
+      "normal"
+    );
+
+    return;
+
+  }
+
+
+  for (
+    const hallazgo
+    of hallazgos
+  ) {
+
+    const tipo =
+      hallazgo.clasificacion ===
+        "FAVORABLE"
+        ? "correcto"
+        : hallazgo.clasificacion ===
+            "RIESGO"
+          ? "error"
+          : "normal";
+
+
+    registrarActividad(
+      `PATRÓN ${hallazgo.clasificacion} · ${
+        hallazgo.grupo
+      } = ${
+        hallazgo.valor
+      } · ${
+        hallazgo.muestras
+      } muestras · G ${
+        hallazgo.ganadas
+      } / P ${
+        hallazgo.perdidas
+      } · ${
+        formatoPorcentaje(
+          hallazgo.accuracy
+        )
+      } · vs general ${
+        Number(
+          hallazgo.diferenciaVsGeneral
+        ) >
+          0
+          ? "+"
+          : ""
+      }${
+        hallazgo.diferenciaVsGeneral
+      } pts · ${
+        hallazgo.fuerza
+      }`,
+      tipo
+    );
+
+  }
 
 }
 
@@ -1549,6 +1868,7 @@ function renderFilaMercado(
       mercado
     ];
 
+
   if (
     !fila ||
     !resumen
@@ -1558,22 +1878,43 @@ function renderFilaMercado(
 
   }
 
-  if (fila.pruebas) {
+
+  if (
+    fila.pruebas
+  ) {
+
     fila.pruebas.textContent =
-      resumen.pruebas ?? 0;
+      resumen.pruebas ??
+      0;
+
   }
 
-  if (fila.ganadas) {
+
+  if (
+    fila.ganadas
+  ) {
+
     fila.ganadas.textContent =
-      resumen.ganadas ?? 0;
+      resumen.ganadas ??
+      0;
+
   }
 
-  if (fila.perdidas) {
+
+  if (
+    fila.perdidas
+  ) {
+
     fila.perdidas.textContent =
-      resumen.perdidas ?? 0;
+      resumen.perdidas ??
+      0;
+
   }
 
-  if (fila.accuracy) {
+
+  if (
+    fila.accuracy
+  ) {
 
     fila.accuracy.textContent =
       formatoPorcentaje(
@@ -1582,7 +1923,10 @@ function renderFilaMercado(
 
   }
 
-  if (fila.latencia) {
+
+  if (
+    fila.latencia
+  ) {
 
     fila.latencia.textContent =
       formatoMs(
@@ -1603,6 +1947,7 @@ function actualizarTablaMercados() {
       ?.resumenMercados ||
     {};
 
+
   for (
     const mercado
     of Object.keys(
@@ -1612,7 +1957,9 @@ function actualizarTablaMercados() {
 
     renderFilaMercado(
       mercado,
-      resumenes[mercado]
+      resumenes[
+        mercado
+      ]
     );
 
   }
@@ -1634,6 +1981,7 @@ function renderComparador(
       mercado
     ];
 
+
   if (
     !ui ||
     !comparacion
@@ -1643,19 +1991,31 @@ function renderComparador(
 
   }
 
+
   const ganadas =
-    comparacion.ganadas || {};
+    comparacion.ganadas ||
+    {};
+
 
   const perdidas =
-    comparacion.perdidas || {};
+    comparacion.perdidas ||
+    {};
 
 
-  if (ui.ganadasCantidad) {
+  if (
+    ui.ganadasCantidad
+  ) {
+
     ui.ganadasCantidad.textContent =
-      ganadas.cantidad ?? 0;
+      ganadas.cantidad ??
+      0;
+
   }
 
-  if (ui.ganadasSignalBuy) {
+
+  if (
+    ui.ganadasSignalBuy
+  ) {
 
     ui.ganadasSignalBuy.textContent =
       formatoMs(
@@ -1665,7 +2025,10 @@ function renderComparador(
 
   }
 
-  if (ui.ganadasMin) {
+
+  if (
+    ui.ganadasMin
+  ) {
 
     ui.ganadasMin.textContent =
       formatoMs(
@@ -1675,7 +2038,10 @@ function renderComparador(
 
   }
 
-  if (ui.ganadasMax) {
+
+  if (
+    ui.ganadasMax
+  ) {
 
     ui.ganadasMax.textContent =
       formatoMs(
@@ -1685,7 +2051,10 @@ function renderComparador(
 
   }
 
-  if (ui.ganadasProposal) {
+
+  if (
+    ui.ganadasProposal
+  ) {
 
     ui.ganadasProposal.textContent =
       formatoMs(
@@ -1695,7 +2064,10 @@ function renderComparador(
 
   }
 
-  if (ui.ganadasBuy) {
+
+  if (
+    ui.ganadasBuy
+  ) {
 
     ui.ganadasBuy.textContent =
       formatoMs(
@@ -1705,14 +2077,21 @@ function renderComparador(
 
   }
 
-  if (ui.perdidasCantidad) {
+
+  if (
+    ui.perdidasCantidad
+  ) {
 
     ui.perdidasCantidad.textContent =
-      perdidas.cantidad ?? 0;
+      perdidas.cantidad ??
+      0;
 
   }
 
-  if (ui.perdidasSignalBuy) {
+
+  if (
+    ui.perdidasSignalBuy
+  ) {
 
     ui.perdidasSignalBuy.textContent =
       formatoMs(
@@ -1722,7 +2101,10 @@ function renderComparador(
 
   }
 
-  if (ui.perdidasMin) {
+
+  if (
+    ui.perdidasMin
+  ) {
 
     ui.perdidasMin.textContent =
       formatoMs(
@@ -1732,7 +2114,10 @@ function renderComparador(
 
   }
 
-  if (ui.perdidasMax) {
+
+  if (
+    ui.perdidasMax
+  ) {
 
     ui.perdidasMax.textContent =
       formatoMs(
@@ -1742,7 +2127,10 @@ function renderComparador(
 
   }
 
-  if (ui.perdidasProposal) {
+
+  if (
+    ui.perdidasProposal
+  ) {
 
     ui.perdidasProposal.textContent =
       formatoMs(
@@ -1752,7 +2140,10 @@ function renderComparador(
 
   }
 
-  if (ui.perdidasBuy) {
+
+  if (
+    ui.perdidasBuy
+  ) {
 
     ui.perdidasBuy.textContent =
       formatoMs(
@@ -1762,7 +2153,10 @@ function renderComparador(
 
   }
 
-  if (ui.diferencia) {
+
+  if (
+    ui.diferencia
+  ) {
 
     ui.diferencia.textContent =
       formatoMs(
@@ -1772,7 +2166,10 @@ function renderComparador(
 
   }
 
-  if (ui.lectura) {
+
+  if (
+    ui.lectura
+  ) {
 
     const muestras =
       Number(
@@ -1781,8 +2178,10 @@ function renderComparador(
         0
       );
 
+
     ui.lectura.textContent =
-      muestras > 0
+      muestras >
+        0
         ? `${
             comparacion.lectura ||
             "ESPERANDO DATOS"
@@ -1802,10 +2201,14 @@ function actualizarComparadores() {
       ?.comparaciones ||
     {};
 
+
   renderComparador(
     "R_50",
-    comparaciones.R_50
+    comparaciones[
+      "R_50"
+    ]
   );
+
 
   renderComparador(
     "1HZ75V",
@@ -1829,6 +2232,7 @@ function renderEjecucionDemo() {
       ?.trade ||
     {};
 
+
   const conectado =
     Boolean(
       derivConnection
@@ -1836,9 +2240,11 @@ function renderEjecucionDemo() {
         ?.connected
     );
 
+
   const activa =
     Boolean(
-      trade.ejecucionActiva
+      trade
+        .ejecucionActiva
     );
 
 
@@ -1851,12 +2257,14 @@ function renderEjecucionDemo() {
         ? "EJECUCIÓN DEMO ON"
         : "EJECUCIÓN DEMO OFF";
 
+
     UI.estadoEjecucion
       .classList
       .toggle(
         "encendido-ejecucion",
         activa
       );
+
 
     UI.estadoEjecucion
       .classList
@@ -1878,6 +2286,7 @@ function renderEjecucionDemo() {
 
   }
 
+
   if (
     UI.botonDesactivarDemo
   ) {
@@ -1895,7 +2304,9 @@ function renderEjecucionDemo() {
    ========================================== */
 
 signalBridge.onSenal(
-  async (senal) => {
+  async (
+    senal
+  ) => {
 
     const target =
       Number(
@@ -1913,7 +2324,9 @@ signalBridge.onSenal(
       } · ${
         senal.direccion
       } · TARGET ${
-        Number.isFinite(target)
+        Number.isFinite(
+          target
+        )
           ? "SÍ"
           : "NO"
       }`,
@@ -1926,6 +2339,7 @@ signalBridge.onSenal(
         senal
           ?.bridgeReceivedPerf
       );
+
 
     const senalRecibidaPerf =
       Number.isFinite(
@@ -1951,6 +2365,7 @@ signalBridge.onSenal(
           "perdida"
         );
 
+
       UI.resultadoDemo.innerHTML =
         "<strong>Operación en proceso...</strong>";
 
@@ -1970,16 +2385,19 @@ signalBridge.onSenal(
           .procesarSenal(
             senal,
             {
+
               onOperacionUpdate:
                 mostrarActualizacionContrato,
 
               senalRecibidaPerf
+
             }
           );
 
 
       if (
-        !resultado?.aceptada
+        !resultado
+          ?.aceptada
       ) {
 
         registrarActividad(
@@ -2048,21 +2466,33 @@ signalBridge.onSenal(
 
       recuperarResultadoEngine();
 
+
       mostrarTelemetria(
         resultado.telemetria
       );
+
 
       registrarDiagnosticoTiming(
         resultado.telemetria
       );
 
-      registrarPerfilSenal(
+
+      registrarPerfilOperacion(
         resultado.telemetria
       );
 
+
+      registrarAnalisisPerfil(
+        resultado.analisisPerfil ||
+        resultado.perfilSenal
+      );
+
+
       actualizarTablaMercados();
 
+
       actualizarComparadores();
+
 
       actualizarPanelCalibracion();
 
@@ -2117,14 +2547,18 @@ signalBridge.onSenal(
 
     }
 
-    catch (error) {
+    catch (
+      error
+    ) {
 
       registrarActividad(
         `Error procesando señal ${
           BOT_VERSION
         }: ${
           error?.message ||
-          String(error)
+          String(
+            error
+          )
         }`,
         "error"
       );
@@ -2141,10 +2575,13 @@ signalBridge.onSenal(
 
 window.addEventListener(
   "bot:estado",
-  (evento) => {
+  (
+    evento
+  ) => {
 
     const datos =
-      evento.detail || {};
+      evento.detail ||
+      {};
 
 
     if (
@@ -2158,11 +2595,13 @@ window.addEventListener(
         UI.estadoBot.textContent =
           "BOT SYNC";
 
+
         UI.estadoBot
           .classList
           .remove(
             "apagado"
           );
+
 
         UI.estadoBot
           .classList
@@ -2209,11 +2648,13 @@ window.addEventListener(
         UI.estadoBot.textContent =
           "BOT OFF";
 
+
         UI.estadoBot
           .classList
           .remove(
             "encendido"
           );
+
 
         UI.estadoBot
           .classList
@@ -2262,10 +2703,14 @@ if (
       "click",
       () => {
 
-        signalBridge.conectar();
+        signalBridge
+          .conectar();
+
 
         const resultado =
-          botEngine.iniciar();
+          botEngine
+            .iniciar();
+
 
         registrarActividad(
           resultado?.mensaje ||
@@ -2287,9 +2732,23 @@ if (
           } · ${BOT_BUILD}`,
           estadoMotor
               ?.versionTelemetria ===
-            "FIX13.1"
+            "FIX13.2"
             ? "correcto"
             : "aviso"
+        );
+
+
+        registrarActividad(
+          `Filtro automático de perfil → ${
+            estadoMotor
+              ?.filtroAutomaticoActivo
+              ? "ON"
+              : "OFF"
+          }`,
+          estadoMotor
+            ?.filtroAutomaticoActivo
+            ? "aviso"
+            : "correcto"
         );
 
 
@@ -2301,6 +2760,7 @@ if (
           const estadoPuente =
             signalBridge
               .obtenerEstado();
+
 
           registrarActividad(
             `Bridge · Broadcast ${
@@ -2345,11 +2805,14 @@ if (
           botEngine
             .obtenerEstado();
 
+
         if (
           !estado?.pausado
         ) {
 
-          botEngine.pausar();
+          botEngine
+            .pausar();
+
 
           UI.botonPausar.textContent =
             "REANUDAR";
@@ -2358,7 +2821,9 @@ if (
 
         else {
 
-          botEngine.reanudar();
+          botEngine
+            .reanudar();
+
 
           UI.botonPausar.textContent =
             "PAUSAR";
@@ -2388,6 +2853,7 @@ if (
           botEngine
             .activarEjecucionDemo();
 
+
         registrarActividad(
           resultado?.mensaje ||
           "Ejecución DEMO.",
@@ -2395,6 +2861,7 @@ if (
             ? "correcto"
             : "aviso"
         );
+
 
         renderEjecucionDemo();
 
@@ -2420,7 +2887,9 @@ if (
         botEngine
           .desactivarEjecucionDemo();
 
+
         renderEjecucionDemo();
+
 
         registrarActividad(
           "Ejecución DEMO desactivada.",
@@ -2434,7 +2903,7 @@ if (
 
 
 /* ==========================================
-   PRUEBA INTERNA FIX13.1
+   PRUEBA INTERNA FIX13.2
    ========================================== */
 
 if (
@@ -2455,7 +2924,7 @@ if (
           .recibirSenal({
 
             id:
-              `FIX13.1-${Date.now()}`,
+              `FIX13.2-${Date.now()}`,
 
             mercado:
               "R_50",
@@ -2491,13 +2960,7 @@ if (
               10,
 
             modo:
-              "FIX13.1_TEST",
-
-            /*
-              Esta marca usa epoch
-              para que FIX13.1 pueda
-              medir Bridge -> Proceso.
-            */
+              "FIX13.2_TEST",
 
             bridgeReceivedEpoch:
               Date.now(),
@@ -2515,29 +2978,7 @@ if (
                 2,
 
               fix:
-                "FIX13.1_TEST",
-
-              perfilSenal: {
-
-                confianza:
-                  82,
-
-                tendencia:
-                  "ALCISTA",
-
-                rsi:
-                  61,
-
-                momentum:
-                  "ALCISTA",
-
-                volatilidad:
-                  "MEDIA",
-
-                ultimoDigito:
-                  8
-
-              }
+                "FIX13.2_TEST"
 
             }
 
@@ -2608,7 +3049,8 @@ derivConnection.on(
 
 
     if (
-      estado === "connected"
+      estado ===
+        "connected"
     ) {
 
       if (
@@ -2678,7 +3120,8 @@ derivConnection.on(
       ) {
 
         UI.derivConexion.textContent =
-          estado === "connecting"
+          estado ===
+            "connecting"
             ? "CONECTANDO"
             : "OFF";
 
@@ -2686,7 +3129,8 @@ derivConnection.on(
 
 
       if (
-        estado !== "connecting"
+        estado !==
+          "connecting"
       ) {
 
         if (
@@ -2732,6 +3176,7 @@ derivConnection.on(
         botEngine
           .desactivarEjecucionDemo();
 
+
         renderEjecucionDemo();
 
       }
@@ -2761,6 +3206,7 @@ if (
             ?.trim() ||
           "";
 
+
         const token =
           UI.derivToken
             ?.value
@@ -2768,7 +3214,9 @@ if (
           "";
 
 
-        if (!appId) {
+        if (
+          !appId
+        ) {
 
           registrarActividad(
             "Falta Deriv App ID.",
@@ -2780,7 +3228,9 @@ if (
         }
 
 
-        if (!token) {
+        if (
+          !token
+        ) {
 
           registrarActividad(
             "Falta Token PAT.",
@@ -2801,6 +3251,7 @@ if (
                 appId
               });
 
+
           if (
             !resultado?.ok
           ) {
@@ -2815,7 +3266,9 @@ if (
 
         }
 
-        catch (error) {
+        catch (
+          error
+        ) {
 
           registrarActividad(
             error?.message ||
@@ -2847,8 +3300,10 @@ if (
         botEngine
           .desactivarEjecucionDemo();
 
+
         derivConnection
           .desconectar();
+
 
         if (
           UI.derivToken
@@ -2858,6 +3313,7 @@ if (
             "";
 
         }
+
 
         renderEjecucionDemo();
 
@@ -2895,7 +3351,9 @@ derivConnection.on(
 
 window.addEventListener(
   "bot:error",
-  (evento) => {
+  (
+    evento
+  ) => {
 
     registrarActividad(
       evento.detail?.mensaje ||
@@ -2918,21 +3376,27 @@ window.addEventListener(
     botEngine
       .desactivarEjecucionDemo();
 
+
     if (
-      signalBridge.destruir
+      signalBridge
+        .destruir
     ) {
 
-      signalBridge.destruir();
+      signalBridge
+        .destruir();
 
     }
 
     else if (
-      signalBridge.desconectar
+      signalBridge
+        .desconectar
     ) {
 
-      signalBridge.desconectar();
+      signalBridge
+        .desconectar();
 
     }
+
 
     derivConnection
       .desconectar();
@@ -2942,7 +3406,7 @@ window.addEventListener(
 
 
 /* ==========================================
-   INICIO FIX13.1
+   INICIO FIX13.2
    ========================================== */
 
 if (
@@ -2957,17 +3421,22 @@ if (
 
 renderEjecucionDemo();
 
+
 actualizarTablaMercados();
+
 
 actualizarComparadores();
 
+
 actualizarPanelCalibracion();
+
 
 recuperarResultadoEngine();
 
 
 const estadoInicialMotor =
-  botEngine.obtenerEstado();
+  botEngine
+    .obtenerEstado();
 
 
 registrarActividad(
@@ -2984,34 +3453,39 @@ registrarActividad(
   }.`,
   estadoInicialMotor
       ?.versionTelemetria ===
-    "FIX13.1"
+    "FIX13.2"
     ? "correcto"
     : "aviso"
 );
 
 
 registrarActividad(
-  "FIX13.1 corrige Bridge→Proceso sin modificar el target."
+  "FIX13.1 Bridge→Proceso conservado."
 );
 
 
 registrarActividad(
-  "Telemetría histórica FIX8/FIX9/FIX10/FIX11/FIX12/FIX13 conservada."
+  "FIX13.2 analizador GANADAS vs PERDIDAS activado."
 );
 
 
 registrarActividad(
-  "Comparadores de timing FIX12/FIX13/FIX13.1 conservados."
+  "Filtro automático OFF: FIX13.2 solamente observa."
 );
 
 
 registrarActividad(
-  "Perfil de señal FIX13/FIX13.1 preparado para ganadas vs perdidas."
+  "Perfil: confianza, RSI, tendencia, momentum, volatilidad, dirección y último dígito."
 );
 
 
 registrarActividad(
-  "Calibración -0.3 s a +0.3 s conservada."
+  "Telemetría histórica FIX8/FIX9/FIX10/FIX11/FIX12/FIX13/FIX13.1 conservada."
+);
+
+
+registrarActividad(
+  "Calibración por mercado conservada."
 );
 
 
@@ -3027,5 +3501,5 @@ registrarActividad(
 
 /* ==========================================
    FIN BOT.JS
-   FIX13.1
+   FIX13.2
    ========================================== */
