@@ -1,33 +1,41 @@
 /* ==========================================
    BOT V1 MR
    BOT ENGINE
-   FIX11 - CALIBRACIÓN BIDIRECCIONAL
-   CORRECCIÓN DE EJECUCIÓN
+   FIX12 - TELEMETRÍA LIMPIA DE TIMING
 
-   FLUJO FIX11:
+   CONSERVA:
+   - FIX11 TARGET REAL
+   - DERIV DEMO
+   - COTIZACIÓN ANTES DEL BUY
+   - CALIBRACIÓN POR MERCADO
+   - HISTORIAL FIX8/FIX9/FIX10/FIX11
+   - ESTADÍSTICAS GANADAS / PERDIDAS
+   - 12 MERCADOS
 
-   1. Trading Analyzer envía señal anticipada
-   2. BOT recibe targetExecutionAt
-   3. BOT solicita cotización primero
-   4. BOT calcula target + calibración
-   5. BOT espera solamente el tiempo restante
-   6. BOT envía BUY
-   7. BOT mide desviación real
-   8. BOT espera resultado
+   FIX12 AGREGA:
 
-   CALIBRACIÓN:
-   -0.3 s
-   -0.2 s
-   -0.1 s
-    0.0 s
-   +0.1 s
-   +0.2 s
-   +0.3 s
+   - SEPARACIÓN REAL DE:
+     SEÑAL -> PROCESO
+     PROCESO -> COTIZACIÓN
+     COTIZACIÓN
+     ESPERA PROGRAMADA
+     COTIZACIÓN -> BUY
+     BUY -> CONFIRMACIÓN
+     DESVIACIÓN DEL TARGET
+
+   - CLASIFICACIÓN:
+     TIMING VÁLIDO
+     TIMING ANÓMALO
+
+   - LOS REGISTROS ANTIGUOS
+     SE CONSERVAN PARA ESTADÍSTICAS,
+     PERO NO CONTAMINAN EL NUEVO
+     COMPARADOR DE TIMING FIX12.
 
    IMPORTANTE:
-   - SOLO DEMO DURANTE CALIBRACIÓN
-   - CONSERVA DATOS FIX8/FIX9/FIX10
+   SOLO DEMO DURANTE CALIBRACIÓN
    ========================================== */
+
 
 import {
   contractMapper
@@ -51,9 +59,10 @@ import {
    ========================================== */
 
 /*
-  Conservamos esta misma clave
-  para mantener todas las pruebas
-  anteriores.
+  ESTA CLAVE NO CAMBIA.
+
+  Así conservamos TODO el historial
+  acumulado desde FIX8.
 */
 
 const TELEMETRY_KEY =
@@ -62,6 +71,44 @@ const TELEMETRY_KEY =
 
 const CALIBRATION_KEY =
   "BOT_V1_MR_FIX11_CALIBRATION";
+
+
+/* ==========================================
+   VERSIÓN DE TELEMETRÍA
+   ========================================== */
+
+const TELEMETRY_VERSION =
+  "FIX12";
+
+
+/* ==========================================
+   LÍMITES DE CONTROL FIX12
+
+   Estos límites NO deciden si una
+   operación gana o pierde.
+
+   Solamente determinan si una muestra
+   puede utilizarse para analizar timing.
+   ========================================== */
+
+const TIMING_LIMITS = {
+
+  bridgeToProcessMaxMs:
+    1000,
+
+  proposalMaxMs:
+    1500,
+
+  buyConfirmationMaxMs:
+    1500,
+
+  targetDeviationMaxAbsMs:
+    750,
+
+  waitOvershootMaxMs:
+    500
+
+};
 
 
 /* ==========================================
@@ -97,7 +144,7 @@ const MERCADOS_1S = [
 
 
 /* ==========================================
-   TODOS
+   TODOS LOS MERCADOS
    ========================================== */
 
 const MERCADOS_CONTROLADOS = [
@@ -110,7 +157,6 @@ const MERCADOS_CONTROLADOS = [
 
 /* ==========================================
    AJUSTES PERMITIDOS
-   MILISEGUNDOS
    ========================================== */
 
 const AJUSTES_PERMITIDOS_MS = [
@@ -192,7 +238,7 @@ class BotEngine {
       new Set();
 
     this.modo =
-      "DERIV DEMO + CALIBRADOR FIX11";
+      "DERIV DEMO + CALIBRADOR FIX12";
 
     this.ultimoContrato =
       null;
@@ -237,7 +283,7 @@ class BotEngine {
 
 
   /* ========================================
-     RELOJ ALTA PRECISIÓN
+     RELOJ DE ALTA PRECISIÓN
      ======================================== */
 
   ahora() {
@@ -335,6 +381,25 @@ class BotEngine {
 
 
   /* ========================================
+     VALORES NUMÉRICOS VÁLIDOS
+     ======================================== */
+
+  valoresValidos(
+    valores
+  ) {
+
+    return valores
+      .map(
+        Number
+      )
+      .filter(
+        Number.isFinite
+      );
+
+  }
+
+
+  /* ========================================
      PROMEDIO
      ======================================== */
 
@@ -343,13 +408,9 @@ class BotEngine {
   ) {
 
     const validos =
-      valores
-        .map(
-          Number
-        )
-        .filter(
-          Number.isFinite
-        );
+      this.valoresValidos(
+        valores
+      );
 
 
     if (
@@ -390,20 +451,16 @@ class BotEngine {
   ) {
 
     const validos =
-      valores
-        .map(
-          Number
-        )
-        .filter(
-          Number.isFinite
-        )
-        .sort(
-          (
-            a,
-            b
-          ) =>
-            a - b
-        );
+      this.valoresValidos(
+        valores
+      )
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          a - b
+      );
 
 
     if (
@@ -461,13 +518,9 @@ class BotEngine {
   ) {
 
     const validos =
-      valores
-        .map(
-          Number
-        )
-        .filter(
-          Number.isFinite
-        );
+      this.valoresValidos(
+        valores
+      );
 
 
     if (
@@ -497,13 +550,9 @@ class BotEngine {
   ) {
 
     const validos =
-      valores
-        .map(
-          Number
-        )
-        .filter(
-          Number.isFinite
-        );
+      this.valoresValidos(
+        valores
+      );
 
 
     if (
@@ -597,9 +646,10 @@ class BotEngine {
       );
 
 
-    return MERCADOS_CONTROLADOS.includes(
-      symbol
-    );
+    return MERCADOS_CONTROLADOS
+      .includes(
+        symbol
+      );
 
   }
 
@@ -680,9 +730,10 @@ class BotEngine {
 
 
         if (
-          AJUSTES_PERMITIDOS_MS.includes(
-            valor
-          )
+          AJUSTES_PERMITIDOS_MS
+            .includes(
+              valor
+            )
         ) {
 
           resultado[
@@ -760,9 +811,10 @@ class BotEngine {
 
 
     if (
-      AJUSTES_PERMITIDOS_MS.includes(
-        valor
-      )
+      AJUSTES_PERMITIDOS_MS
+        .includes(
+          valor
+        )
     ) {
 
       return valor;
@@ -816,9 +868,10 @@ class BotEngine {
 
 
     if (
-      !AJUSTES_PERMITIDOS_MS.includes(
-        valor
-      )
+      !AJUSTES_PERMITIDOS_MS
+        .includes(
+          valor
+        )
     ) {
 
       return {
@@ -900,7 +953,7 @@ class BotEngine {
 
 
   /* ========================================
-     TARGET DE LA SEÑAL
+     TARGET
      ======================================== */
 
   obtenerTargetExecutionAt(
@@ -1022,11 +1075,15 @@ class BotEngine {
       ajusteMs;
 
 
+    const ahoraEpoch =
+      Date.now();
+
+
     const esperaMs =
       Math.max(
         0,
         programmedAt -
-        Date.now()
+        ahoraEpoch
       );
 
 
@@ -1051,11 +1108,11 @@ class BotEngine {
 
       puedeAnticipar:
         programmedAt >
-        Date.now(),
+        ahoraEpoch,
 
       motivo:
         programmedAt >
-          Date.now()
+          ahoraEpoch
           ? "Programación válida."
           : "El instante programado ya ocurrió."
 
@@ -1152,14 +1209,16 @@ class BotEngine {
 
   activarEjecucionDemo() {
 
-    return derivTrade.activar();
+    return derivTrade
+      .activar();
 
   }
 
 
   desactivarEjecucionDemo() {
 
-    return derivTrade.desactivar();
+    return derivTrade
+      .desactivar();
 
   }
 
@@ -1211,7 +1270,7 @@ class BotEngine {
 
 
   /* ========================================
-     CREAR TELEMETRÍA
+     CREAR TELEMETRÍA FIX12
      ======================================== */
 
   crearTelemetria(
@@ -1219,8 +1278,12 @@ class BotEngine {
     senalRecibidaPerf = null
   ) {
 
-    const ahora =
+    const ahoraPerf =
       this.ahora();
+
+
+    const ahoraEpoch =
+      Date.now();
 
 
     const mercado =
@@ -1256,7 +1319,7 @@ class BotEngine {
         )}`,
 
       version:
-        "FIX11",
+        TELEMETRY_VERSION,
 
       signalId:
         senal?.id ??
@@ -1301,7 +1364,7 @@ class BotEngine {
 
 
       /* ====================================
-         CALIBRACIÓN FIX11
+         CALIBRACIÓN
          ==================================== */
 
       calibracionMs:
@@ -1322,6 +1385,10 @@ class BotEngine {
         programacion
           .disponible,
 
+      esperaProgramadaInicialMs:
+        programacion
+          .esperaMs,
+
       esperaProgramadaMs:
         programacion
           .esperaMs,
@@ -1336,7 +1403,42 @@ class BotEngine {
 
 
       /* ====================================
-         RELOJES
+         EPOCH
+         ==================================== */
+
+      signalReceivedEpoch:
+        Number(
+          senal?.timestamp
+        ) ||
+        null,
+
+      processStartedEpoch:
+        ahoraEpoch,
+
+      proposalRequestedEpoch:
+        null,
+
+      proposalReceivedEpoch:
+        null,
+
+      waitStartedEpoch:
+        null,
+
+      waitEndedEpoch:
+        null,
+
+      buyRequestedEpoch:
+        null,
+
+      buyConfirmedEpoch:
+        null,
+
+      resultReceivedEpoch:
+        null,
+
+
+      /* ====================================
+         PERFORMANCE
          ==================================== */
 
       modo:
@@ -1352,10 +1454,10 @@ class BotEngine {
           ? Number(
               senalRecibidaPerf
             )
-          : ahora,
+          : ahoraPerf,
 
       processStartedPerf:
-        ahora,
+        ahoraPerf,
 
       proposalRequestedPerf:
         null,
@@ -1380,16 +1482,31 @@ class BotEngine {
 
 
       /* ====================================
-         MÉTRICAS
+         MÉTRICAS FIX12
          ==================================== */
 
       bridgeToProcessMs:
+        null,
+
+      signalToProposalRequestMs:
+        null,
+
+      signalToProposalReceivedMs:
+        null,
+
+      processToProposalRequestMs:
         null,
 
       proposalLatencyMs:
         null,
 
       calibrationWaitActualMs:
+        null,
+
+      calibrationWaitOvershootMs:
+        null,
+
+      proposalToBuyMs:
         null,
 
       processToBuyMs:
@@ -1412,6 +1529,23 @@ class BotEngine {
 
       totalUntilResultMs:
         null,
+
+
+      /* ====================================
+         CONTROL DE CALIDAD TIMING
+         ==================================== */
+
+      timingValido:
+        false,
+
+      timingClasificacion:
+        "PENDIENTE",
+
+      timingAnomalias:
+        [],
+
+      usableForTimingComparator:
+        false,
 
 
       /* ====================================
@@ -1466,6 +1600,60 @@ class BotEngine {
 
     if (
       Number.isFinite(
+        t.signalReceivedPerf
+      ) &&
+      Number.isFinite(
+        t.proposalRequestedPerf
+      )
+    ) {
+
+      t.signalToProposalRequestMs =
+        this.redondear(
+          t.proposalRequestedPerf -
+          t.signalReceivedPerf
+        );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        t.signalReceivedPerf
+      ) &&
+      Number.isFinite(
+        t.proposalReceivedPerf
+      )
+    ) {
+
+      t.signalToProposalReceivedMs =
+        this.redondear(
+          t.proposalReceivedPerf -
+          t.signalReceivedPerf
+        );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        t.processStartedPerf
+      ) &&
+      Number.isFinite(
+        t.proposalRequestedPerf
+      )
+    ) {
+
+      t.processToProposalRequestMs =
+        this.redondear(
+          t.proposalRequestedPerf -
+          t.processStartedPerf
+        );
+
+    }
+
+
+    if (
+      Number.isFinite(
         t.proposalRequestedPerf
       ) &&
       Number.isFinite(
@@ -1495,6 +1683,42 @@ class BotEngine {
         this.redondear(
           t.calibrationWaitEndedPerf -
           t.calibrationWaitStartedPerf
+        );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        t.calibrationWaitActualMs
+      ) &&
+      Number.isFinite(
+        t.esperaProgramadaMs
+      )
+    ) {
+
+      t.calibrationWaitOvershootMs =
+        this.redondear(
+          t.calibrationWaitActualMs -
+          t.esperaProgramadaMs
+        );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        t.proposalReceivedPerf
+      ) &&
+      Number.isFinite(
+        t.buyRequestedPerf
+      )
+    ) {
+
+      t.proposalToBuyMs =
+        this.redondear(
+          t.buyRequestedPerf -
+          t.proposalReceivedPerf
         );
 
     }
@@ -1590,6 +1814,225 @@ class BotEngine {
     }
 
 
+    this.clasificarTiming(
+      t
+    );
+
+
+    return t;
+
+  }
+
+
+  /* ========================================
+     CLASIFICAR TIMING FIX12
+     ======================================== */
+
+  clasificarTiming(
+    t
+  ) {
+
+    const anomalias =
+      [];
+
+
+    /*
+      Solo FIX12 puede participar
+      automáticamente en el nuevo
+      comparador limpio.
+    */
+
+    if (
+      t.version !==
+      TELEMETRY_VERSION
+    ) {
+
+      t.timingValido =
+        false;
+
+      t.timingClasificacion =
+        "LEGACY";
+
+      t.timingAnomalias =
+        [
+          "Registro anterior a FIX12."
+        ];
+
+      t.usableForTimingComparator =
+        false;
+
+      return t;
+
+    }
+
+
+    if (
+      !t.programacionDisponible
+    ) {
+
+      anomalias.push(
+        "Sin targetExecutionAt."
+      );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        t.bridgeToProcessMs
+      ) &&
+      t.bridgeToProcessMs >
+        TIMING_LIMITS
+          .bridgeToProcessMaxMs
+    ) {
+
+      anomalias.push(
+        `Bridge→Proceso alto: ${t.bridgeToProcessMs} ms`
+      );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        t.proposalLatencyMs
+      ) &&
+      (
+        t.proposalLatencyMs <
+          0 ||
+        t.proposalLatencyMs >
+          TIMING_LIMITS
+            .proposalMaxMs
+      )
+    ) {
+
+      anomalias.push(
+        `Cotización anómala: ${t.proposalLatencyMs} ms`
+      );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        t.buyLatencyMs
+      ) &&
+      (
+        t.buyLatencyMs <
+          0 ||
+        t.buyLatencyMs >
+          TIMING_LIMITS
+            .buyConfirmationMaxMs
+      )
+    ) {
+
+      anomalias.push(
+        `BUY→confirmación anómalo: ${t.buyLatencyMs} ms`
+      );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        t.buyTargetDeviationMs
+      ) &&
+      Math.abs(
+        t.buyTargetDeviationMs
+      ) >
+        TIMING_LIMITS
+          .targetDeviationMaxAbsMs
+    ) {
+
+      anomalias.push(
+        `Desviación target alta: ${t.buyTargetDeviationMs} ms`
+      );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        t.calibrationWaitOvershootMs
+      ) &&
+      Math.abs(
+        t.calibrationWaitOvershootMs
+      ) >
+        TIMING_LIMITS
+          .waitOvershootMaxMs
+    ) {
+
+      anomalias.push(
+        `Espera excedida: ${t.calibrationWaitOvershootMs} ms`
+      );
+
+    }
+
+
+    if (
+      !Number.isFinite(
+        t.proposalLatencyMs
+      )
+    ) {
+
+      anomalias.push(
+        "Cotización sin medición."
+      );
+
+    }
+
+
+    if (
+      !Number.isFinite(
+        t.buyTargetDeviationMs
+      )
+    ) {
+
+      anomalias.push(
+        "Desviación target sin medición."
+      );
+
+    }
+
+
+    if (
+      !Number.isFinite(
+        t.buyLatencyMs
+      )
+    ) {
+
+      anomalias.push(
+        "BUY sin confirmación medible."
+      );
+
+    }
+
+
+    t.timingAnomalias =
+      anomalias;
+
+
+    t.timingValido =
+      anomalias.length ===
+      0;
+
+
+    t.timingClasificacion =
+      t.timingValido
+        ? "VALIDO"
+        : "ANOMALO";
+
+
+    t.usableForTimingComparator =
+      t.timingValido &&
+      (
+        t.resultado ===
+          "GANADA" ||
+        t.resultado ===
+          "PERDIDA"
+      );
+
+
     return t;
 
   }
@@ -1627,6 +2070,10 @@ class BotEngine {
 
   }
 
+
+  /* ========================================
+     GUARDAR TELEMETRÍA
+     ======================================== */
 
   guardarTelemetria(
     telemetria
@@ -1680,7 +2127,7 @@ class BotEngine {
     ) {
 
       console.warn(
-        "No se pudo guardar telemetría FIX11:",
+        "No se pudo guardar telemetría FIX12:",
         error
       );
 
@@ -1790,6 +2237,27 @@ class BotEngine {
 
 
   /* ========================================
+     SOLO TIMING FIX12 VÁLIDO
+     ======================================== */
+
+  filtrarTimingValido(
+    datos
+  ) {
+
+    return datos.filter(
+      (item) =>
+        item?.version ===
+          TELEMETRY_VERSION &&
+        item?.timingValido ===
+          true &&
+        item?.usableForTimingComparator ===
+          true
+    );
+
+  }
+
+
+  /* ========================================
      MÉTRICAS DE GRUPO
      ======================================== */
 
@@ -1811,6 +2279,27 @@ class BotEngine {
       );
 
 
+    const proposalBuy =
+      datos.map(
+        (item) =>
+          item.proposalToBuyMs
+      );
+
+
+    const espera =
+      datos.map(
+        (item) =>
+          item.calibrationWaitActualMs
+      );
+
+
+    const excesoEspera =
+      datos.map(
+        (item) =>
+          item.calibrationWaitOvershootMs
+      );
+
+
     const buy =
       datos.map(
         (item) =>
@@ -1829,6 +2318,13 @@ class BotEngine {
       datos.map(
         (item) =>
           item.buyTargetDeviationMs
+      );
+
+
+    const desviacionConfirmacion =
+      datos.map(
+        (item) =>
+          item.buyConfirmTargetDeviationMs
       );
 
 
@@ -1867,8 +2363,38 @@ class BotEngine {
           proposal
         ),
 
+      promedioProposalToBuyMs:
+        this.promedio(
+          proposalBuy
+        ),
+
+      medianaProposalToBuyMs:
+        this.mediana(
+          proposalBuy
+        ),
+
+      promedioEsperaMs:
+        this.promedio(
+          espera
+        ),
+
+      medianaEsperaMs:
+        this.mediana(
+          espera
+        ),
+
+      promedioExcesoEsperaMs:
+        this.promedio(
+          excesoEspera
+        ),
+
       promedioBuyMs:
         this.promedio(
+          buy
+        ),
+
+      medianaBuyMs:
+        this.mediana(
           buy
         ),
 
@@ -1885,6 +2411,21 @@ class BotEngine {
       medianaDesviacionTargetMs:
         this.mediana(
           desviacionTarget
+        ),
+
+      minimoDesviacionTargetMs:
+        this.minimo(
+          desviacionTarget
+        ),
+
+      maximoDesviacionTargetMs:
+        this.maximo(
+          desviacionTarget
+        ),
+
+      promedioDesviacionConfirmacionMs:
+        this.promedio(
+          desviacionConfirmacion
         )
 
     };
@@ -1893,12 +2434,17 @@ class BotEngine {
 
 
   /* ========================================
-     COMPARADOR TIMING
+     COMPARADOR TIMING FIX12
      ======================================== */
 
   construirComparadorTiming(
     datos
   ) {
+
+    /*
+      GANADAS/PERDIDAS DEL HISTORIAL
+      COMPLETO.
+    */
 
     const finalizadas =
       datos.filter(
@@ -1910,8 +2456,20 @@ class BotEngine {
       );
 
 
+    /*
+      PERO EL TIMING SE CALCULA
+      ÚNICAMENTE CON MUESTRAS FIX12
+      VÁLIDAS.
+    */
+
+    const timingValido =
+      this.filtrarTimingValido(
+        finalizadas
+      );
+
+
     const ganadas =
-      finalizadas.filter(
+      timingValido.filter(
         (item) =>
           item.resultado ===
             "GANADA"
@@ -1919,7 +2477,7 @@ class BotEngine {
 
 
     const perdidas =
-      finalizadas.filter(
+      timingValido.filter(
         (item) =>
           item.resultado ===
             "PERDIDA"
@@ -1943,6 +2501,10 @@ class BotEngine {
 
 
     let diferenciaMedianaMs =
+      null;
+
+
+    let diferenciaTargetMedianaMs =
       null;
 
 
@@ -1986,39 +2548,102 @@ class BotEngine {
     }
 
 
-    let lectura =
-      "DATOS INSUFICIENTES";
-
-
     if (
-      diferenciaMedianaMs !==
+      metricasGanadas
+        .medianaDesviacionTargetMs !==
+        null &&
+      metricasPerdidas
+        .medianaDesviacionTargetMs !==
         null
     ) {
 
+      diferenciaTargetMedianaMs =
+        this.redondear(
+          metricasPerdidas
+            .medianaDesviacionTargetMs -
+          metricasGanadas
+            .medianaDesviacionTargetMs
+        );
+
+    }
+
+
+    let lectura =
+      "ESPERANDO MUESTRAS FIX12";
+
+
+    if (
+      ganadas.length >=
+        3 &&
+      perdidas.length >=
+        3
+    ) {
+
       if (
-        diferenciaMedianaMs >
-        20
+        diferenciaTargetMedianaMs !==
+          null
       ) {
 
-        lectura =
-          "GANADAS ENTRAN MÁS RÁPIDO";
+        if (
+          diferenciaTargetMedianaMs >
+          40
+        ) {
+
+          lectura =
+            "GANADAS MÁS CERCA DEL TARGET TEMPRANO";
+
+        }
+
+        else if (
+          diferenciaTargetMedianaMs <
+          -40
+        ) {
+
+          lectura =
+            "GANADAS MÁS CERCA DEL TARGET TARDÍO";
+
+        }
+
+        else {
+
+          lectura =
+            "TARGET MUY SIMILAR";
+
+        }
 
       }
 
       else if (
-        diferenciaMedianaMs <
-        -20
+        diferenciaMedianaMs !==
+          null
       ) {
 
-        lectura =
-          "GANADAS ENTRAN MÁS TARDE";
+        if (
+          diferenciaMedianaMs >
+          40
+        ) {
 
-      }
+          lectura =
+            "GANADAS ENTRAN MÁS RÁPIDO";
 
-      else {
+        }
 
-        lectura =
-          "TIMING MUY SIMILAR";
+        else if (
+          diferenciaMedianaMs <
+          -40
+        ) {
+
+          lectura =
+            "GANADAS ENTRAN MÁS TARDE";
+
+        }
+
+        else {
+
+          lectura =
+            "TIMING MUY SIMILAR";
+
+        }
 
       }
 
@@ -2027,8 +2652,15 @@ class BotEngine {
 
     return {
 
-      total:
+      totalHistorico:
         finalizadas.length,
+
+      totalTimingValido:
+        timingValido.length,
+
+      totalTimingDescartado:
+        finalizadas.length -
+        timingValido.length,
 
       ganadas:
         metricasGanadas,
@@ -2039,6 +2671,8 @@ class BotEngine {
       diferenciaPromedioMs,
 
       diferenciaMedianaMs,
+
+      diferenciaTargetMedianaMs,
 
       lectura
 
@@ -2074,6 +2708,12 @@ class BotEngine {
             "GANADA" ||
           item.resultado ===
             "PERDIDA"
+      );
+
+
+    const timingValido =
+      this.filtrarTimingValido(
+        finalizadas
       );
 
 
@@ -2144,9 +2784,16 @@ class BotEngine {
 
       accuracy,
 
+      muestrasTimingFix12:
+        timingValido.length,
+
+      muestrasTimingDescartadas:
+        finalizadas.length -
+        timingValido.length,
+
       promedioSignalToBuyMs:
         this.promedio(
-          finalizadas.map(
+          timingValido.map(
             (item) =>
               item.signalToBuyMs
           )
@@ -2154,7 +2801,7 @@ class BotEngine {
 
       medianaSignalToBuyMs:
         this.mediana(
-          finalizadas.map(
+          timingValido.map(
             (item) =>
               item.signalToBuyMs
           )
@@ -2162,15 +2809,31 @@ class BotEngine {
 
       promedioProposalMs:
         this.promedio(
-          finalizadas.map(
+          timingValido.map(
             (item) =>
               item.proposalLatencyMs
           )
         ),
 
+      promedioProposalToBuyMs:
+        this.promedio(
+          timingValido.map(
+            (item) =>
+              item.proposalToBuyMs
+          )
+        ),
+
+      promedioEsperaMs:
+        this.promedio(
+          timingValido.map(
+            (item) =>
+              item.calibrationWaitActualMs
+          )
+        ),
+
       promedioBuyMs:
         this.promedio(
-          finalizadas.map(
+          timingValido.map(
             (item) =>
               item.buyLatencyMs
           )
@@ -2178,7 +2841,7 @@ class BotEngine {
 
       promedioDesviacionTargetMs:
         this.promedio(
-          finalizadas.map(
+          timingValido.map(
             (item) =>
               item.buyTargetDeviationMs
           )
@@ -2186,7 +2849,7 @@ class BotEngine {
 
       medianaDesviacionTargetMs:
         this.mediana(
-          finalizadas.map(
+          timingValido.map(
             (item) =>
               item.buyTargetDeviationMs
           )
@@ -2261,6 +2924,12 @@ class BotEngine {
       );
 
 
+    const timingValido =
+      this.filtrarTimingValido(
+        finalizadas
+      );
+
+
     const ganadas =
       finalizadas.filter(
         (item) =>
@@ -2307,9 +2976,12 @@ class BotEngine {
             )
           : null,
 
+      muestrasTimingFix12:
+        timingValido.length,
+
       promedioSignalToBuyMs:
         this.promedio(
-          finalizadas.map(
+          timingValido.map(
             (item) =>
               item.signalToBuyMs
           )
@@ -2317,9 +2989,17 @@ class BotEngine {
 
       medianaSignalToBuyMs:
         this.mediana(
-          finalizadas.map(
+          timingValido.map(
             (item) =>
               item.signalToBuyMs
+          )
+        ),
+
+      promedioDesviacionTargetMs:
+        this.promedio(
+          timingValido.map(
+            (item) =>
+              item.buyTargetDeviationMs
           )
         )
 
@@ -2359,6 +3039,12 @@ class BotEngine {
       calibracionActualMs:
         resumen.calibracionActualMs,
 
+      muestrasTimingFix12:
+        resumen.muestrasTimingFix12,
+
+      muestrasTimingDescartadas:
+        resumen.muestrasTimingDescartadas,
+
       ganadas:
         resumen
           .comparadorTiming
@@ -2379,6 +3065,11 @@ class BotEngine {
           .comparadorTiming
           .diferenciaMedianaMs,
 
+      diferenciaTargetMedianaMs:
+        resumen
+          .comparadorTiming
+          .diferenciaTargetMedianaMs,
+
       lectura:
         resumen
           .comparadorTiming
@@ -2390,7 +3081,7 @@ class BotEngine {
 
 
   /* ========================================
-     RESUMEN DE CALIBRACIÓN
+     RESUMEN CALIBRACIÓN
      ======================================== */
 
   obtenerResumenCalibracion(
@@ -2425,6 +3116,12 @@ class BotEngine {
               item.resultado ===
                 "PERDIDA"
           );
+
+
+      const timingValido =
+        this.filtrarTimingValido(
+          datos
+        );
 
 
       const ganadas =
@@ -2478,9 +3175,12 @@ class BotEngine {
               )
             : null,
 
+        muestrasTimingFix12:
+          timingValido.length,
+
         promedioSignalToBuyMs:
           this.promedio(
-            datos.map(
+            timingValido.map(
               (item) =>
                 item.signalToBuyMs
             )
@@ -2488,15 +3188,39 @@ class BotEngine {
 
         medianaSignalToBuyMs:
           this.mediana(
-            datos.map(
+            timingValido.map(
               (item) =>
                 item.signalToBuyMs
             )
           ),
 
+        promedioProposalMs:
+          this.promedio(
+            timingValido.map(
+              (item) =>
+                item.proposalLatencyMs
+            )
+          ),
+
+        promedioBuyMs:
+          this.promedio(
+            timingValido.map(
+              (item) =>
+                item.buyLatencyMs
+            )
+          ),
+
         promedioDesviacionTargetMs:
           this.promedio(
-            datos.map(
+            timingValido.map(
+              (item) =>
+                item.buyTargetDeviationMs
+            )
+          ),
+
+        medianaDesviacionTargetMs:
+          this.mediana(
+            timingValido.map(
               (item) =>
                 item.buyTargetDeviationMs
             )
@@ -2526,7 +3250,7 @@ class BotEngine {
 
 
   /* ========================================
-     PROCESAR SEÑAL FIX11
+     PROCESAR SEÑAL FIX12
      ======================================== */
 
   async procesarSenal(
@@ -2713,11 +3437,12 @@ class BotEngine {
 
 
       /* ====================================
-         3. COTIZACIÓN PRIMERO
-
-         FIX11:
-         YA NO ESPERAMOS ANTES.
+         3. SOLICITAR COTIZACIÓN
          ==================================== */
+
+      telemetria.proposalRequestedEpoch =
+        Date.now();
+
 
       telemetria.proposalRequestedPerf =
         this.ahora();
@@ -2744,6 +3469,10 @@ class BotEngine {
         );
 
 
+      telemetria.proposalReceivedEpoch =
+        Date.now();
+
+
       telemetria.proposalReceivedPerf =
         this.ahora();
 
@@ -2767,7 +3496,7 @@ class BotEngine {
 
 
       /* ====================================
-         SI COTIZACIÓN FALLÓ
+         PROPUESTA RECHAZADA
          ==================================== */
 
       if (
@@ -2876,15 +3605,12 @@ class BotEngine {
 
 
       /* ====================================
-         4. RECALCULAR ESPERA
+         4. CALCULAR ESPERA RESTANTE
 
-         MUY IMPORTANTE:
-
-         Ya pasó el tiempo de cotización,
-         por lo tanto debemos calcular
-         nuevamente cuánto falta para:
-
-         targetExecutionAt + calibracionMs
+         FIX12:
+         aquí queda claramente separada
+         la latencia de cotización de la
+         espera hasta el target.
          ==================================== */
 
       if (
@@ -2916,6 +3642,10 @@ class BotEngine {
           0
         ) {
 
+          telemetria.waitStartedEpoch =
+            Date.now();
+
+
           telemetria
             .calibrationWaitStartedPerf =
             this.ahora();
@@ -2926,9 +3656,35 @@ class BotEngine {
           );
 
 
+          telemetria.waitEndedEpoch =
+            Date.now();
+
+
           telemetria
             .calibrationWaitEndedPerf =
             this.ahora();
+
+        }
+
+        else {
+
+          telemetria.waitStartedEpoch =
+            Date.now();
+
+
+          telemetria.waitEndedEpoch =
+            Date.now();
+
+
+          telemetria
+            .calibrationWaitStartedPerf =
+            this.ahora();
+
+
+          telemetria
+            .calibrationWaitEndedPerf =
+            telemetria
+              .calibrationWaitStartedPerf;
 
         }
 
@@ -2936,7 +3692,7 @@ class BotEngine {
 
 
       /* ====================================
-         5. BUY EN EL INSTANTE PROGRAMADO
+         5. BUY
          ==================================== */
 
       if (
@@ -2945,16 +3701,12 @@ class BotEngine {
           .ejecucionActiva
       ) {
 
-        /*
-          Guardamos el reloj absoluto
-          justo antes de mandar BUY.
-
-          Esto permite medir qué tan cerca
-          estuvimos realmente del target.
-        */
-
         const buyRequestedAt =
           Date.now();
+
+
+        telemetria.buyRequestedEpoch =
+          buyRequestedAt;
 
 
         telemetria.buyRequestedPerf =
@@ -2988,6 +3740,10 @@ class BotEngine {
           Date.now();
 
 
+        telemetria.buyConfirmedEpoch =
+          buyConfirmedAt;
+
+
         telemetria.buyConfirmedPerf =
           this.ahora();
 
@@ -2999,7 +3755,8 @@ class BotEngine {
           )
         ) {
 
-          telemetria.buyConfirmTargetDeviationMs =
+          telemetria
+            .buyConfirmTargetDeviationMs =
             this.redondear(
               buyConfirmedAt -
               telemetria
@@ -3043,6 +3800,10 @@ class BotEngine {
 
               }
             );
+
+
+          telemetria.resultReceivedEpoch =
+            Date.now();
 
 
           telemetria.resultReceivedPerf =
@@ -3134,7 +3895,7 @@ class BotEngine {
 
 
       /* ====================================
-         GUARDAR TELEMETRÍA
+         GUARDAR
          ==================================== */
 
       this.guardarTelemetria(
@@ -3196,6 +3957,23 @@ class BotEngine {
         buyTargetDeviationMs:
           telemetria
             .buyTargetDeviationMs,
+
+        timingValido:
+          telemetria
+            .timingValido,
+
+        timingClasificacion:
+          telemetria
+            .timingClasificacion,
+
+        timingAnomalias:
+          [
+            ...(
+              telemetria
+                .timingAnomalias ||
+              []
+            )
+          ],
 
         contrato,
 
@@ -3313,6 +4091,14 @@ class BotEngine {
 
       modo:
         this.modo,
+
+      versionTelemetria:
+        TELEMETRY_VERSION,
+
+      limitesTiming:
+        {
+          ...TIMING_LIMITS
+        },
 
       ultimaSenalProcesada:
         this.ultimaSenalProcesada,
