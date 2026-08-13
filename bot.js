@@ -1,36 +1,46 @@
 /* ==========================================
    BOT V1 MR
    BOT.JS
-   FIX11 - BRIDGE CACHE FIX
+   FIX12 - TELEMETRÍA LIMPIA
 
    CONSERVA:
-   - PUENTE
+   - PUENTE TRADING ANALYZER -> BOT
    - DERIV DEMO
    - COTIZACIÓN
    - BUY
    - RESULTADO FINAL
    - 12 MERCADOS
-   - ESTADÍSTICAS
+   - ESTADÍSTICAS HISTÓRICAS
    - COMPARADORES
-   - TELEMETRÍA
    - CALIBRACIÓN POR MERCADO
+   - DATOS FIX8/FIX9/FIX10/FIX11
 
-   AGREGA:
-   - CARGA FORZADA SIGNAL-BRIDGE FIX11
-   - DIAGNÓSTICO VISIBLE DE RECEPCIÓN
+   FIX12:
+   - CARGA FORZADA BOT-ENGINE FIX12
+   - CARGA FORZADA SIGNAL-BRIDGE
+   - TIMING LIMPIO
+   - TIMING VÁLIDO / ANÓMALO
+   - DIAGNÓSTICO DE TARGET
    ========================================== */
 
 import {
   signalBridge
-} from "./signal-bridge.js?v=FIX11-BRIDGE-2";
+} from "./signal-bridge.js?v=FIX12-BRIDGE-1";
 
 import {
   botEngine
-} from "./bot-engine.js";
+} from "./bot-engine.js?v=FIX12-TIMING-1";
 
 import {
   derivConnection
 } from "./deriv-connection.js";
+
+
+const BOT_VERSION =
+  "FIX12";
+
+const BOT_BUILD =
+  "TIMING-1";
 
 
 const $ =
@@ -288,7 +298,7 @@ const FILAS_MERCADO = {
 
 
 /* ==========================================
-   COMPARADORES
+   COMPARADORES PILOTO
    ========================================== */
 
 const COMPARADORES = {
@@ -396,13 +406,16 @@ const COMPARADORES = {
 function ahoraPreciso() {
 
   if (
-    typeof performance !== "undefined" &&
-    typeof performance.now === "function"
+    typeof performance !==
+      "undefined" &&
+    typeof performance.now ===
+      "function"
   ) {
 
     return performance.now();
 
   }
+
 
   return Date.now();
 
@@ -485,17 +498,12 @@ function formatoSegundosDesdeMs(
     1000;
 
 
-  if (
+  return `${
     segundos >
-    0
-  ) {
-
-    return `+${segundos.toFixed(1)} s`;
-
-  }
-
-
-  return `${segundos.toFixed(1)} s`;
+      0
+      ? "+"
+      : ""
+  }${segundos.toFixed(1)} s`;
 
 }
 
@@ -555,7 +563,8 @@ function registrarActividad(
 
 
   if (
-    tipo === "correcto"
+    tipo ===
+      "correcto"
   ) {
 
     linea.style.color =
@@ -565,7 +574,8 @@ function registrarActividad(
 
 
   if (
-    tipo === "aviso"
+    tipo ===
+      "aviso"
   ) {
 
     linea.style.color =
@@ -575,7 +585,8 @@ function registrarActividad(
 
 
   if (
-    tipo === "error"
+    tipo ===
+      "error"
   ) {
 
     linea.style.color =
@@ -592,7 +603,7 @@ function registrarActividad(
 
 
 /* ==========================================
-   DIAGNÓSTICO DEL PUENTE FIX11
+   DIAGNÓSTICO PUENTE
    ========================================== */
 
 window.addEventListener(
@@ -611,24 +622,14 @@ window.addEventListener(
       "desconocido";
 
 
-    const target =
-      Number(
-        datos.targetExecutionAt
-      );
-
-
     registrarActividad(
-      `PUENTE FIX11 RECIBIÓ SEÑAL · ${origen} · target ${
-        Number.isFinite(target)
-          ? "SÍ"
-          : "NO"
-      }`,
+      `PUENTE ${BOT_VERSION} RECIBIÓ SEÑAL · ${origen}`,
       "correcto"
     );
 
 
     console.log(
-      "BOT FIX11 · SEÑAL DETECTADA",
+      `BOT ${BOT_VERSION} · SEÑAL DETECTADA`,
       datos
     );
 
@@ -666,9 +667,7 @@ function actualizarPanelCalibracion() {
     Number(
       estado
         ?.calibracionActual
-        ?.[
-          mercado
-        ] ??
+        ?.[mercado] ??
       0
     );
 
@@ -710,7 +709,7 @@ function actualizarPanelCalibracion() {
 
 
 /* ==========================================
-   CAMBIAR MERCADO DE CALIBRACIÓN
+   CAMBIO DE MERCADO CALIBRACIÓN
    ========================================== */
 
 if (
@@ -900,6 +899,13 @@ function mostrarSenal(
   }
 
 
+  const target =
+    senal.targetExecutionAt ??
+    senal.metadata
+      ?.targetExecutionAt ??
+    null;
+
+
   if (
     UI.ultimaSenal
   ) {
@@ -947,12 +953,7 @@ function mostrarSenal(
       <br>
 
       <strong>Target:</strong>
-      ${
-        senal.targetExecutionAt ??
-        senal.metadata
-          ?.targetExecutionAt ??
-        "NO DISPONIBLE"
-      }
+      ${target ?? "NO DISPONIBLE"}
 
     `;
 
@@ -1430,7 +1431,7 @@ function recuperarResultadoEngine() {
 
 
 /* ==========================================
-   TELEMETRÍA FIX11
+   TELEMETRÍA FIX12
    ========================================== */
 
 function mostrarTelemetria(
@@ -1571,6 +1572,81 @@ function mostrarTelemetria(
 
 
 /* ==========================================
+   DIAGNÓSTICO TIMING FIX12
+   ========================================== */
+
+function registrarDiagnosticoTiming(
+  telemetria
+) {
+
+  if (
+    !telemetria
+  ) {
+
+    return;
+
+  }
+
+
+  const version =
+    telemetria.version ||
+    "SIN VERSION";
+
+
+  const clasificacion =
+    telemetria.timingClasificacion ||
+    "PENDIENTE";
+
+
+  const desviacion =
+    telemetria.buyTargetDeviationMs;
+
+
+  registrarActividad(
+    `TELEMETRÍA ${version} · ${
+      telemetria.mercado ||
+      "--"
+    } · TIMING ${clasificacion} · desviación target ${
+      formatoMs(
+        desviacion
+      )
+    }`,
+    telemetria.timingValido
+      ? "correcto"
+      : "aviso"
+  );
+
+
+  if (
+    Array.isArray(
+      telemetria.timingAnomalias
+    ) &&
+    telemetria
+      .timingAnomalias
+      .length
+  ) {
+
+    telemetria
+      .timingAnomalias
+      .forEach(
+        (
+          anomalia
+        ) => {
+
+          registrarActividad(
+            `TIMING → ${anomalia}`,
+            "aviso"
+          );
+
+        }
+      );
+
+  }
+
+}
+
+
+/* ==========================================
    TABLAS
    ========================================== */
 
@@ -1644,6 +1720,13 @@ function renderFilaMercado(
     fila.latencia
   ) {
 
+    /*
+      FIX12:
+      Este valor ahora representa
+      únicamente las muestras de timing
+      FIX12 consideradas válidas.
+    */
+
     fila.latencia.textContent =
       formatoMs(
         resumen.promedioSignalToBuyMs
@@ -1683,7 +1766,7 @@ function actualizarTablaMercados() {
 
 
 /* ==========================================
-   COMPARADORES
+   COMPARADORES FIX12
    ========================================== */
 
 function renderComparador(
@@ -1863,6 +1946,12 @@ function renderComparador(
     ui.diferencia
   ) {
 
+    /*
+      Conservamos este campo visual.
+
+      FIX12 prioriza el comparador limpio.
+    */
+
     ui.diferencia.textContent =
       formatoMs(
         comparacion
@@ -1876,9 +1965,19 @@ function renderComparador(
     ui.lectura
   ) {
 
+    const muestras =
+      Number(
+        comparacion
+          .muestrasTimingFix12 ??
+        0
+      );
+
+
     ui.lectura.textContent =
-      comparacion.lectura ||
-      "DATOS INSUFICIENTES";
+      muestras >
+        0
+        ? `${comparacion.lectura || "ESPERANDO DATOS"} · FIX12 ${muestras} muestras`
+        : "ESPERANDO MUESTRAS FIX12";
 
   }
 
@@ -2000,8 +2099,24 @@ signalBridge.onSenal(
     senal
   ) => {
 
+    const target =
+      Number(
+        senal
+          ?.targetExecutionAt ??
+        senal
+          ?.metadata
+          ?.targetExecutionAt
+      );
+
+
     registrarActividad(
-      `SEÑAL RECIBIDA → ${senal.mercado} · ${senal.direccion}`,
+      `SEÑAL RECIBIDA → ${senal.mercado} · ${senal.direccion} · TARGET ${
+        Number.isFinite(
+          target
+        )
+          ? "SÍ"
+          : "NO"
+      }`,
       "correcto"
     );
 
@@ -2045,7 +2160,7 @@ signalBridge.onSenal(
 
 
     registrarActividad(
-      "Procesando señal FIX11...",
+      `Procesando señal ${BOT_VERSION}...`,
       "aviso"
     );
 
@@ -2142,6 +2257,11 @@ signalBridge.onSenal(
       );
 
 
+      registrarDiagnosticoTiming(
+        resultado.telemetria
+      );
+
+
       actualizarTablaMercados();
 
 
@@ -2152,7 +2272,7 @@ signalBridge.onSenal(
 
 
       registrarActividad(
-        `FIX11 · ${senal.mercado} · target ${
+        `${BOT_VERSION} · ${senal.mercado} · target ${
           resultado.programacionDisponible
             ? "SÍ"
             : "NO"
@@ -2195,7 +2315,7 @@ signalBridge.onSenal(
     ) {
 
       registrarActividad(
-        `Error procesando señal FIX11: ${
+        `Error procesando señal ${BOT_VERSION}: ${
           error?.message ||
           String(
             error
@@ -2211,7 +2331,7 @@ signalBridge.onSenal(
 
 
 /* ==========================================
-   PUENTE
+   ESTADO PUENTE
    ========================================== */
 
 window.addEventListener(
@@ -2272,7 +2392,7 @@ window.addEventListener(
 
 
       registrarActividad(
-        "Puente FIX11 conectado.",
+        `Puente ${BOT_VERSION} conectado.`,
         "correcto"
       );
 
@@ -2356,29 +2476,45 @@ if (
         );
 
 
-        const estadoPuente =
-          signalBridge
-            .obtenerEstado
-            ? signalBridge
-                .obtenerEstado()
-            : null;
+        const estadoMotor =
+          botEngine
+            .obtenerEstado();
+
+
+        registrarActividad(
+          `MOTOR ${estadoMotor?.versionTelemetria || "?"} · ${BOT_BUILD}`,
+          estadoMotor
+              ?.versionTelemetria ===
+            "FIX12"
+            ? "correcto"
+            : "aviso"
+        );
 
 
         if (
-          estadoPuente
+          signalBridge
+            .obtenerEstado
         ) {
 
+          const estadoPuente =
+            signalBridge
+              .obtenerEstado();
+
+
           registrarActividad(
-            `Bridge FIX11 · Broadcast ${
-              estadoPuente.canalDisponible
+            `Bridge · Broadcast ${
+              estadoPuente
+                ?.canalDisponible
                 ? "OK"
                 : "NO"
             } · respaldo ${
-              estadoPuente.respaldoActivo
+              estadoPuente
+                ?.respaldoActivo
                 ? "ON"
                 : "OFF"
             }`,
-            estadoPuente.canalDisponible
+            estadoPuente
+              ?.canalDisponible
               ? "correcto"
               : "aviso"
           );
@@ -2504,7 +2640,7 @@ if (
 
 
 /* ==========================================
-   PRUEBA INTERNA
+   PRUEBA INTERNA FIX12
    ========================================== */
 
 if (
@@ -2525,7 +2661,7 @@ if (
           .recibirSenal({
 
             id:
-              `FIX11-${Date.now()}`,
+              `FIX12-${Date.now()}`,
 
             mercado:
               "R_50",
@@ -2561,7 +2697,7 @@ if (
               10,
 
             modo:
-              "FIX11_TEST",
+              "FIX12_TEST",
 
             targetExecutionAt,
 
@@ -2569,11 +2705,15 @@ if (
               Date.now(),
 
             metadata: {
+
               targetExecutionAt,
+
               preavisoBotSegundos:
                 2,
+
               fix:
-                "FIX11"
+                "FIX12_TEST"
+
             }
 
           });
@@ -2981,6 +3121,13 @@ window.addEventListener(
 
     }
 
+    else {
+
+      signalBridge
+        .desconectar();
+
+    }
+
 
     derivConnection
       .desconectar();
@@ -2990,7 +3137,7 @@ window.addEventListener(
 
 
 /* ==========================================
-   INICIO FIX11
+   INICIO FIX12
    ========================================== */
 
 if (
@@ -3018,28 +3165,48 @@ actualizarPanelCalibracion();
 recuperarResultadoEngine();
 
 
+const estadoInicialMotor =
+  botEngine
+    .obtenerEstado();
+
+
 registrarActividad(
-  "BOT V1 MR FIX11 BRIDGE-2 preparado."
+  `BOT V1 MR ${BOT_VERSION} ${BOT_BUILD} preparado.`,
+  "correcto"
 );
 
 
 registrarActividad(
-  "Signal Bridge FIX11 forzado sin caché."
+  `Motor de telemetría → ${
+    estadoInicialMotor
+      ?.versionTelemetria ||
+    "NO DETECTADO"
+  }.`,
+  estadoInicialMotor
+      ?.versionTelemetria ===
+    "FIX12"
+    ? "correcto"
+    : "aviso"
 );
 
 
 registrarActividad(
-  "Calibración -0.3 s a +0.3 s activada."
+  "Telemetría histórica FIX8/FIX9/FIX10/FIX11 conservada."
+);
+
+
+registrarActividad(
+  "Comparadores de timing reiniciados lógicamente para muestras válidas FIX12."
+);
+
+
+registrarActividad(
+  "Calibración -0.3 s a +0.3 s conservada."
 );
 
 
 registrarActividad(
   "12 mercados conservados."
-);
-
-
-registrarActividad(
-  "Datos FIX8/FIX9/FIX10 conservados."
 );
 
 
