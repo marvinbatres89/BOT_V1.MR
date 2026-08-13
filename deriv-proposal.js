@@ -1,17 +1,24 @@
 /* ==========================================
    BOT V1 MR
    DERIV PROPOSAL
-   FIX6.1
+   FIX13.2 - DIAGNÓSTICO DE PROPUESTA
 
-   SOLICITA PROPUESTAS REALES
-   A DERIV DEMO
+   CONSERVA:
+   - PROPUESTAS REALES DERIV DEMO
+   - underlying_symbol
+   - NO COMPRA CONTRATOS
+   - NO USA BUY
 
-   CORRECCIÓN:
-   symbol -> underlying_symbol
+   AGREGA:
+   - CÓDIGO EXACTO DE ERROR DERIV
+   - MENSAJE EXACTO DE ERROR
+   - DETALLES DEL ERROR
+   - SOLICITUD ENVIADA
+   - DIAGNÓSTICO EN CONSOLA
 
-   IMPORTANTE:
-   NO COMPRA CONTRATOS
-   NO USA BUY
+   OBJETIVO:
+   IDENTIFICAR EXACTAMENTE POR QUÉ
+   DERIV RECHAZA UNA PROPUESTA.
    ========================================== */
 
 import {
@@ -32,6 +39,12 @@ class DerivProposal {
     this.ultimaPropuesta =
       null;
 
+    this.ultimoError =
+      null;
+
+    this.ultimaSolicitud =
+      null;
+
 
     derivConnection.on(
       "message",
@@ -47,6 +60,10 @@ class DerivProposal {
   }
 
 
+  /* ========================================
+     REQUEST ID
+     ======================================== */
+
   siguienteReqId() {
 
     this.reqId +=
@@ -56,6 +73,10 @@ class DerivProposal {
 
   }
 
+
+  /* ========================================
+     PROCESAR RESPUESTA DERIV
+     ======================================== */
 
   procesarRespuesta(
     datos
@@ -103,22 +124,133 @@ class DerivProposal {
     );
 
 
+    /* ======================================
+       ERROR REAL DEVUELTO POR DERIV
+       ====================================== */
+
     if (
       datos.error
     ) {
 
-      pendiente.reject(
-        new Error(
-          datos.error.message ||
-          datos.error.code ||
-          "Deriv rechazó la propuesta."
-        )
+      const errorDeriv =
+        datos.error ||
+        {};
+
+
+      const codigo =
+        errorDeriv.code ||
+        "DERIV_ERROR";
+
+
+      const mensaje =
+        errorDeriv.message ||
+        "Deriv rechazó la propuesta.";
+
+
+      const detalles =
+        errorDeriv.details ??
+        null;
+
+
+      const diagnostico = {
+
+        ok:
+          false,
+
+        tipo:
+          "PROPUESTA_RECHAZADA",
+
+        reqId,
+
+        code:
+          codigo,
+
+        errorCode:
+          codigo,
+
+        message:
+          mensaje,
+
+        error:
+          mensaje,
+
+        details:
+          detalles,
+
+        solicitud:
+          pendiente.solicitud
+            ? {
+                ...pendiente.solicitud
+              }
+            : null,
+
+        rawError:
+          errorDeriv,
+
+        raw:
+          datos,
+
+        receivedAt:
+          Date.now()
+
+      };
+
+
+      this.ultimoError =
+        diagnostico;
+
+
+      console.error(
+        "=========================================="
       );
+
+      console.error(
+        "BOT V1 MR · PROPUESTA RECHAZADA POR DERIV"
+      );
+
+      console.error(
+        "Código:",
+        codigo
+      );
+
+      console.error(
+        "Mensaje:",
+        mensaje
+      );
+
+      console.error(
+        "Detalles:",
+        detalles
+      );
+
+      console.error(
+        "Solicitud enviada:",
+        pendiente.solicitud
+      );
+
+      console.error(
+        "Respuesta completa:",
+        datos
+      );
+
+      console.error(
+        "=========================================="
+      );
+
+
+      pendiente.resolve(
+        diagnostico
+      );
+
 
       return;
 
     }
 
+
+    /* ======================================
+       PROPUESTA CORRECTA
+       ====================================== */
 
     if (
       datos.proposal
@@ -166,6 +298,13 @@ class DerivProposal {
           datos.proposal.display_value ??
           null,
 
+        solicitud:
+          pendiente.solicitud
+            ? {
+                ...pendiente.solicitud
+              }
+            : null,
+
         raw:
           datos.proposal,
 
@@ -179,23 +318,101 @@ class DerivProposal {
         propuesta;
 
 
+      this.ultimoError =
+        null;
+
+
+      console.log(
+        "BOT V1 MR · PROPUESTA DERIV ACEPTADA",
+        {
+          reqId,
+          id:
+            propuesta.id,
+          askPrice:
+            propuesta.askPrice,
+          payout:
+            propuesta.payout,
+          spot:
+            propuesta.spot
+        }
+      );
+
+
       pendiente.resolve(
         propuesta
       );
+
 
       return;
 
     }
 
 
-    pendiente.reject(
-      new Error(
-        "Deriv respondió sin una propuesta válida."
-      )
+    /* ======================================
+       RESPUESTA SIN PROPUESTA
+       ====================================== */
+
+    const diagnostico = {
+
+      ok:
+        false,
+
+      tipo:
+        "RESPUESTA_SIN_PROPUESTA",
+
+      reqId,
+
+      code:
+        "NO_PROPOSAL",
+
+      errorCode:
+        "NO_PROPOSAL",
+
+      message:
+        "Deriv respondió sin una propuesta válida.",
+
+      error:
+        "Deriv respondió sin una propuesta válida.",
+
+      details:
+        null,
+
+      solicitud:
+        pendiente.solicitud
+          ? {
+              ...pendiente.solicitud
+            }
+          : null,
+
+      raw:
+        datos,
+
+      receivedAt:
+        Date.now()
+
+    };
+
+
+    this.ultimoError =
+      diagnostico;
+
+
+    console.error(
+      "BOT V1 MR · RESPUESTA SIN PROPUESTA",
+      diagnostico
+    );
+
+
+    pendiente.resolve(
+      diagnostico
     );
 
   }
 
+
+  /* ========================================
+     VALIDAR CONTRATO
+     ======================================== */
 
   validarContrato(
     contrato
@@ -206,11 +423,13 @@ class DerivProposal {
     ) {
 
       return {
+
         ok:
           false,
 
         error:
           "No existe contrato."
+
       };
 
     }
@@ -221,11 +440,13 @@ class DerivProposal {
     ) {
 
       return {
+
         ok:
           false,
 
         error:
           "Falta mercado."
+
       };
 
     }
@@ -236,23 +457,31 @@ class DerivProposal {
     ) {
 
       return {
+
         ok:
           false,
 
         error:
           "Falta contractType."
+
       };
 
     }
 
 
     return {
+
       ok:
         true
+
     };
 
   }
 
+
+  /* ========================================
+     CONSTRUIR SOLICITUD
+     ======================================== */
 
   construirSolicitud(
     contrato,
@@ -271,6 +500,7 @@ class DerivProposal {
         opciones.moneda ??
         "USD"
       )
+        .trim()
         .toUpperCase();
 
 
@@ -285,7 +515,9 @@ class DerivProposal {
       String(
         opciones.unidadDuracion ??
         "t"
-      );
+      )
+        .trim()
+        .toLowerCase();
 
 
     if (
@@ -320,6 +552,17 @@ class DerivProposal {
       this.siguienteReqId();
 
 
+    /*
+      IMPORTANTE:
+
+      Se conserva underlying_symbol.
+
+      No cambiamos este parámetro durante
+      esta prueba diagnóstica porque el
+      objetivo es obtener el error EXACTO
+      que está devolviendo Deriv.
+    */
+
     const solicitud = {
 
       proposal:
@@ -332,7 +575,11 @@ class DerivProposal {
         "stake",
 
       contract_type:
-        contrato.contractType,
+        String(
+          contrato.contractType
+        )
+          .trim()
+          .toUpperCase(),
 
       currency:
         moneda,
@@ -344,7 +591,10 @@ class DerivProposal {
         unidadDuracion,
 
       underlying_symbol:
-        contrato.symbol,
+        String(
+          contrato.symbol
+        )
+          .trim(),
 
       req_id:
         reqId
@@ -352,11 +602,17 @@ class DerivProposal {
     };
 
 
+    /* ======================================
+       BARRERA SOLO CUANDO EXISTE
+       ====================================== */
+
     if (
       contrato.barrier !==
         null &&
       contrato.barrier !==
-        undefined
+        undefined &&
+      contrato.barrier !==
+        ""
     ) {
 
       solicitud.barrier =
@@ -367,10 +623,51 @@ class DerivProposal {
     }
 
 
+    this.ultimaSolicitud =
+      {
+        ...solicitud
+      };
+
+
+    console.log(
+      "BOT V1 MR · SOLICITUD PROPOSAL",
+      {
+        reqId:
+          solicitud.req_id,
+
+        mercado:
+          solicitud.underlying_symbol,
+
+        contrato:
+          solicitud.contract_type,
+
+        monto:
+          solicitud.amount,
+
+        moneda:
+          solicitud.currency,
+
+        duracion:
+          solicitud.duration,
+
+        unidad:
+          solicitud.duration_unit,
+
+        barrier:
+          solicitud.barrier ??
+          null
+      }
+    );
+
+
     return solicitud;
 
   }
 
+
+  /* ========================================
+     SOLICITAR PROPUESTA
+     ======================================== */
 
   async solicitar(
     contrato,
@@ -387,15 +684,34 @@ class DerivProposal {
       !validacion.ok
     ) {
 
-      return {
+      const resultado = {
 
         ok:
           false,
+
+        tipo:
+          "VALIDACION_CONTRATO",
+
+        code:
+          "INVALID_CONTRACT",
+
+        errorCode:
+          "INVALID_CONTRACT",
+
+        message:
+          validacion.error,
 
         error:
           validacion.error
 
       };
+
+
+      this.ultimoError =
+        resultado;
+
+
+      return resultado;
 
     }
 
@@ -409,15 +725,34 @@ class DerivProposal {
       !estado.connected
     ) {
 
-      return {
+      const resultado = {
 
         ok:
           false,
+
+        tipo:
+          "SIN_CONEXION",
+
+        code:
+          "NOT_CONNECTED",
+
+        errorCode:
+          "NOT_CONNECTED",
+
+        message:
+          "Deriv DEMO no está conectado.",
 
         error:
           "Deriv DEMO no está conectado."
 
       };
+
+
+      this.ultimoError =
+        resultado;
+
+
+      return resultado;
 
     }
 
@@ -426,15 +761,34 @@ class DerivProposal {
       !estado.demoVerified
     ) {
 
-      return {
+      const resultado = {
 
         ok:
           false,
+
+        tipo:
+          "CUENTA_NO_DEMO",
+
+        code:
+          "DEMO_NOT_VERIFIED",
+
+        errorCode:
+          "DEMO_NOT_VERIFIED",
+
+        message:
+          "La cuenta no está verificada como DEMO.",
 
         error:
           "La cuenta no está verificada como DEMO."
 
       };
+
+
+      this.ultimoError =
+        resultado;
+
+
+      return resultado;
 
     }
 
@@ -450,17 +804,42 @@ class DerivProposal {
           opciones
         );
 
-    } catch (error) {
+    }
 
-      return {
+    catch (
+      error
+    ) {
+
+      const resultado = {
 
         ok:
           false,
 
+        tipo:
+          "ERROR_CONSTRUCCION",
+
+        code:
+          "REQUEST_BUILD_ERROR",
+
+        errorCode:
+          "REQUEST_BUILD_ERROR",
+
+        message:
+          error?.message ||
+          "No se pudo construir la propuesta.",
+
         error:
-          error.message
+          error?.message ||
+          "No se pudo construir la propuesta."
 
       };
+
+
+      this.ultimoError =
+        resultado;
+
+
+      return resultado;
 
     }
 
@@ -481,15 +860,52 @@ class DerivProposal {
               );
 
 
-              resolve({
+              const resultado = {
 
                 ok:
                   false,
 
-                error:
-                  "Deriv no respondió a la propuesta dentro del tiempo esperado."
+                tipo:
+                  "TIMEOUT",
 
-              });
+                reqId,
+
+                code:
+                  "PROPOSAL_TIMEOUT",
+
+                errorCode:
+                  "PROPOSAL_TIMEOUT",
+
+                message:
+                  "Deriv no respondió a la propuesta dentro del tiempo esperado.",
+
+                error:
+                  "Deriv no respondió a la propuesta dentro del tiempo esperado.",
+
+                solicitud:
+                  {
+                    ...solicitud
+                  },
+
+                receivedAt:
+                  Date.now()
+
+              };
+
+
+              this.ultimoError =
+                resultado;
+
+
+              console.error(
+                "BOT V1 MR · TIMEOUT PROPUESTA",
+                resultado
+              );
+
+
+              resolve(
+                resultado
+              );
 
             },
             10000
@@ -502,27 +918,17 @@ class DerivProposal {
 
             timeout,
 
-            resolve:
-              (propuesta) => {
-
-                resolve(
-                  propuesta
-                );
-
+            solicitud:
+              {
+                ...solicitud
               },
 
-            reject:
-              (error) => {
+            resolve:
+              (resultado) => {
 
-                resolve({
-
-                  ok:
-                    false,
-
-                  error:
-                    error.message
-
-                });
+                resolve(
+                  resultado
+                );
 
               }
 
@@ -537,7 +943,7 @@ class DerivProposal {
 
 
         if (
-          !envio.ok
+          !envio?.ok
         ) {
 
           clearTimeout(
@@ -550,15 +956,54 @@ class DerivProposal {
           );
 
 
-          resolve({
+          const resultado = {
 
             ok:
               false,
 
-            error:
-              envio.mensaje
+            tipo:
+              "ERROR_ENVIO",
 
-          });
+            reqId,
+
+            code:
+              "SEND_ERROR",
+
+            errorCode:
+              "SEND_ERROR",
+
+            message:
+              envio?.mensaje ||
+              "No se pudo enviar la propuesta a Deriv.",
+
+            error:
+              envio?.mensaje ||
+              "No se pudo enviar la propuesta a Deriv.",
+
+            solicitud:
+              {
+                ...solicitud
+              },
+
+            receivedAt:
+              Date.now()
+
+          };
+
+
+          this.ultimoError =
+            resultado;
+
+
+          console.error(
+            "BOT V1 MR · ERROR ENVIANDO PROPUESTA",
+            resultado
+          );
+
+
+          resolve(
+            resultado
+          );
 
         }
 
@@ -568,14 +1013,72 @@ class DerivProposal {
   }
 
 
+  /* ========================================
+     OBTENER ÚLTIMA PROPUESTA
+     ======================================== */
+
   obtenerUltimaPropuesta() {
 
     return this.ultimaPropuesta;
 
   }
 
+
+  /* ========================================
+     OBTENER ÚLTIMO ERROR
+     ======================================== */
+
+  obtenerUltimoError() {
+
+    return this.ultimoError;
+
+  }
+
+
+  /* ========================================
+     OBTENER ÚLTIMA SOLICITUD
+     ======================================== */
+
+  obtenerUltimaSolicitud() {
+
+    return this.ultimaSolicitud;
+
+  }
+
+
+  /* ========================================
+     ESTADO DIAGNÓSTICO
+     ======================================== */
+
+  obtenerEstado() {
+
+    return {
+
+      version:
+        "FIX13.2-DIAGNOSTICO",
+
+      ultimaPropuesta:
+        this.ultimaPropuesta,
+
+      ultimoError:
+        this.ultimoError,
+
+      ultimaSolicitud:
+        this.ultimaSolicitud,
+
+      pendientes:
+        this.pendientes.size
+
+    };
+
+  }
+
 }
 
+
+/* ==========================================
+   INSTANCIA ÚNICA
+   ========================================== */
 
 export const derivProposal =
   new DerivProposal();
