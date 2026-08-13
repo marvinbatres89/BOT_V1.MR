@@ -1,10 +1,11 @@
 /* ==========================================
    BOT V1 MR
    BOT.JS
-   FIX12 - TELEMETRÍA LIMPIA
+   FIX13 - TIMING + PERFIL DE SEÑAL
 
    CONSERVA:
    - PUENTE TRADING ANALYZER -> BOT
+   - SIGNAL-BRIDGE FIX12 ESTABLE
    - DERIV DEMO
    - COTIZACIÓN
    - BUY
@@ -13,14 +14,23 @@
    - ESTADÍSTICAS HISTÓRICAS
    - COMPARADORES
    - CALIBRACIÓN POR MERCADO
-   - DATOS FIX8/FIX9/FIX10/FIX11
+   - DATOS FIX8/FIX9/FIX10/FIX11/FIX12
 
-   FIX12:
-   - CARGA FORZADA BOT-ENGINE FIX12
-   - CARGA FORZADA SIGNAL-BRIDGE
+   FIX13:
+   - CARGA FORZADA BOT-ENGINE FIX13
+   - CONSERVA SIGNAL-BRIDGE FIX12
    - TIMING LIMPIO
    - TIMING VÁLIDO / ANÓMALO
    - DIAGNÓSTICO DE TARGET
+   - CONSERVA PERFIL COMPLETO DE SEÑAL:
+       CONFIANZA
+       TENDENCIA
+       RSI
+       MOMENTUM
+       VOLATILIDAD
+       ÚLTIMO DÍGITO
+   - PREPARADO PARA COMPARAR
+     PERFIL DE GANADAS VS PERDIDAS
    ========================================== */
 
 import {
@@ -29,7 +39,7 @@ import {
 
 import {
   botEngine
-} from "./bot-engine.js?v=FIX12-TIMING-1";
+} from "./bot-engine.js?v=FIX13-TIMING-1";
 
 import {
   derivConnection
@@ -37,7 +47,7 @@ import {
 
 
 const BOT_VERSION =
-  "FIX12";
+  "FIX13";
 
 const BOT_BUILD =
   "TIMING-1";
@@ -2640,7 +2650,8 @@ if (
 
 
 /* ==========================================
-   PRUEBA INTERNA FIX12
+   PRUEBA INTERNA FIX13
+   PERFIL COMPLETO DE SEÑAL
    ========================================== */
 
 if (
@@ -2661,7 +2672,7 @@ if (
           .recibirSenal({
 
             id:
-              `FIX12-${Date.now()}`,
+              `FIX13-${Date.now()}`,
 
             mercado:
               "R_50",
@@ -2697,7 +2708,7 @@ if (
               10,
 
             modo:
-              "FIX12_TEST",
+              "FIX13_TEST",
 
             targetExecutionAt,
 
@@ -2712,7 +2723,29 @@ if (
                 2,
 
               fix:
-                "FIX12_TEST"
+                "FIX13_TEST",
+
+              perfilSenal: {
+
+                confianza:
+                  82,
+
+                tendencia:
+                  "ALCISTA",
+
+                rsi:
+                  61,
+
+                momentum:
+                  "ALCISTA",
+
+                volatilidad:
+                  "MEDIA",
+
+                ultimoDigito:
+                  8
+
+              }
 
             }
 
@@ -2722,7 +2755,6 @@ if (
     );
 
 }
-
 
 /* ==========================================
    CUENTA DERIV
@@ -3183,20 +3215,25 @@ registrarActividad(
     "NO DETECTADO"
   }.`,
   estadoInicialMotor
-      ?.versionTelemetria ===
-    "FIX12"
+    ?.versionTelemetria ===
+  "FIX13"
     ? "correcto"
     : "aviso"
 );
 
 
 registrarActividad(
-  "Telemetría histórica FIX8/FIX9/FIX10/FIX11 conservada."
+  "Telemetría histórica FIX8/FIX9/FIX10/FIX11/FIX12 conservada."
 );
 
 
 registrarActividad(
-  "Comparadores de timing reiniciados lógicamente para muestras válidas FIX12."
+  "Comparadores de timing FIX13 preparados."
+);
+
+
+registrarActividad(
+  "Perfil de señal FIX13 preparado para análisis de ganadas y perdidas."
 );
 
 
