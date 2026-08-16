@@ -1,3 +1,4 @@
+import { executionRecorder } from "./execution-recorder.js";
 /* ==========================================
    BOT V1 MR
    SIGNAL BRIDGE
@@ -1206,7 +1207,88 @@ class SignalBridge {
 
     this.ultimaSenal =
       senal;
+        /* ========================================
+       EXECUTION RECORDER
+       MODO OBSERVADOR
 
+       Registra la señal aceptada por el puente.
+       NO compra.
+       NO modifica contratos.
+       NO altera la entrega normal al bot.js.
+       ======================================== */
+
+    try {
+
+      const registroEjecucion =
+        executionRecorder.createRecord({
+          operationId:
+            senal.id,
+
+          signalReceivedAt:
+            Date.now(),
+
+          market:
+            senal.mercado,
+
+          strategy:
+            senal.estrategia,
+
+          direction:
+            senal.direccion,
+
+          confidence:
+            senal.confianza,
+
+          targetSecond:
+            senal.segundosEntrada,
+
+          targetExecutionAt:
+            senal.targetExecutionAt,
+
+          targetVisualAt:
+            senal.metadata?.targetVisualAt ??
+            senal.targetExecutionAt,
+
+          metadata: {
+            ...(senal.metadata || {}),
+
+            signalId:
+              senal.id,
+
+            bridgeReceivedPerf:
+              senal.bridgeReceivedPerf,
+
+            source:
+              senal.origen,
+
+            recorderMode:
+              "OBSERVER"
+          }
+        });
+
+
+      console.log(
+        "EXECUTION RECORDER · señal registrada",
+        registroEjecucion
+      );
+
+
+    } catch (
+      error
+    ) {
+
+      /*
+        El registrador es únicamente observador.
+        Si falla, NO debe bloquear la señal
+        ni afectar el funcionamiento del BOT.
+      */
+
+      console.warn(
+        "EXECUTION RECORDER · no se pudo registrar la señal:",
+        error
+      );
+
+    }
 
     /*
       Entregar al bot.js
