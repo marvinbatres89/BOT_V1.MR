@@ -68,6 +68,9 @@ import {
   derivTrade
 } from "./deriv-trade.js";
 
+import {
+  executionRecorder
+} from "./execution-recorder.js";
 
 /* ==========================================
    STORAGE
