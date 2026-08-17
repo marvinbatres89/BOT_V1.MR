@@ -4404,7 +4404,20 @@ class BotEngine {
       .proposalRequestedPerf =
       this.ahora();
 
+try {
 
+  executionRecorder.recordProposalRequested(
+    String(senal.id)
+  );
+
+} catch (error) {
+
+  console.warn(
+    "EXECUTION RECORDER · no pudo registrar solicitud de propuesta:",
+    error
+  );
+
+}
     const propuestaDeriv =
       await derivProposal.solicitar(
         contrato,
@@ -4443,7 +4456,24 @@ class BotEngine {
       .proposalReceivedPerf =
       this.ahora();
 
+try {
 
+  executionRecorder.recordProposalReceived(
+    String(senal.id),
+    {
+      receivedAt:
+        telemetria.proposalReceivedEpoch
+    }
+  );
+
+} catch (error) {
+
+  console.warn(
+    "EXECUTION RECORDER · no pudo registrar respuesta de propuesta:",
+    error
+  );
+
+}
     if (
       !propuestaDeriv.ok
     ) {
