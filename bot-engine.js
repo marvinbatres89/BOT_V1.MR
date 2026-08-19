@@ -1,7 +1,7 @@
 /* ==========================================
    BOT V1 MR
    BOT-ENGINE.JS
-   FIX13.4.2
+   FIX13.5
 
    PROTOCOLO DE DOS FASES:
 
@@ -72,6 +72,7 @@ import {
   executionRecorder
 } from "./execution-recorder.js";
 
+
 /* ==========================================
    STORAGE
    ========================================== */
@@ -89,15 +90,15 @@ const CALIBRATION_KEY =
    ========================================== */
 
 const TELEMETRY_VERSION =
-  "FIX13.4.2";
+  "FIX13.5";
 
 
 const TIMING_BASE_VERSION =
-  "FIX13.4.2";
+  "FIX13.5";
 
 
 const SYNC_VERSION =
-  "FIX13.4.2";
+  "FIX13.5";
 
 
 const TIMING_COMPATIBLE_VERSIONS = [
@@ -109,7 +110,8 @@ const TIMING_COMPATIBLE_VERSIONS = [
   "FIX13.3",
   "FIX13.4",
   "FIX13.4.1",
-  "FIX13.4.2"
+  "FIX13.4.2",
+  "FIX13.5"
 
 ];
 
@@ -122,7 +124,8 @@ const SIGNAL_PROFILE_VERSIONS = [
   "FIX13.3",
   "FIX13.4",
   "FIX13.4.1",
-  "FIX13.4.2"
+  "FIX13.4.2",
+  "FIX13.5"
 
 ];
 
@@ -326,7 +329,7 @@ class BotEngine {
 
 
     this.modo =
-      "DERIV DEMO + FIX13.4.2 PREPARE/TARGET";
+      "DERIV DEMO + FIX13.5 PREPARE/TARGET + TIMING FINO";
 
 
     this.ultimaSenalProcesada =
@@ -1348,7 +1351,7 @@ class BotEngine {
         true,
 
       mensaje:
-        "Bot iniciado FIX13.4.2."
+        "Bot iniciado FIX13.5."
 
     };
 
@@ -2171,6 +2174,26 @@ class BotEngine {
       proposalLatencyMs:
         null,
 
+      /*
+        TIMING FINO FIX13.5
+
+        Offset respecto al TARGET real:
+        negativo = ocurrió antes del TARGET
+        positivo = ocurrió después del TARGET
+      */
+
+      targetToPullRequestMs:
+        null,
+
+      targetToPullReceivedMs:
+        null,
+
+      programmedToBuyMs:
+        null,
+
+      programmedToBuyConfirmMs:
+        null,
+
       prepareToTargetMs:
         null,
 
@@ -2321,6 +2344,118 @@ class BotEngine {
         t.proposalRequestedPerf,
         t.proposalReceivedPerf
       );
+
+
+    /*
+      FIX13.5 · TIMING FINO
+
+      Medimos la solicitud y recepción de la
+      propuesta ("PULL" de observación) contra
+      el TARGET, sin cambiar la ejecución.
+    */
+
+    if (
+      Number.isFinite(
+        Number(
+          t.targetExecutionAt
+        )
+      ) &&
+      Number.isFinite(
+        Number(
+          t.proposalRequestedEpoch
+        )
+      )
+    ) {
+
+      t.targetToPullRequestMs =
+        this.redondear(
+          Number(
+            t.proposalRequestedEpoch
+          ) -
+          Number(
+            t.targetExecutionAt
+          )
+        );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        Number(
+          t.targetExecutionAt
+        )
+      ) &&
+      Number.isFinite(
+        Number(
+          t.proposalReceivedEpoch
+        )
+      )
+    ) {
+
+      t.targetToPullReceivedMs =
+        this.redondear(
+          Number(
+            t.proposalReceivedEpoch
+          ) -
+          Number(
+            t.targetExecutionAt
+          )
+        );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        Number(
+          t.programmedExecutionAt
+        )
+      ) &&
+      Number.isFinite(
+        Number(
+          t.buyRequestedEpoch
+        )
+      )
+    ) {
+
+      t.programmedToBuyMs =
+        this.redondear(
+          Number(
+            t.buyRequestedEpoch
+          ) -
+          Number(
+            t.programmedExecutionAt
+          )
+        );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        Number(
+          t.programmedExecutionAt
+        )
+      ) &&
+      Number.isFinite(
+        Number(
+          t.buyConfirmedEpoch
+        )
+      )
+    ) {
+
+      t.programmedToBuyConfirmMs =
+        this.redondear(
+          Number(
+            t.buyConfirmedEpoch
+          ) -
+          Number(
+            t.programmedExecutionAt
+          )
+        );
+
+    }
 
 
     t.prepareToTargetMs =
@@ -2745,7 +2880,7 @@ class BotEngine {
     ) {
 
       console.warn(
-        "No se pudo guardar telemetría FIX13.4.2:",
+        "No se pudo guardar telemetría FIX13.5:",
         error
       );
 
@@ -2939,6 +3074,48 @@ class BotEngine {
         this.promedio(
           extraer(
             "proposalLatencyMs"
+          )
+        ),
+
+      promedioTargetToPullRequestMs:
+        this.promedio(
+          extraer(
+            "targetToPullRequestMs"
+          )
+        ),
+
+      medianaTargetToPullRequestMs:
+        this.mediana(
+          extraer(
+            "targetToPullRequestMs"
+          )
+        ),
+
+      promedioTargetToPullReceivedMs:
+        this.promedio(
+          extraer(
+            "targetToPullReceivedMs"
+          )
+        ),
+
+      medianaTargetToPullReceivedMs:
+        this.mediana(
+          extraer(
+            "targetToPullReceivedMs"
+          )
+        ),
+
+      promedioProgrammedToBuyMs:
+        this.promedio(
+          extraer(
+            "programmedToBuyMs"
+          )
+        ),
+
+      medianaProgrammedToBuyMs:
+        this.mediana(
+          extraer(
+            "programmedToBuyMs"
           )
         ),
 
@@ -3962,6 +4139,46 @@ class BotEngine {
           )
         ),
 
+      promedioTargetToPullRequestMs:
+        this.promedio(
+          timingValido.map(
+            (item) =>
+              item.targetToPullRequestMs
+          )
+        ),
+
+      medianaTargetToPullRequestMs:
+        this.mediana(
+          timingValido.map(
+            (item) =>
+              item.targetToPullRequestMs
+          )
+        ),
+
+      promedioTargetToPullReceivedMs:
+        this.promedio(
+          timingValido.map(
+            (item) =>
+              item.targetToPullReceivedMs
+          )
+        ),
+
+      medianaTargetToPullReceivedMs:
+        this.mediana(
+          timingValido.map(
+            (item) =>
+              item.targetToPullReceivedMs
+          )
+        ),
+
+      promedioProgrammedToBuyMs:
+        this.promedio(
+          timingValido.map(
+            (item) =>
+              item.programmedToBuyMs
+          )
+        ),
+
       promedioBuyMs:
         this.promedio(
           timingValido.map(
@@ -4407,20 +4624,27 @@ class BotEngine {
       .proposalRequestedPerf =
       this.ahora();
 
-try {
 
-  executionRecorder.recordProposalRequested(
-    String(senal.id)
-  );
+    try {
 
-} catch (error) {
+      executionRecorder.recordProposalRequested(
+        String(
+          senal.id
+        )
+      );
 
-  console.warn(
-    "EXECUTION RECORDER · no pudo registrar solicitud de propuesta:",
-    error
-  );
+    } catch (
+      error
+    ) {
 
-}
+      console.warn(
+        "EXECUTION RECORDER · no pudo registrar solicitud de propuesta:",
+        error
+      );
+
+    }
+
+
     const propuestaDeriv =
       await derivProposal.solicitar(
         contrato,
@@ -4459,24 +4683,32 @@ try {
       .proposalReceivedPerf =
       this.ahora();
 
-try {
 
-  executionRecorder.recordProposalReceived(
-    String(senal.id),
-    {
-      receivedAt:
-        telemetria.proposalReceivedEpoch
+    try {
+
+      executionRecorder.recordProposalReceived(
+        String(
+          senal.id
+        ),
+        {
+          receivedAt:
+            telemetria
+              .proposalReceivedEpoch
+        }
+      );
+
+    } catch (
+      error
+    ) {
+
+      console.warn(
+        "EXECUTION RECORDER · no pudo registrar respuesta de propuesta:",
+        error
+      );
+
     }
-  );
 
-} catch (error) {
 
-  console.warn(
-    "EXECUTION RECORDER · no pudo registrar respuesta de propuesta:",
-    error
-  );
-
-}
     if (
       !propuestaDeriv.ok
     ) {
@@ -5985,5 +6217,5 @@ export const botEngine =
 
 /* ==========================================
    FIN BOT-ENGINE.JS
-   FIX13.4.2
+   FIX13.5
    ========================================== */
