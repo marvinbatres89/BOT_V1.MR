@@ -1,7 +1,7 @@
 /* ==========================================
    BOT V1 MR
    BOT.JS
-   FIX13.4.2
+   FIX13.5
 
    PROTOCOLO:
 
@@ -10,17 +10,26 @@
    - recibe señal confirmada
    - muestra datos
    - bot-engine solicita propuesta
+   - registra PULL solicitado/recibido
    - NO compra
    - queda listo esperando TARGET
 
    EJECUTAR
    --------
-   - recibe target del número 10
+   - recibe target
    - aplica calibración
    - BUY sale en instante programado
    - muestra BUY ENVIADO
    - muestra BUY CONFIRMADO
    - muestra GANADA / PERDIDA
+
+   TIMING FINO FIX13.5
+   -------------------
+   - TARGET -> PULL solicitado
+   - TARGET -> PULL recibido
+   - TARGET programado -> BUY
+   - TARGET programado -> confirmación BUY
+   - resultado GANADA / PERDIDA
 
    CONSERVA:
    - DERIV DEMO
@@ -40,7 +49,7 @@ import {
 
 import {
   botEngine
-} from "./bot-engine.js?v=FIX13-4-2-ENGINE-1";
+} from "./bot-engine.js?v=FIX13-5-ENGINE-1";
 
 
 import {
@@ -53,11 +62,11 @@ import {
    ========================================== */
 
 const BOT_VERSION =
-  "FIX13.4.2";
+  "FIX13.5";
 
 
 const BOT_BUILD =
-  "PREPARE-TARGET-1";
+  "TIMING-FINO-1";
 
 
 const $ =
@@ -489,6 +498,43 @@ function formatoMs(
 }
 
 
+/* ==========================================
+   OFFSET CON SIGNO
+   ========================================== */
+
+function formatoOffsetMs(
+  valor
+) {
+
+  const numero =
+    Number(
+      valor
+    );
+
+
+  if (
+    !Number.isFinite(
+      numero
+    )
+  ) {
+
+    return "--";
+
+  }
+
+
+  const signo =
+    numero >
+      0
+      ? "+"
+      : "";
+
+
+  return `${signo}${numero.toFixed(2)} ms`;
+
+}
+
+
 function formatoSegundosDesdeMs(
   valor
 ) {
@@ -620,7 +666,7 @@ function registrarActividad(
 
 
 /* ==========================================
-   FIX13.4.2
+   FIX13.5
    PREPARACIÓN LISTA
    ========================================== */
 
@@ -663,7 +709,7 @@ window.addEventListener(
         ${datos.operacionId ?? "--"}
         <br><br>
 
-        Esperando TARGET 10...
+        Esperando TARGET...
 
       `;
 
@@ -677,7 +723,7 @@ window.addEventListener(
       } · ${
         datos.direccion ||
         "--"
-      } · esperando TARGET 10.`,
+      } · esperando TARGET.`,
       "correcto"
     );
 
@@ -727,7 +773,7 @@ window.addEventListener(
         ${datos.direccion ?? "--"}
         <br>
 
-        <strong>Target 10:</strong>
+        <strong>Target:</strong>
         ${datos.targetExecutionAt ?? "--"}
         <br>
 
@@ -746,7 +792,7 @@ window.addEventListener(
         <br>
 
         <strong>Desviación programada:</strong>
-        ${formatoMs(
+        ${formatoOffsetMs(
           desviacion
         )}
 
@@ -760,7 +806,7 @@ window.addEventListener(
     ) {
 
       UI.calibradorSignalBuy.textContent =
-        `TARGET ${formatoMs(
+        `TARGET ${formatoOffsetMs(
           desviacion
         )}`;
 
@@ -779,7 +825,7 @@ window.addEventListener(
           datos.calibracionMs
         )
       } · desviación ${
-        formatoMs(
+        formatoOffsetMs(
           desviacion
         )
       }`,
@@ -847,7 +893,7 @@ window.addEventListener(
           ${compra.buyPrice ?? "--"} USD
           <br>
 
-          <strong>Target 10:</strong>
+          <strong>Target:</strong>
           ${datos.targetExecutionAt ?? "--"}
           <br>
 
@@ -862,13 +908,13 @@ window.addEventListener(
           <br>
 
           <strong>Desviación envío:</strong>
-          ${formatoMs(
+          ${formatoOffsetMs(
             datos.buyTargetDeviationMs
           )}
           <br>
 
           <strong>Desviación confirmación:</strong>
-          ${formatoMs(
+          ${formatoOffsetMs(
             datos.buyConfirmTargetDeviationMs
           )}
 
@@ -885,7 +931,7 @@ window.addEventListener(
           compra.contractId ||
           "--"
         } · confirmación ${
-          formatoMs(
+          formatoOffsetMs(
             datos.buyConfirmTargetDeviationMs
           )
         }`,
@@ -1781,7 +1827,7 @@ function recuperarResultadoEngine() {
 
 
 /* ==========================================
-   TELEMETRÍA
+   TELEMETRÍA FIX13.5
    ========================================== */
 
 function mostrarTelemetria(
@@ -1879,14 +1925,38 @@ function mostrarTelemetria(
   }
 
 
+  /*
+    FIX13.5
+
+    Aprovechamos el campo existente
+    de propuesta para mostrar:
+
+    PULL solicitado respecto al TARGET
+    PULL recibido respecto al TARGET
+    latencia interna de propuesta
+  */
+
   if (
     UI.calibradorPropuesta
   ) {
 
     UI.calibradorPropuesta.textContent =
-      formatoMs(
-        telemetria.proposalLatencyMs
-      );
+      `REQ ${
+        formatoOffsetMs(
+          telemetria
+            .targetToPullRequestMs
+        )
+      } · RESP ${
+        formatoOffsetMs(
+          telemetria
+            .targetToPullReceivedMs
+        )
+      } · LAT ${
+        formatoMs(
+          telemetria
+            .proposalLatencyMs
+        )
+      }`;
 
   }
 
@@ -1922,7 +1992,7 @@ function mostrarTelemetria(
 
 
 /* ==========================================
-   DIAGNÓSTICO TIMING
+   DIAGNÓSTICO TIMING FIX13.5
    ========================================== */
 
 function registrarDiagnosticoTiming(
@@ -1948,14 +2018,59 @@ function registrarDiagnosticoTiming(
     } · TIMING ${
       telemetria.timingClasificacion ||
       "PENDIENTE"
-    } · desviación ${
-      formatoMs(
+    } · BUY/TARGET ${
+      formatoOffsetMs(
         telemetria.buyTargetDeviationMs
       )
     }`,
     telemetria.timingValido
       ? "correcto"
       : "aviso"
+  );
+
+
+  /*
+    NUEVO REGISTRO DE PULL
+  */
+
+  registrarActividad(
+    `PULL · REQ ${
+      formatoOffsetMs(
+        telemetria
+          .targetToPullRequestMs
+      )
+    } · RESP ${
+      formatoOffsetMs(
+        telemetria
+          .targetToPullReceivedMs
+      )
+    } · LAT ${
+      formatoMs(
+        telemetria
+          .proposalLatencyMs
+      )
+    }`,
+    "normal"
+  );
+
+
+  /*
+    NUEVO REGISTRO DE EJECUCIÓN
+  */
+
+  registrarActividad(
+    `EJECUCIÓN FINA · programado→BUY ${
+      formatoOffsetMs(
+        telemetria
+          .programmedToBuyMs
+      )
+    } · programado→CONFIRM ${
+      formatoOffsetMs(
+        telemetria
+          .programmedToBuyConfirmMs
+      )
+    }`,
+    "normal"
   );
 
 
@@ -2136,7 +2251,7 @@ function actualizarTablaMercados() {
 
 
 /* ==========================================
-   COMPARADORES
+   COMPARADORES FIX13.5
    ========================================== */
 
 function renderComparador(
@@ -2205,12 +2320,22 @@ function renderComparador(
     );
 
 
+  /*
+    FIX13.5
+
+    En la casilla de propuesta
+    mostramos PULL respecto al TARGET.
+  */
+
   ui.ganadasProposal &&
     (
       ui.ganadasProposal.textContent =
-        formatoMs(
-          ganadas.promedioProposalMs
-        )
+        `PULL ${
+          formatoOffsetMs(
+            ganadas
+              .promedioTargetToPullRequestMs
+          )
+        }`
     );
 
 
@@ -2261,9 +2386,12 @@ function renderComparador(
   ui.perdidasProposal &&
     (
       ui.perdidasProposal.textContent =
-        formatoMs(
-          perdidas.promedioProposalMs
-        )
+        `PULL ${
+          formatoOffsetMs(
+            perdidas
+              .promedioTargetToPullRequestMs
+          )
+        }`
     );
 
 
@@ -2608,6 +2736,52 @@ signalBridge.onSenal(
         );
 
 
+        /*
+          FIX13.5
+
+          Guardamos en el registro una línea
+          especialmente fácil de comparar.
+        */
+
+        if (
+          resultado.telemetria
+        ) {
+
+          registrarActividad(
+            `MUESTRA FIX13.5 · ${
+              resultado.telemetria
+                .resultado ||
+              "--"
+            } · PULL REQ ${
+              formatoOffsetMs(
+                resultado.telemetria
+                  .targetToPullRequestMs
+              )
+            } · PULL RESP ${
+              formatoOffsetMs(
+                resultado.telemetria
+                  .targetToPullReceivedMs
+              )
+            } · BUY ${
+              formatoOffsetMs(
+                resultado.telemetria
+                  .programmedToBuyMs
+              )
+            }`,
+            resultado.telemetria
+                .resultado ===
+              "GANADA"
+              ? "correcto"
+              : resultado.telemetria
+                    .resultado ===
+                  "PERDIDA"
+                ? "error"
+                : "normal"
+          );
+
+        }
+
+
         actualizarTablaMercados();
 
 
@@ -2656,7 +2830,7 @@ signalBridge.onSenal(
     ) {
 
       registrarActividad(
-        `Error FIX13.4.2 · fase ${fase} · ${
+        `Error FIX13.5 · fase ${fase} · ${
           error?.message ||
           String(
             error
@@ -2816,7 +2990,7 @@ UI.botonConectar
         } · ${BOT_BUILD}`,
         estadoMotor
             ?.versionTelemetria ===
-          "FIX13.4.2"
+          "FIX13.5"
           ? "correcto"
           : "aviso"
       );
@@ -2844,7 +3018,7 @@ UI.botonConectar
         }`,
         estadoMotor
             ?.sincronizacionVisual ===
-          "FIX13.4.2"
+          "FIX13.5"
           ? "correcto"
           : "aviso"
       );
@@ -2951,7 +3125,7 @@ UI.botonDesactivarDemo
 
 /* ==========================================
    PRUEBA INTERNA
-   FIX13.4.2
+   FIX13.5
    ========================================== */
 
 UI.botonProbar
@@ -2979,7 +3153,7 @@ UI.botonProbar
             "PREPARAR",
 
           protocolo:
-            "FIX13.4.2",
+            "FIX13.5",
 
           mercado:
             "R_50",
@@ -3025,7 +3199,7 @@ UI.botonProbar
               "PREPARAR",
 
             protocolo:
-              "FIX13.4.2",
+              "FIX13.5",
 
             prepararCotizacion:
               true,
@@ -3039,7 +3213,7 @@ UI.botonProbar
 
 
       /*
-        Simula la separación entre
+        Simula separación entre
         PREPARAR y TARGET.
       */
 
@@ -3073,7 +3247,7 @@ UI.botonProbar
             "EJECUTAR",
 
           protocolo:
-            "FIX13.4.2",
+            "FIX13.5",
 
           mercado:
             "R_50",
@@ -3124,7 +3298,7 @@ UI.botonProbar
               "EJECUTAR",
 
             protocolo:
-              "FIX13.4.2",
+              "FIX13.5",
 
             targetExecutionAt,
 
@@ -3591,7 +3765,7 @@ registrarActividad(
   }.`,
   estadoInicialMotor
       ?.versionTelemetria ===
-    "FIX13.4.2"
+    "FIX13.5"
     ? "correcto"
     : "aviso"
 );
@@ -3619,9 +3793,25 @@ registrarActividad(
   }.`,
   estadoInicialMotor
       ?.sincronizacionVisual ===
-    "FIX13.4.2"
+    "FIX13.5"
     ? "correcto"
     : "aviso"
+);
+
+
+registrarActividad(
+  "FIX13.5 TIMING FINO activo.",
+  "correcto"
+);
+
+
+registrarActividad(
+  "Se medirá TARGET → PULL solicitado → PULL recibido → BUY → confirmación."
+);
+
+
+registrarActividad(
+  "La calibración y el momento de ejecución NO fueron modificados."
 );
 
 
@@ -3631,17 +3821,17 @@ registrarActividad(
 
 
 registrarActividad(
-  "EJECUTAR usará el TARGET 10 y la calibración del mercado."
+  "EJECUTAR usará el TARGET y la calibración guardada del mercado."
 );
 
 
 registrarActividad(
-  "STANDARD inicia con referencia 0 ms."
+  "STANDARD conserva referencia 0 ms."
 );
 
 
 registrarActividad(
-  "1S inicia con referencia +100 ms, salvo calibración guardada."
+  "1S conserva referencia +100 ms, salvo calibración guardada."
 );
 
 
@@ -3652,5 +3842,5 @@ registrarActividad(
 
 /* ==========================================
    FIN BOT.JS
-   FIX13.4.2
+   FIX13.5
    ========================================== */
