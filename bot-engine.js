@@ -1,56 +1,28 @@
 /* ==========================================
    BOT V1 MR
    BOT-ENGINE.JS
-   FIX13.5
+   FIX13.6 MANUAL DIAGNÓSTICO
 
-   PROTOCOLO DE DOS FASES:
-
-   FASE 1 = PREPARAR
-   -----------------
-   Trading Analyzer confirma señal.
-   BOT:
-   - recibe información
-   - traduce contrato
-   - solicita propuesta DERIV DEMO
-   - guarda propuesta
-   - NO compra todavía
-
-   FASE 2 = EJECUTAR
-   -----------------
-   Trading Analyzer termina la frase:
-   "Tienes diez segundos para realizar
-    la operación."
-
-   Luego:
-   - crea TARGET 10 a +1000 ms
-   - BOT recibe TARGET
-   - aplica calibración por mercado
-   - espera instante programado
-   - manda BUY
-   - confirma BUY
-   - espera GANADA / PERDIDA
-
-   REFERENCIA:
-   TARGET 10 = centro de calibración.
-
-   STANDARD:
-   calibración alrededor de 0 ms.
-
-   1S:
-   calibración alrededor de +100 ms,
-   ajustable individualmente.
+   BASE: FIX13.5
 
    CONSERVA:
+   - PREPARAR -> TARGET -> BUY automático
    - DERIV DEMO
-   - HISTORIAL
    - TELEMETRÍA
-   - GANADAS / PERDIDAS
-   - PERFIL DE SEÑAL
-   - COMPARADORES
-   - 12 MERCADOS
-   - AJUSTE -300 A +300 ms
-   ========================================== */
+   - GANADA / PERDIDA
+   - 12 mercados
+   - perfiles y comparadores
+   - calibración por mercado
+   - rango de calibración -0.3 s a +1.0 s
 
+   AGREGA:
+   - MODO AUTOMÁTICO
+   - MODO MANUAL DIAGNÓSTICO
+   - TARGET se conserva como referencia
+   - en MANUAL el BUY solo sale al pulsar EJECUTAR AHORA
+   - registra clic manual, BUY enviado,
+     confirmación y resultado
+   ========================================== */
 
 import {
   contractMapper
@@ -74,31 +46,27 @@ import {
 
 
 /* ==========================================
-   STORAGE
+   STORAGE / VERSIONES
    ========================================== */
 
 const TELEMETRY_KEY =
   "BOT_V1_MR_FIX8_TELEMETRY";
 
-
 const CALIBRATION_KEY =
   "BOT_V1_MR_FIX11_CALIBRATION";
 
+const EXECUTION_MODE_KEY =
+  "BOT_V1_MR_FIX13_6_EXECUTION_MODE";
 
-/* ==========================================
-   VERSIONES
-   ========================================== */
 
 const TELEMETRY_VERSION =
-  "FIX13.5";
-
+  "FIX13.6";
 
 const TIMING_BASE_VERSION =
-  "FIX13.5";
-
+  "FIX13.6";
 
 const SYNC_VERSION =
-  "FIX13.5";
+  "FIX13.6";
 
 
 const TIMING_COMPATIBLE_VERSIONS = [
@@ -111,7 +79,8 @@ const TIMING_COMPATIBLE_VERSIONS = [
   "FIX13.4",
   "FIX13.4.1",
   "FIX13.4.2",
-  "FIX13.5"
+  "FIX13.5",
+  "FIX13.6"
 
 ];
 
@@ -125,13 +94,25 @@ const SIGNAL_PROFILE_VERSIONS = [
   "FIX13.4",
   "FIX13.4.1",
   "FIX13.4.2",
-  "FIX13.5"
+  "FIX13.5",
+  "FIX13.6"
 
 ];
 
 
+const MODOS_EJECUCION = {
+
+  AUTOMATICO:
+    "AUTOMATICO",
+
+  MANUAL:
+    "MANUAL_DIAGNOSTICO"
+
+};
+
+
 /* ==========================================
-   PERFIL
+   PERFIL / TIMING
    ========================================== */
 
 const PROFILE_CONTROL = {
@@ -154,10 +135,6 @@ const PROFILE_CONTROL = {
 };
 
 
-/* ==========================================
-   TIMING
-   ========================================== */
-
 const TIMING_LIMITS = {
 
   bridgeToProcessMaxMs:
@@ -178,23 +155,14 @@ const TIMING_LIMITS = {
 };
 
 
-/* ==========================================
-   PREPARACIÓN
-   ========================================== */
-
 /*
-  Una preparación no debe quedarse viva
-  indefinidamente.
-
-  20 segundos es solamente una protección
-  de memoria.
-
-  Normalmente TARGET llega pocos segundos
-  después de PREPARAR.
+  En manual dejamos más tiempo
+  para que el usuario pueda decidir
+  cuándo pulsar EJECUTAR AHORA.
 */
 
 const PREPARATION_TTL_MS =
-  20000;
+  60000;
 
 
 /* ==========================================
@@ -242,10 +210,14 @@ const MERCADOS_CONTROLADOS = [
 
 
 /* ==========================================
-   AJUSTES
+   AJUSTES PERMITIDOS
+
+   Conserva ampliación:
+   -0.3 s hasta +1.0 s.
    ========================================== */
 
 const AJUSTES_PERMITIDOS_MS = [
+
   -300,
   -200,
   -100,
@@ -260,20 +232,12 @@ const AJUSTES_PERMITIDOS_MS = [
   800,
   900,
   1000
+
 ];
 
 
 /* ==========================================
    CALIBRACIÓN INICIAL
-
-   STANDARD:
-   referencia inicial 0 ms.
-
-   1S:
-   referencia inicial +100 ms.
-
-   Si ya existe calibración guardada,
-   localStorage tiene prioridad.
    ========================================== */
 
 const CALIBRACION_INICIAL = {
@@ -334,7 +298,11 @@ class BotEngine {
 
 
     this.modo =
-      "DERIV DEMO + FIX13.5 PREPARE/TARGET + TIMING FINO";
+      "DERIV DEMO + FIX13.6 AUTO/MANUAL + TIMING DIAGNÓSTICO";
+
+
+    this.modoEjecucion =
+      this.cargarModoEjecucion();
 
 
     this.ultimaSenalProcesada =
@@ -344,14 +312,6 @@ class BotEngine {
     this.senalesEnProceso =
       new Set();
 
-
-    /*
-      FIX13.4.2
-
-      Aquí quedan temporalmente
-      las propuestas solicitadas
-      durante PREPARAR.
-    */
 
     this.preparaciones =
       new Map();
@@ -406,7 +366,8 @@ class BotEngine {
       setInterval(
         () => {
 
-          this.limpiarPreparacionesExpiradas();
+          this
+            .limpiarPreparacionesExpiradas();
 
         },
         5000
@@ -466,7 +427,9 @@ class BotEngine {
 
 
     return new Promise(
-      (resolve) => {
+      (
+        resolve
+      ) => {
 
         setTimeout(
           resolve,
@@ -480,7 +443,7 @@ class BotEngine {
 
 
   /* ========================================
-     EVENTOS VISUALES BOT
+     EVENTOS
      ======================================== */
 
   emitirEvento(
@@ -623,15 +586,17 @@ class BotEngine {
   ) {
 
     const validos =
-      this.valoresValidos(
-        valores
-      )
+      this
+        .valoresValidos(
+          valores
+        )
         .sort(
           (
             a,
             b
           ) =>
-            a - b
+            a -
+            b
         );
 
 
@@ -746,6 +711,45 @@ class BotEngine {
 
 
   /* ========================================
+     DIFERENCIA
+     ======================================== */
+
+  diferencia(
+    inicio,
+    fin
+  ) {
+
+    if (
+      Number.isFinite(
+        Number(
+          inicio
+        )
+      ) &&
+      Number.isFinite(
+        Number(
+          fin
+        )
+      )
+    ) {
+
+      return this.redondear(
+        Number(
+          fin
+        ) -
+        Number(
+          inicio
+        )
+      );
+
+    }
+
+
+    return null;
+
+  }
+
+
+  /* ========================================
      TEXTO
      ======================================== */
 
@@ -796,6 +800,183 @@ class BotEngine {
 
   }
 
+
+  /* ========================================
+     MODO DE EJECUCIÓN
+     ======================================== */
+
+  cargarModoEjecucion() {
+
+    try {
+
+      const guardado =
+        String(
+          localStorage.getItem(
+            EXECUTION_MODE_KEY
+          ) ||
+          ""
+        )
+          .trim()
+          .toUpperCase();
+
+
+      if (
+        guardado ===
+        MODOS_EJECUCION.MANUAL
+      ) {
+
+        return MODOS_EJECUCION.MANUAL;
+
+      }
+
+    }
+
+    catch {
+
+      /*
+        Sin almacenamiento disponible.
+      */
+
+    }
+
+
+    return MODOS_EJECUCION
+      .AUTOMATICO;
+
+  }
+
+
+  guardarModoEjecucion() {
+
+    try {
+
+      localStorage.setItem(
+        EXECUTION_MODE_KEY,
+        this.modoEjecucion
+      );
+
+
+      return true;
+
+    }
+
+    catch {
+
+      return false;
+
+    }
+
+  }
+
+
+  establecerModoEjecucion(
+    modo
+  ) {
+
+    const normalizado =
+      String(
+        modo ||
+        ""
+      )
+        .trim()
+        .toUpperCase();
+
+
+    if (
+      normalizado !==
+        MODOS_EJECUCION
+          .AUTOMATICO &&
+      normalizado !==
+        MODOS_EJECUCION
+          .MANUAL
+    ) {
+
+      return {
+
+        ok:
+          false,
+
+        mensaje:
+          "Modo de ejecución no válido."
+
+      };
+
+    }
+
+
+    if (
+      normalizado !==
+      this.modoEjecucion
+    ) {
+
+      /*
+        Evita ejecutar una propuesta
+        preparada en un modo distinto.
+      */
+
+      this.preparaciones
+        .clear();
+
+    }
+
+
+    this.modoEjecucion =
+      normalizado;
+
+
+    this.guardarModoEjecucion();
+
+
+    this.emitirEvento(
+      "bot:execution-mode",
+      {
+
+        modo:
+          this.modoEjecucion
+
+      }
+    );
+
+
+    return {
+
+      ok:
+        true,
+
+      modo:
+        this.modoEjecucion,
+
+      mensaje:
+        this.modoEjecucion ===
+          MODOS_EJECUCION.MANUAL
+          ? "Modo MANUAL DIAGNÓSTICO activo."
+          : "Modo AUTOMÁTICO activo."
+
+    };
+
+  }
+
+
+  obtenerModoEjecucion() {
+
+    return this.modoEjecucion;
+
+  }
+
+
+  esModoManual() {
+
+    return (
+      this.modoEjecucion ===
+      MODOS_EJECUCION.MANUAL
+    );
+
+  }
+
+
+  /* ========================================
+     FAMILIA MERCADO
+     ======================================== */
 
   obtenerFamiliaMercado(
     mercado
@@ -1006,12 +1187,14 @@ class BotEngine {
     }
 
 
-    return this.obtenerFamiliaMercado(
-      symbol
-    ) ===
+    return (
+      this.obtenerFamiliaMercado(
+        symbol
+      ) ===
       "1S"
-      ? 100
-      : 0;
+        ? 100
+        : 0
+    );
 
   }
 
@@ -1126,7 +1309,7 @@ class BotEngine {
         true,
 
       mensaje:
-        "Calibración restablecida a valores base: STANDARD 0 ms / 1S +100 ms."
+        "Calibración restablecida: STANDARD 0 ms / 1S +100 ms."
 
     };
 
@@ -1270,24 +1453,6 @@ class BotEngine {
     }
 
 
-    /*
-      IMPORTANTE:
-
-      programmedAt =
-      TARGET 10 + calibración.
-
-      Ejemplos:
-
-      STANDARD 0:
-      BUY en TARGET.
-
-      STANDARD -100:
-      BUY 100 ms antes.
-
-      1S +100:
-      BUY 100 ms después.
-    */
-
     const programmedAt =
       targetExecutionAt +
       ajusteMs;
@@ -1356,7 +1521,7 @@ class BotEngine {
         true,
 
       mensaje:
-        "Bot iniciado FIX13.5."
+        "Bot iniciado FIX13.6."
 
     };
 
@@ -1411,7 +1576,8 @@ class BotEngine {
       false;
 
 
-    this.preparaciones.clear();
+    this.preparaciones
+      .clear();
 
 
     return {
@@ -1490,7 +1656,7 @@ class BotEngine {
 
 
   /* ========================================
-     OPERACIÓN ID
+     OPERACIÓN
      ======================================== */
 
   obtenerOperacionId(
@@ -1529,7 +1695,7 @@ class BotEngine {
 
 
   /* ========================================
-     LIMPIEZA PREPARACIONES
+     LIMPIEZA
      ======================================== */
 
   limpiarPreparacionesExpiradas() {
@@ -1556,13 +1722,149 @@ class BotEngine {
         PREPARATION_TTL_MS
       ) {
 
-        this.preparaciones.delete(
-          operacionId
+        this.preparaciones
+          .delete(
+            operacionId
+          );
+
+
+        this.emitirEvento(
+          "bot:preparation-expired",
+          {
+
+            operacionId,
+
+            mercado:
+              preparacion
+                ?.senalPreparacion
+                ?.mercado ??
+              null
+
+          }
         );
 
       }
 
     }
+
+  }
+
+
+  /* ========================================
+     MANUAL PENDIENTE
+     ======================================== */
+
+  obtenerPreparacionManualPendiente() {
+
+    const candidatas =
+      [
+        ...this.preparaciones
+          .values()
+      ]
+        .filter(
+          (
+            item
+          ) =>
+            item?.manualReady ===
+            true
+        )
+        .sort(
+          (
+            a,
+            b
+          ) =>
+            Number(
+              b?.targetReceivedAt ??
+              0
+            ) -
+            Number(
+              a?.targetReceivedAt ??
+              0
+            )
+        );
+
+
+    if (
+      !candidatas.length
+    ) {
+
+      return null;
+
+    }
+
+
+    const item =
+      candidatas[
+        0
+      ];
+
+
+    return {
+
+      operacionId:
+        item.operacionId,
+
+      mercado:
+        item
+          .senalEjecucion
+          ?.mercado ??
+        item
+          .senalPreparacion
+          ?.mercado ??
+        null,
+
+      estrategia:
+        item
+          .senalEjecucion
+          ?.estrategia ??
+        item
+          .senalPreparacion
+          ?.estrategia ??
+        null,
+
+      direccion:
+        item
+          .senalEjecucion
+          ?.direccion ??
+        item
+          .senalPreparacion
+          ?.direccion ??
+        null,
+
+      confianza:
+        item
+          .senalEjecucion
+          ?.confianza ??
+        item
+          .senalPreparacion
+          ?.confianza ??
+        null,
+
+      targetExecutionAt:
+        item
+          .telemetria
+          ?.targetExecutionAt ??
+        null,
+
+      programmedExecutionAt:
+        item
+          .telemetria
+          ?.programmedExecutionAt ??
+        null,
+
+      calibracionMs:
+        item
+          .telemetria
+          ?.calibracionMs ??
+        null,
+
+      preparedAt:
+        item.preparedAt,
+
+      targetReceivedAt:
+        item.targetReceivedAt
+
+    };
 
   }
 
@@ -1889,6 +2191,67 @@ class BotEngine {
 
 
   /* ========================================
+     SCORE BRUTO
+     ======================================== */
+
+  extraerScoreBruto(
+    senal
+  ) {
+
+    const candidatos = [
+
+      senal?.rawScore,
+
+      senal?.scoreBruto,
+
+      senal
+        ?.metadata
+        ?.rawScore,
+
+      senal
+        ?.metadata
+        ?.scoreBruto,
+
+      senal
+        ?.metadata
+        ?.engine1
+        ?.rawScore
+
+    ];
+
+
+    for (
+      const candidato
+      of candidatos
+    ) {
+
+      const numero =
+        Number(
+          candidato
+        );
+
+
+      if (
+        Number.isFinite(
+          numero
+        )
+      ) {
+
+        return this.redondear(
+          numero
+        );
+
+      }
+
+    }
+
+
+    return null;
+
+  }
+
+
+  /* ========================================
      TELEMETRÍA
      ======================================== */
 
@@ -1948,6 +2311,9 @@ class BotEngine {
       sincronizacionVisual:
         SYNC_VERSION,
 
+      modoEjecucion:
+        this.modoEjecucion,
+
       signalId:
         senal?.id ??
         null,
@@ -1984,6 +2350,11 @@ class BotEngine {
 
       confianza:
         perfil.confianza,
+
+      scoreBruto:
+        this.extraerScoreBruto(
+          senal
+        ),
 
       zonaConfianza:
         perfil.zonaConfianza,
@@ -2096,6 +2467,33 @@ class BotEngine {
           .motivo,
 
 
+      /* MANUAL */
+
+      manualReadyEpoch:
+        null,
+
+      manualClickEpoch:
+        null,
+
+      manualClickPerf:
+        null,
+
+      manualClickToTargetMs:
+        null,
+
+      manualClickToProgrammedMs:
+        null,
+
+      manualClickToBuyMs:
+        null,
+
+      manualBuyToTargetMs:
+        null,
+
+      manualBuyConfirmToTargetMs:
+        null,
+
+
       /* ESPERA */
 
       waitStartedEpoch:
@@ -2178,14 +2576,6 @@ class BotEngine {
 
       proposalLatencyMs:
         null,
-
-      /*
-        TIMING FINO FIX13.5
-
-        Offset respecto al TARGET real:
-        negativo = ocurrió antes del TARGET
-        positivo = ocurrió después del TARGET
-      */
 
       targetToPullRequestMs:
         null,
@@ -2277,45 +2667,6 @@ class BotEngine {
 
 
   /* ========================================
-     DIFERENCIA
-     ======================================== */
-
-  diferencia(
-    inicio,
-    fin
-  ) {
-
-    if (
-      Number.isFinite(
-        Number(
-          inicio
-        )
-      ) &&
-      Number.isFinite(
-        Number(
-          fin
-        )
-      )
-    ) {
-
-      return this.redondear(
-        Number(
-          fin
-        ) -
-        Number(
-          inicio
-        )
-      );
-
-    }
-
-
-    return null;
-
-  }
-
-
-  /* ========================================
      CALCULAR TELEMETRÍA
      ======================================== */
 
@@ -2350,14 +2701,6 @@ class BotEngine {
         t.proposalReceivedPerf
       );
 
-
-    /*
-      FIX13.5 · TIMING FINO
-
-      Medimos la solicitud y recepción de la
-      propuesta ("PULL" de observación) contra
-      el TARGET, sin cambiar la ejecución.
-    */
 
     if (
       Number.isFinite(
@@ -2539,18 +2882,164 @@ class BotEngine {
 
     if (
       Number.isFinite(
-        t.targetExecutionAt
+        Number(
+          t.targetExecutionAt
+        )
       ) &&
       Number.isFinite(
-        t.buyRequestedEpoch
+        Number(
+          t.buyRequestedEpoch
+        )
       )
     ) {
 
       t.targetToBuyMs =
         this.redondear(
-          t.buyRequestedEpoch -
-          t.targetExecutionAt
+          Number(
+            t.buyRequestedEpoch
+          ) -
+          Number(
+            t.targetExecutionAt
+          )
         );
+
+    }
+
+
+    /* MANUAL */
+
+    if (
+      Number.isFinite(
+        Number(
+          t.manualClickEpoch
+        )
+      ) &&
+      Number.isFinite(
+        Number(
+          t.targetExecutionAt
+        )
+      )
+    ) {
+
+      t.manualClickToTargetMs =
+        this.redondear(
+          Number(
+            t.manualClickEpoch
+          ) -
+          Number(
+            t.targetExecutionAt
+          )
+        );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        Number(
+          t.manualClickEpoch
+        )
+      ) &&
+      Number.isFinite(
+        Number(
+          t.programmedExecutionAt
+        )
+      )
+    ) {
+
+      t.manualClickToProgrammedMs =
+        this.redondear(
+          Number(
+            t.manualClickEpoch
+          ) -
+          Number(
+            t.programmedExecutionAt
+          )
+        );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        Number(
+          t.manualClickEpoch
+        )
+      ) &&
+      Number.isFinite(
+        Number(
+          t.buyRequestedEpoch
+        )
+      )
+    ) {
+
+      t.manualClickToBuyMs =
+        this.redondear(
+          Number(
+            t.buyRequestedEpoch
+          ) -
+          Number(
+            t.manualClickEpoch
+          )
+        );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        Number(
+          t.targetExecutionAt
+        )
+      ) &&
+      Number.isFinite(
+        Number(
+          t.buyRequestedEpoch
+        )
+      )
+    ) {
+
+      t.manualBuyToTargetMs =
+        t.modoEjecucion ===
+          MODOS_EJECUCION.MANUAL
+          ? this.redondear(
+              Number(
+                t.buyRequestedEpoch
+              ) -
+              Number(
+                t.targetExecutionAt
+              )
+            )
+          : null;
+
+    }
+
+
+    if (
+      Number.isFinite(
+        Number(
+          t.targetExecutionAt
+        )
+      ) &&
+      Number.isFinite(
+        Number(
+          t.buyConfirmedEpoch
+        )
+      )
+    ) {
+
+      t.manualBuyConfirmToTargetMs =
+        t.modoEjecucion ===
+          MODOS_EJECUCION.MANUAL
+          ? this.redondear(
+              Number(
+                t.buyConfirmedEpoch
+              ) -
+              Number(
+                t.targetExecutionAt
+              )
+            )
+          : null;
 
     }
 
@@ -2647,7 +3136,9 @@ class BotEngine {
     ) {
 
       anomalias.push(
-        `Bridge→Proceso alto: ${t.bridgeToProcessMs} ms`
+        `Bridge→Proceso alto: ${
+          t.bridgeToProcessMs
+        } ms`
       );
 
     }
@@ -2667,7 +3158,9 @@ class BotEngine {
     ) {
 
       anomalias.push(
-        `Cotización anómala: ${t.proposalLatencyMs} ms`
+        `Cotización anómala: ${
+          t.proposalLatencyMs
+        } ms`
       );
 
     }
@@ -2687,13 +3180,24 @@ class BotEngine {
     ) {
 
       anomalias.push(
-        `BUY→confirmación anómalo: ${t.buyLatencyMs} ms`
+        `BUY→confirmación anómalo: ${
+          t.buyLatencyMs
+        } ms`
       );
 
     }
 
 
+    /*
+      En MANUAL no castigamos
+      la distancia al target,
+      porque precisamente queremos
+      medir dónde pulsó el usuario.
+    */
+
     if (
+      t.modoEjecucion !==
+        MODOS_EJECUCION.MANUAL &&
       Number.isFinite(
         t.buyTargetDeviationMs
       ) &&
@@ -2705,13 +3209,17 @@ class BotEngine {
     ) {
 
       anomalias.push(
-        `Desviación target alta: ${t.buyTargetDeviationMs} ms`
+        `Desviación target alta: ${
+          t.buyTargetDeviationMs
+        } ms`
       );
 
     }
 
 
     if (
+      t.modoEjecucion !==
+        MODOS_EJECUCION.MANUAL &&
       Number.isFinite(
         t.calibrationWaitOvershootMs
       ) &&
@@ -2723,7 +3231,9 @@ class BotEngine {
     ) {
 
       anomalias.push(
-        `Espera excedida: ${t.calibrationWaitOvershootMs} ms`
+        `Espera excedida: ${
+          t.calibrationWaitOvershootMs
+        } ms`
       );
 
     }
@@ -2737,19 +3247,6 @@ class BotEngine {
 
       anomalias.push(
         "Cotización sin medición."
-      );
-
-    }
-
-
-    if (
-      !Number.isFinite(
-        t.buyTargetDeviationMs
-      )
-    ) {
-
-      anomalias.push(
-        "Desviación target sin medición."
       );
 
     }
@@ -2775,6 +3272,31 @@ class BotEngine {
     t.timingValido =
       anomalias.length ===
       0;
+
+
+    if (
+      t.modoEjecucion ===
+      MODOS_EJECUCION.MANUAL
+    ) {
+
+      t.timingClasificacion =
+        t.timingValido
+          ? "MANUAL_VALIDO"
+          : "MANUAL_ANOMALO";
+
+
+      /*
+        No mezclamos las muestras manuales
+        con el comparador automático.
+      */
+
+      t.usableForTimingComparator =
+        false;
+
+
+      return t;
+
+    }
 
 
     t.timingClasificacion =
@@ -2885,7 +3407,7 @@ class BotEngine {
     ) {
 
       console.warn(
-        "No se pudo guardar telemetría FIX13.5:",
+        "No se pudo guardar telemetría FIX13.6:",
         error
       );
 
@@ -2914,7 +3436,9 @@ class BotEngine {
     return this
       .obtenerHistorialTelemetria()
       .filter(
-        (item) =>
+        (
+          item
+        ) =>
           this.normalizarMercado(
             item?.mercado
           ) ===
@@ -2940,7 +3464,9 @@ class BotEngine {
     return this
       .obtenerHistorialTelemetria()
       .filter(
-        (item) =>
+        (
+          item
+        ) =>
           String(
             item?.familiaMercado ||
             ""
@@ -2968,7 +3494,9 @@ class BotEngine {
         mercado
       )
       .filter(
-        (item) =>
+        (
+          item
+        ) =>
           Number(
             item?.calibracionMs ??
             0
@@ -2984,7 +3512,9 @@ class BotEngine {
   ) {
 
     return datos.filter(
-      (item) =>
+      (
+        item
+      ) =>
         TIMING_COMPATIBLE_VERSIONS
           .includes(
             String(
@@ -2995,7 +3525,9 @@ class BotEngine {
           true &&
         item
           ?.usableForTimingComparator ===
-          true
+          true &&
+        item?.modoEjecucion !==
+          MODOS_EJECUCION.MANUAL
     );
 
   }
@@ -3006,7 +3538,9 @@ class BotEngine {
   ) {
 
     return datos.filter(
-      (item) =>
+      (
+        item
+      ) =>
         SIGNAL_PROFILE_VERSIONS
           .includes(
             String(
@@ -3033,9 +3567,13 @@ class BotEngine {
   ) {
 
     const extraer =
-      (campo) =>
+      (
+        campo
+      ) =>
         datos.map(
-          (item) =>
+          (
+            item
+          ) =>
             item?.[
               campo
             ]
@@ -3156,7 +3694,9 @@ class BotEngine {
 
     const finalizadas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
             "GANADA" ||
           item.resultado ===
@@ -3172,7 +3712,9 @@ class BotEngine {
 
     const ganadas =
       timingValido.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "GANADA"
       );
@@ -3180,7 +3722,9 @@ class BotEngine {
 
     const perdidas =
       timingValido.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "PERDIDA"
       );
@@ -3278,40 +3822,35 @@ class BotEngine {
       ganadas.length >=
         3 &&
       perdidas.length >=
-        3
+        3 &&
+      diferenciaTargetMedianaMs !==
+        null
     ) {
 
       if (
-        diferenciaTargetMedianaMs !==
-        null
+        diferenciaTargetMedianaMs >
+        40
       ) {
 
-        if (
-          diferenciaTargetMedianaMs >
-          40
-        ) {
+        lectura =
+          "GANADAS MÁS TEMPRANO";
 
-          lectura =
-            "GANADAS MÁS TEMPRANO";
+      }
 
-        }
+      else if (
+        diferenciaTargetMedianaMs <
+        -40
+      ) {
 
-        else if (
-          diferenciaTargetMedianaMs <
-          -40
-        ) {
+        lectura =
+          "GANADAS MÁS TARDE";
 
-          lectura =
-            "GANADAS MÁS TARDE";
+      }
 
-        }
+      else {
 
-        else {
-
-          lectura =
-            "TARGET MUY SIMILAR";
-
-        }
+        lectura =
+          "TARGET MUY SIMILAR";
 
       }
 
@@ -3360,7 +3899,9 @@ class BotEngine {
 
     const ganadas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "GANADA"
       );
@@ -3368,7 +3909,9 @@ class BotEngine {
 
     const perdidas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "PERDIDA"
       );
@@ -3379,7 +3922,9 @@ class BotEngine {
       promedioTotal:
         this.promedio(
           datos.map(
-            (item) =>
+            (
+              item
+            ) =>
               item?.[
                 campo
               ]
@@ -3389,7 +3934,9 @@ class BotEngine {
       promedioGanadas:
         this.promedio(
           ganadas.map(
-            (item) =>
+            (
+              item
+            ) =>
               item?.[
                 campo
               ]
@@ -3399,7 +3946,9 @@ class BotEngine {
       promedioPerdidas:
         this.promedio(
           perdidas.map(
-            (item) =>
+            (
+              item
+            ) =>
               item?.[
                 campo
               ]
@@ -3409,7 +3958,9 @@ class BotEngine {
       medianaGanadas:
         this.mediana(
           ganadas.map(
-            (item) =>
+            (
+              item
+            ) =>
               item?.[
                 campo
               ]
@@ -3419,7 +3970,9 @@ class BotEngine {
       medianaPerdidas:
         this.mediana(
           perdidas.map(
-            (item) =>
+            (
+              item
+            ) =>
               item?.[
                 campo
               ]
@@ -3784,7 +4337,9 @@ class BotEngine {
 
     const ganadas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "GANADA"
       );
@@ -3792,7 +4347,9 @@ class BotEngine {
 
     const perdidas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "PERDIDA"
       );
@@ -3810,14 +4367,16 @@ class BotEngine {
               ganadas.length /
               total
             ) *
-            100
+              100
           )
         : null;
 
 
     const normalizados =
       datos.map(
-        (item) => {
+        (
+          item
+        ) => {
 
           const tendencia =
             this.normalizarTexto(
@@ -3978,6 +4537,12 @@ class BotEngine {
           "confianza"
         ),
 
+      scoreBruto:
+        this.construirPerfilNumerico(
+          normalizados,
+          "scoreBruto"
+        ),
+
       rsi:
         this.construirPerfilNumerico(
           normalizados,
@@ -3990,14 +4555,18 @@ class BotEngine {
 
       favorables:
         hallazgos.filter(
-          (item) =>
+          (
+            item
+          ) =>
             item.clasificacion ===
             "FAVORABLE"
         ),
 
       riesgos:
         hallazgos.filter(
-          (item) =>
+          (
+            item
+          ) =>
             item.clasificacion ===
             "RIESGO"
         )
@@ -4029,7 +4598,9 @@ class BotEngine {
 
     const finalizadas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
             "GANADA" ||
           item.resultado ===
@@ -4045,7 +4616,9 @@ class BotEngine {
 
     const ganadas =
       finalizadas.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "GANADA"
       ).length;
@@ -4053,7 +4626,9 @@ class BotEngine {
 
     const perdidas =
       finalizadas.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "PERDIDA"
       ).length;
@@ -4066,6 +4641,16 @@ class BotEngine {
     const perfil =
       this.obtenerResumenPerfilSenal(
         symbol
+      );
+
+
+    const manuales =
+      finalizadas.filter(
+        (
+          item
+        ) =>
+          item?.modoEjecucion ===
+          MODOS_EJECUCION.MANUAL
       );
 
 
@@ -4113,6 +4698,29 @@ class BotEngine {
             )
           : null,
 
+      muestrasManual:
+        manuales.length,
+
+      promedioManualClickTargetMs:
+        this.promedio(
+          manuales.map(
+            (
+              item
+            ) =>
+              item.manualClickToTargetMs
+          )
+        ),
+
+      promedioManualClickBuyMs:
+        this.promedio(
+          manuales.map(
+            (
+              item
+            ) =>
+              item.manualClickToBuyMs
+          )
+        ),
+
       muestrasTimingFix12:
         timingValido.length,
 
@@ -4123,7 +4731,9 @@ class BotEngine {
       promedioSignalToBuyMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.signalToBuyMs
           )
         ),
@@ -4131,7 +4741,9 @@ class BotEngine {
       medianaSignalToBuyMs:
         this.mediana(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.signalToBuyMs
           )
         ),
@@ -4139,7 +4751,9 @@ class BotEngine {
       promedioProposalMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.proposalLatencyMs
           )
         ),
@@ -4147,7 +4761,9 @@ class BotEngine {
       promedioTargetToPullRequestMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.targetToPullRequestMs
           )
         ),
@@ -4155,7 +4771,9 @@ class BotEngine {
       medianaTargetToPullRequestMs:
         this.mediana(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.targetToPullRequestMs
           )
         ),
@@ -4163,7 +4781,9 @@ class BotEngine {
       promedioTargetToPullReceivedMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.targetToPullReceivedMs
           )
         ),
@@ -4171,7 +4791,9 @@ class BotEngine {
       medianaTargetToPullReceivedMs:
         this.mediana(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.targetToPullReceivedMs
           )
         ),
@@ -4179,7 +4801,9 @@ class BotEngine {
       promedioProgrammedToBuyMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.programmedToBuyMs
           )
         ),
@@ -4187,7 +4811,9 @@ class BotEngine {
       promedioBuyMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.buyLatencyMs
           )
         ),
@@ -4195,7 +4821,9 @@ class BotEngine {
       promedioDesviacionTargetMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.buyTargetDeviationMs
           )
         ),
@@ -4203,7 +4831,9 @@ class BotEngine {
       medianaDesviacionTargetMs:
         this.mediana(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.buyTargetDeviationMs
           )
         ),
@@ -4267,7 +4897,9 @@ class BotEngine {
 
     const finalizadas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
             "GANADA" ||
           item.resultado ===
@@ -4283,7 +4915,9 @@ class BotEngine {
 
     const ganadas =
       finalizadas.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "GANADA"
       ).length;
@@ -4327,7 +4961,9 @@ class BotEngine {
       promedioSignalToBuyMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.signalToBuyMs
           )
         ),
@@ -4335,7 +4971,9 @@ class BotEngine {
       medianaSignalToBuyMs:
         this.mediana(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.signalToBuyMs
           )
         ),
@@ -4343,7 +4981,9 @@ class BotEngine {
       promedioDesviacionTargetMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.buyTargetDeviationMs
           )
         )
@@ -4455,17 +5095,25 @@ class BotEngine {
             ajuste
           )
           .filter(
-            (item) =>
-              item.resultado ===
-                "GANADA" ||
-              item.resultado ===
-                "PERDIDA"
+            (
+              item
+            ) =>
+              (
+                item.resultado ===
+                  "GANADA" ||
+                item.resultado ===
+                  "PERDIDA"
+              ) &&
+              item?.modoEjecucion !==
+                MODOS_EJECUCION.MANUAL
           );
 
 
       const ganadas =
         datos.filter(
-          (item) =>
+          (
+            item
+          ) =>
             item.resultado ===
             "GANADA"
         ).length;
@@ -4632,13 +5280,16 @@ class BotEngine {
 
     try {
 
-      executionRecorder.recordProposalRequested(
-        String(
-          senal.id
-        )
-      );
+      executionRecorder
+        .recordProposalRequested(
+          String(
+            senal.id
+          )
+        );
 
-    } catch (
+    }
+
+    catch (
       error
     ) {
 
@@ -4651,32 +5302,33 @@ class BotEngine {
 
 
     const propuestaDeriv =
-      await derivProposal.solicitar(
-        contrato,
-        {
+      await derivProposal
+        .solicitar(
+          contrato,
+          {
 
-          monto:
-            this
-              .configuracion
-              .monto,
+            monto:
+              this
+                .configuracion
+                .monto,
 
-          moneda:
-            this
-              .configuracion
-              .moneda,
+            moneda:
+              this
+                .configuracion
+                .moneda,
 
-          duracion:
-            this
-              .configuracion
-              .duracion,
+            duracion:
+              this
+                .configuracion
+                .duracion,
 
-          unidadDuracion:
-            this
-              .configuracion
-              .unidadDuracion
+            unidadDuracion:
+              this
+                .configuracion
+                .unidadDuracion
 
-        }
-      );
+          }
+        );
 
 
     telemetria
@@ -4691,18 +5343,23 @@ class BotEngine {
 
     try {
 
-      executionRecorder.recordProposalReceived(
-        String(
-          senal.id
-        ),
-        {
-          receivedAt:
-            telemetria
-              .proposalReceivedEpoch
-        }
-      );
+      executionRecorder
+        .recordProposalReceived(
+          String(
+            senal.id
+          ),
+          {
 
-    } catch (
+            receivedAt:
+              telemetria
+                .proposalReceivedEpoch
+
+          }
+        );
+
+    }
+
+    catch (
       error
     ) {
 
@@ -4802,12 +5459,6 @@ class BotEngine {
 
     }
 
-
-    /*
-      Si BroadcastChannel y respaldo
-      entregan lo mismo, no repetimos
-      la cotización.
-    */
 
     if (
       this.preparaciones.has(
@@ -4911,6 +5562,9 @@ class BotEngine {
             ...senal
           },
 
+        senalEjecucion:
+          null,
+
         contrato:
           preparacion.contrato,
 
@@ -4923,7 +5577,16 @@ class BotEngine {
         telemetria,
 
         preparedAt:
-          Date.now()
+          Date.now(),
+
+        targetReceivedAt:
+          null,
+
+        manualReady:
+          false,
+
+        ejecutando:
+          false
 
       }
     );
@@ -4957,7 +5620,10 @@ class BotEngine {
           null,
 
         preparedAt:
-          Date.now()
+          Date.now(),
+
+        modoEjecucion:
+          this.modoEjecucion
 
       }
     );
@@ -5011,6 +5677,9 @@ class BotEngine {
       preparacionLista:
         true,
 
+      modoEjecucion:
+        this.modoEjecucion,
+
       ejecucionDemoActiva:
         derivTrade
           .obtenerEstado()
@@ -5022,78 +5691,13 @@ class BotEngine {
 
 
   /* ========================================
-     FASE EJECUTAR
+     ACTUALIZAR TARGET
      ======================================== */
 
-  async procesarEjecucion(
-    senal,
-    {
-      onOperacionUpdate =
-        null
-    } = {}
+  actualizarTargetPreparacion(
+    preparada,
+    senal
   ) {
-
-    const operacionId =
-      this.obtenerOperacionId(
-        senal
-      );
-
-
-    if (
-      !operacionId
-    ) {
-
-      return {
-
-        aceptada:
-          false,
-
-        fase:
-          "EJECUTAR",
-
-        motivo:
-          "EJECUTAR no incluye operacionId."
-
-      };
-
-    }
-
-
-    const preparada =
-      this.preparaciones.get(
-        operacionId
-      );
-
-
-    /*
-      No ejecutamos tarde desde cero.
-
-      Si PREPARAR no existe, preferimos
-      no comprar a destiempo.
-    */
-
-    if (
-      !preparada
-    ) {
-
-      return {
-
-        aceptada:
-          false,
-
-        fase:
-          "EJECUTAR",
-
-        etapa:
-          "PREPARACION_NO_ENCONTRADA",
-
-        motivo:
-          "No existe una cotización PREPARAR para esta operación."
-
-      };
-
-    }
-
 
     const telemetria =
       preparada.telemetria;
@@ -5103,10 +5707,6 @@ class BotEngine {
       .targetReceivedEpoch =
       Date.now();
 
-
-    /*
-      Actualizamos información del TARGET.
-    */
 
     const programacion =
       this.calcularProgramacion(
@@ -5168,23 +5768,36 @@ class BotEngine {
         .esperaMs;
 
 
+    return {
+
+      telemetria,
+
+      programacion
+
+    };
+
+  }
+
+
+  /* ========================================
+     EJECUTAR COMPRA PREPARADA
+     ======================================== */
+
+  async ejecutarCompraPreparada(
+    preparada,
+    senal,
+    {
+      onOperacionUpdate =
+        null,
+
+      origen =
+        "AUTOMATICO"
+    } = {}
+  ) {
+
     if (
-      !programacion.disponible
+      preparada.ejecutando
     ) {
-
-      telemetria.resultado =
-        "TARGET_INVALIDO";
-
-
-      this.guardarTelemetria(
-        telemetria
-      );
-
-
-      this.preparaciones.delete(
-        operacionId
-      );
-
 
       return {
 
@@ -5195,119 +5808,51 @@ class BotEngine {
           "EJECUTAR",
 
         motivo:
-          "TARGET no disponible.",
-
-        telemetria
+          "Esta operación ya se está ejecutando."
 
       };
 
     }
 
 
-    /*
-      Si el instante ya pasó demasiado,
-      no compramos tarde.
-    */
-
-    if (
-      programacion.programmedAt <
-      Date.now() -
-        100
-    ) {
-
-      telemetria.resultado =
-        "TARGET_PERDIDO";
+    preparada.ejecutando =
+      true;
 
 
-      telemetria
-        .buyTargetDeviationMs =
-        this.redondear(
-          Date.now() -
-          programacion.programmedAt
-        );
+    const operacionId =
+      preparada.operacionId;
 
 
-      this.guardarTelemetria(
-        telemetria
-      );
+    const telemetria =
+      preparada.telemetria;
 
 
-      this.preparaciones.delete(
-        operacionId
-      );
+    const programacion = {
 
+      targetExecutionAt:
+        Number(
+          telemetria
+            .targetExecutionAt
+        ),
 
-      return {
+      programmedAt:
+        Number(
+          telemetria
+            .programmedExecutionAt
+        ),
 
-        aceptada:
-          false,
+      ajusteMs:
+        Number(
+          telemetria
+            .calibracionMs ??
+          0
+        )
 
-        fase:
-          "EJECUTAR",
-
-        motivo:
-          "El instante programado ya pasó.",
-
-        telemetria
-
-      };
-
-    }
+    };
 
 
     /* ====================================
-       ESPERA HASTA TARGET + CALIBRACIÓN
-       ==================================== */
-
-    const restanteMs =
-      Math.max(
-        0,
-        programacion.programmedAt -
-        Date.now()
-      );
-
-
-    telemetria
-      .esperaProgramadaMs =
-      this.redondear(
-        restanteMs
-      );
-
-
-    telemetria
-      .waitStartedEpoch =
-      Date.now();
-
-
-    telemetria
-      .calibrationWaitStartedPerf =
-      this.ahora();
-
-
-    if (
-      restanteMs >
-      0
-    ) {
-
-      await this.esperar(
-        restanteMs
-      );
-
-    }
-
-
-    telemetria
-      .waitEndedEpoch =
-      Date.now();
-
-
-    telemetria
-      .calibrationWaitEndedPerf =
-      this.ahora();
-
-
-    /* ====================================
-       EJECUCIÓN DEMO
+       DEMO DESACTIVADA
        ==================================== */
 
     if (
@@ -5325,9 +5870,10 @@ class BotEngine {
       );
 
 
-      this.preparaciones.delete(
-        operacionId
-      );
+      this.preparaciones
+        .delete(
+          operacionId
+        );
 
 
       return {
@@ -5386,19 +5932,46 @@ class BotEngine {
       this.ahora();
 
 
-    telemetria
-      .buyTargetDeviationMs =
-      this.redondear(
-        buyRequestedAt -
-        programacion.programmedAt
-      );
+    if (
+      Number.isFinite(
+        programacion
+          .programmedAt
+      )
+    ) {
+
+      telemetria
+        .buyTargetDeviationMs =
+        this.redondear(
+          buyRequestedAt -
+          programacion.programmedAt
+        );
+
+    }
 
 
-    /*
-      Evento inmediato para que bot.js
-      pueda mostrar BUY ENVIADO sin
-      esperar la confirmación.
-    */
+    if (
+      origen ===
+        "MANUAL" &&
+      Number.isFinite(
+        Number(
+          telemetria
+            .manualClickEpoch
+        )
+      )
+    ) {
+
+      telemetria
+        .manualClickToBuyMs =
+        this.redondear(
+          buyRequestedAt -
+          Number(
+            telemetria
+              .manualClickEpoch
+          )
+        );
+
+    }
+
 
     this.emitirEvento(
       "bot:buy-requested",
@@ -5413,28 +5986,49 @@ class BotEngine {
           senal.direccion,
 
         targetExecutionAt:
-          programacion.targetExecutionAt,
+          programacion
+            .targetExecutionAt,
 
         programmedExecutionAt:
-          programacion.programmedAt,
+          programacion
+            .programmedAt,
 
         calibracionMs:
-          programacion.ajusteMs,
+          programacion
+            .ajusteMs,
 
         buyRequestedAt,
 
         buyTargetDeviationMs:
           telemetria
-            .buyTargetDeviationMs
+            .buyTargetDeviationMs,
+
+        modoEjecucion:
+          telemetria
+            .modoEjecucion,
+
+        manualClickEpoch:
+          telemetria
+            .manualClickEpoch,
+
+        manualClickToTargetMs:
+          telemetria
+            .manualClickToTargetMs,
+
+        manualClickToBuyMs:
+          telemetria
+            .manualClickToBuyMs
 
       }
     );
 
 
     const compraDemo =
-      await derivTrade.comprar(
-        preparada.propuestaDeriv
-      );
+      await derivTrade
+        .comprar(
+          preparada
+            .propuestaDeriv
+        );
 
 
     const buyConfirmedAt =
@@ -5451,12 +6045,21 @@ class BotEngine {
       this.ahora();
 
 
-    telemetria
-      .buyConfirmTargetDeviationMs =
-      this.redondear(
-        buyConfirmedAt -
-        programacion.programmedAt
-      );
+    if (
+      Number.isFinite(
+        programacion
+          .programmedAt
+      )
+    ) {
+
+      telemetria
+        .buyConfirmTargetDeviationMs =
+        this.redondear(
+          buyConfirmedAt -
+          programacion.programmedAt
+        );
+
+    }
 
 
     /* ====================================
@@ -5497,7 +6100,11 @@ class BotEngine {
 
           buyConfirmTargetDeviationMs:
             telemetria
-              .buyConfirmTargetDeviationMs
+              .buyConfirmTargetDeviationMs,
+
+          modoEjecucion:
+            telemetria
+              .modoEjecucion
 
         }
       );
@@ -5508,9 +6115,10 @@ class BotEngine {
       );
 
 
-      this.preparaciones.delete(
-        operacionId
-      );
+      this.preparaciones
+        .delete(
+          operacionId
+        );
 
 
       return {
@@ -5583,13 +6191,16 @@ class BotEngine {
           compraDemo.compra,
 
         targetExecutionAt:
-          programacion.targetExecutionAt,
+          programacion
+            .targetExecutionAt,
 
         programmedExecutionAt:
-          programacion.programmedAt,
+          programacion
+            .programmedAt,
 
         calibracionMs:
-          programacion.ajusteMs,
+          programacion
+            .ajusteMs,
 
         buyTargetDeviationMs:
           telemetria
@@ -5597,7 +6208,23 @@ class BotEngine {
 
         buyConfirmTargetDeviationMs:
           telemetria
-            .buyConfirmTargetDeviationMs
+            .buyConfirmTargetDeviationMs,
+
+        modoEjecucion:
+          telemetria
+            .modoEjecucion,
+
+        manualClickEpoch:
+          telemetria
+            .manualClickEpoch,
+
+        manualClickToTargetMs:
+          telemetria
+            .manualClickToTargetMs,
+
+        manualClickToBuyMs:
+          telemetria
+            .manualClickToBuyMs
 
       }
     );
@@ -5614,8 +6241,10 @@ class BotEngine {
             .compra
             .contractId,
           {
+
             onUpdate:
               onOperacionUpdate
+
           }
         );
 
@@ -5684,11 +6313,24 @@ class BotEngine {
             senal.direccion,
 
           resultado:
-            telemetria.resultado,
+            telemetria
+              .resultado,
 
           profit,
 
-          resultadoDemo
+          resultadoDemo,
+
+          modoEjecucion:
+            telemetria
+              .modoEjecucion,
+
+          manualClickToTargetMs:
+            telemetria
+              .manualClickToTargetMs,
+
+          manualClickToBuyMs:
+            telemetria
+              .manualClickToBuyMs
 
         }
       );
@@ -5727,7 +6369,11 @@ class BotEngine {
           profit:
             null,
 
-          resultadoDemo
+          resultadoDemo,
+
+          modoEjecucion:
+            telemetria
+              .modoEjecucion
 
         }
       );
@@ -5744,9 +6390,10 @@ class BotEngine {
     );
 
 
-    this.preparaciones.delete(
-      operacionId
-    );
+    this.preparaciones
+      .delete(
+        operacionId
+      );
 
 
     const perfilSenal =
@@ -5769,6 +6416,10 @@ class BotEngine {
       modo:
         this.modo,
 
+      modoEjecucion:
+        telemetria
+          .modoEjecucion,
+
       operacionId,
 
       mercado:
@@ -5786,6 +6437,10 @@ class BotEngine {
 
       confianza:
         senal.confianza,
+
+      scoreBruto:
+        telemetria
+          .scoreBruto,
 
       segundoEntrada:
         senal.segundosEntrada,
@@ -5809,6 +6464,26 @@ class BotEngine {
       programmedExecutionAt:
         telemetria
           .programmedExecutionAt,
+
+      manualClickEpoch:
+        telemetria
+          .manualClickEpoch,
+
+      manualClickToTargetMs:
+        telemetria
+          .manualClickToTargetMs,
+
+      manualClickToProgrammedMs:
+        telemetria
+          .manualClickToProgrammedMs,
+
+      manualClickToBuyMs:
+        telemetria
+          .manualClickToBuyMs,
+
+      manualBuyToTargetMs:
+        telemetria
+          .manualBuyToTargetMs,
 
       buyTargetDeviationMs:
         telemetria
@@ -5893,6 +6568,710 @@ class BotEngine {
 
 
   /* ========================================
+     FASE EJECUTAR
+     ======================================== */
+
+  async procesarEjecucion(
+    senal,
+    {
+      onOperacionUpdate =
+        null
+    } = {}
+  ) {
+
+    const operacionId =
+      this.obtenerOperacionId(
+        senal
+      );
+
+
+    if (
+      !operacionId
+    ) {
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "EJECUTAR",
+
+        motivo:
+          "EJECUTAR no incluye operacionId."
+
+      };
+
+    }
+
+
+    const preparada =
+      this.preparaciones.get(
+        operacionId
+      );
+
+
+    if (
+      !preparada
+    ) {
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "EJECUTAR",
+
+        etapa:
+          "PREPARACION_NO_ENCONTRADA",
+
+        motivo:
+          "No existe una cotización PREPARAR para esta operación."
+
+      };
+
+    }
+
+
+    preparada.senalEjecucion =
+      {
+        ...senal
+      };
+
+
+    preparada.targetReceivedAt =
+      Date.now();
+
+
+    const {
+      telemetria,
+      programacion
+    } =
+      this.actualizarTargetPreparacion(
+        preparada,
+        senal
+      );
+
+
+    if (
+      !programacion.disponible
+    ) {
+
+      telemetria.resultado =
+        "TARGET_INVALIDO";
+
+
+      this.guardarTelemetria(
+        telemetria
+      );
+
+
+      this.preparaciones
+        .delete(
+          operacionId
+        );
+
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "EJECUTAR",
+
+        motivo:
+          "TARGET no disponible.",
+
+        telemetria
+
+      };
+
+    }
+
+
+    /* ====================================
+       MODO MANUAL
+       ==================================== */
+
+    if (
+      this.esModoManual()
+    ) {
+
+      telemetria
+        .modoEjecucion =
+        MODOS_EJECUCION
+          .MANUAL;
+
+
+      telemetria
+        .manualReadyEpoch =
+        Date.now();
+
+
+      telemetria.resultado =
+        "MANUAL_ESPERANDO_CLICK";
+
+
+      preparada.manualReady =
+        true;
+
+
+      preparada.ejecutando =
+        false;
+
+
+      this.ultimaTelemetria =
+        {
+          ...telemetria
+        };
+
+
+      this.emitirEvento(
+        "bot:manual-ready",
+        {
+
+          ok:
+            true,
+
+          operacionId,
+
+          mercado:
+            senal.mercado,
+
+          estrategia:
+            senal.estrategia,
+
+          direccion:
+            senal.direccion,
+
+          confianza:
+            senal.confianza,
+
+          targetExecutionAt:
+            programacion
+              .targetExecutionAt,
+
+          programmedExecutionAt:
+            programacion
+              .programmedAt,
+
+          calibracionMs:
+            programacion
+              .ajusteMs,
+
+          readyAt:
+            telemetria
+              .manualReadyEpoch
+
+        }
+      );
+
+
+      return {
+
+        aceptada:
+          true,
+
+        fase:
+          "EJECUTAR",
+
+        estado:
+          "MANUAL_ESPERANDO_CLICK",
+
+        operacionId,
+
+        mercado:
+          senal.mercado,
+
+        estrategia:
+          senal.estrategia,
+
+        direccion:
+          senal.direccion,
+
+        confianza:
+          senal.confianza,
+
+        scoreBruto:
+          telemetria
+            .scoreBruto,
+
+        targetExecutionAt:
+          programacion
+            .targetExecutionAt,
+
+        programmedExecutionAt:
+          programacion
+            .programmedAt,
+
+        calibracionMs:
+          programacion
+            .ajusteMs,
+
+        contrato:
+          preparada.contrato,
+
+        propuesta:
+          preparada.propuesta,
+
+        propuestaDeriv:
+          preparada.propuestaDeriv,
+
+        compraDemo:
+          null,
+
+        resultadoDemo:
+          null,
+
+        telemetria:
+          {
+            ...telemetria
+          },
+
+        modoEjecucion:
+          MODOS_EJECUCION
+            .MANUAL,
+
+        ejecucionManualLista:
+          true
+
+      };
+
+    }
+
+
+    /* ====================================
+       MODO AUTOMÁTICO
+       ==================================== */
+
+    telemetria
+      .modoEjecucion =
+      MODOS_EJECUCION
+        .AUTOMATICO;
+
+
+    if (
+      programacion.programmedAt <
+      Date.now() -
+        100
+    ) {
+
+      telemetria.resultado =
+        "TARGET_PERDIDO";
+
+
+      telemetria
+        .buyTargetDeviationMs =
+        this.redondear(
+          Date.now() -
+          programacion.programmedAt
+        );
+
+
+      this.guardarTelemetria(
+        telemetria
+      );
+
+
+      this.preparaciones
+        .delete(
+          operacionId
+        );
+
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "EJECUTAR",
+
+        motivo:
+          "El instante programado ya pasó.",
+
+        telemetria
+
+      };
+
+    }
+
+
+    const restanteMs =
+      Math.max(
+        0,
+        programacion.programmedAt -
+        Date.now()
+      );
+
+
+    telemetria
+      .esperaProgramadaMs =
+      this.redondear(
+        restanteMs
+      );
+
+
+    telemetria
+      .waitStartedEpoch =
+      Date.now();
+
+
+    telemetria
+      .calibrationWaitStartedPerf =
+      this.ahora();
+
+
+    if (
+      restanteMs >
+      0
+    ) {
+
+      await this.esperar(
+        restanteMs
+      );
+
+    }
+
+
+    telemetria
+      .waitEndedEpoch =
+      Date.now();
+
+
+    telemetria
+      .calibrationWaitEndedPerf =
+      this.ahora();
+
+
+    return this
+      .ejecutarCompraPreparada(
+        preparada,
+        senal,
+        {
+
+          onOperacionUpdate,
+
+          origen:
+            "AUTOMATICO"
+
+        }
+      );
+
+  }
+
+
+  /* ========================================
+     EJECUTAR AHORA · MANUAL
+     ======================================== */
+
+  async ejecutarManual(
+    operacionId = null,
+    {
+      onOperacionUpdate =
+        null
+    } = {}
+  ) {
+
+    const estado =
+      this.puedeProcesar();
+
+
+    if (
+      !estado.ok
+    ) {
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "MANUAL",
+
+        motivo:
+          estado.motivo
+
+      };
+
+    }
+
+
+    if (
+      !this.esModoManual()
+    ) {
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "MANUAL",
+
+        motivo:
+          "El BOT no está en modo MANUAL DIAGNÓSTICO."
+
+      };
+
+    }
+
+
+    let preparada =
+      null;
+
+
+    if (
+      operacionId
+    ) {
+
+      preparada =
+        this.preparaciones.get(
+          String(
+            operacionId
+          )
+        ) ??
+        null;
+
+    }
+
+    else {
+
+      const pendientes =
+        [
+          ...this.preparaciones
+            .values()
+        ]
+          .filter(
+            (
+              item
+            ) =>
+              item?.manualReady ===
+              true
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              Number(
+                b?.targetReceivedAt ??
+                0
+              ) -
+              Number(
+                a?.targetReceivedAt ??
+                0
+              )
+          );
+
+
+      preparada =
+        pendientes[
+          0
+        ] ??
+        null;
+
+    }
+
+
+    if (
+      !preparada
+    ) {
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "MANUAL",
+
+        motivo:
+          "No hay una operación manual lista para ejecutar."
+
+      };
+
+    }
+
+
+    if (
+      !preparada.manualReady
+    ) {
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "MANUAL",
+
+        motivo:
+          "La preparación todavía no recibió TARGET."
+
+      };
+
+    }
+
+
+    if (
+      preparada.ejecutando
+    ) {
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "MANUAL",
+
+        motivo:
+          "La operación ya se está ejecutando."
+
+      };
+
+    }
+
+
+    const senal =
+      preparada
+        .senalEjecucion ??
+      preparada
+        .senalPreparacion;
+
+
+    const telemetria =
+      preparada.telemetria;
+
+
+    const clickEpoch =
+      Date.now();
+
+
+    telemetria
+      .modoEjecucion =
+      MODOS_EJECUCION
+        .MANUAL;
+
+
+    telemetria
+      .manualClickEpoch =
+      clickEpoch;
+
+
+    telemetria
+      .manualClickPerf =
+      this.ahora();
+
+
+    if (
+      Number.isFinite(
+        Number(
+          telemetria
+            .targetExecutionAt
+        )
+      )
+    ) {
+
+      telemetria
+        .manualClickToTargetMs =
+        this.redondear(
+          clickEpoch -
+          Number(
+            telemetria
+              .targetExecutionAt
+          )
+        );
+
+    }
+
+
+    if (
+      Number.isFinite(
+        Number(
+          telemetria
+            .programmedExecutionAt
+        )
+      )
+    ) {
+
+      telemetria
+        .manualClickToProgrammedMs =
+        this.redondear(
+          clickEpoch -
+          Number(
+            telemetria
+              .programmedExecutionAt
+          )
+        );
+
+    }
+
+
+    this.emitirEvento(
+      "bot:manual-click",
+      {
+
+        operacionId:
+          preparada
+            .operacionId,
+
+        mercado:
+          senal?.mercado,
+
+        estrategia:
+          senal?.estrategia,
+
+        direccion:
+          senal?.direccion,
+
+        confianza:
+          senal?.confianza,
+
+        targetExecutionAt:
+          telemetria
+            .targetExecutionAt,
+
+        programmedExecutionAt:
+          telemetria
+            .programmedExecutionAt,
+
+        clickAt:
+          clickEpoch,
+
+        clickToTargetMs:
+          telemetria
+            .manualClickToTargetMs,
+
+        clickToProgrammedMs:
+          telemetria
+            .manualClickToProgrammedMs
+
+      }
+    );
+
+
+    return this
+      .ejecutarCompraPreparada(
+        preparada,
+        senal,
+        {
+
+          onOperacionUpdate,
+
+          origen:
+            "MANUAL"
+
+        }
+      );
+
+  }
+
+
+  /* ========================================
      PROCESAR SEÑAL
      ======================================== */
 
@@ -5901,14 +7280,15 @@ class BotEngine {
     {
       onOperacionUpdate =
         null,
+
       senalRecibidaPerf =
         null
     } = {}
   ) {
 
     /*
-      Conservamos parámetro por
-      compatibilidad con bot.js.
+      Conservamos parámetro
+      por compatibilidad.
     */
 
     void senalRecibidaPerf;
@@ -5960,11 +7340,6 @@ class BotEngine {
       );
 
 
-    /*
-      FIX13.4.2
-      PROTOCOLO NUEVO.
-    */
-
     if (
       fase ===
       "PREPARAR"
@@ -5987,20 +7362,14 @@ class BotEngine {
         .procesarEjecucion(
           senal,
           {
+
             onOperacionUpdate
+
           }
         );
 
     }
 
-
-    /*
-      SEGURIDAD:
-
-      No compramos automáticamente
-      señales antiguas sin fase mientras
-      estemos probando FIX13.4.2.
-    */
 
     return {
 
@@ -6010,7 +7379,7 @@ class BotEngine {
       fase,
 
       motivo:
-        "Señal sin protocolo PREPARAR/EJECUTAR. FIX13.4.2 requiere las dos fases."
+        "Señal sin protocolo PREPARAR/EJECUTAR. FIX13.6 requiere las dos fases."
 
     };
 
@@ -6091,6 +7460,17 @@ class BotEngine {
       modo:
         this.modo,
 
+      modoEjecucion:
+        this.modoEjecucion,
+
+      modosEjecucion:
+        {
+          ...MODOS_EJECUCION
+        },
+
+      manualPendiente:
+        this.obtenerPreparacionManualPendiente(),
+
       versionTelemetria:
         TELEMETRY_VERSION,
 
@@ -6102,6 +7482,9 @@ class BotEngine {
 
       protocolo:
         "PREPARAR_EJECUTAR",
+
+      protocoloManual:
+        "PREPARAR_TARGET_CLICK_BUY",
 
       preparacionesActivas:
         this.preparaciones.size,
@@ -6222,5 +7605,5 @@ export const botEngine =
 
 /* ==========================================
    FIN BOT-ENGINE.JS
-   FIX13.5
+   FIX13.6 MANUAL DIAGNÓSTICO
    ========================================== */
