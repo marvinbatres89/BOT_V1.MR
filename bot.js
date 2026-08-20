@@ -1,35 +1,30 @@
 /* ==========================================
    BOT V1 MR
    BOT.JS
-   FIX13.6 MANUAL DIAGNÓSTICO
+   FIX13.7 ESTABLE + RÁPIDA
 
-   MODOS:
+   BASE: FIX13.6
 
-   AUTOMÁTICO
-   ----------
-   PREPARAR
-   TARGET
-   CALIBRACIÓN
-   BUY AUTOMÁTICO
-   GANADA / PERDIDA
-
-   MANUAL DIAGNÓSTICO
-   ------------------
-   PREPARAR
-   TARGET COMO REFERENCIA
-   ESPERA BOTÓN EJECUTAR AHORA
-   CLIC MANUAL
-   BUY REAL DERIV DEMO
-   GANADA / PERDIDA
+   CORRIGE:
+   - USA obtenerEstadoRapido() EN INTERFAZ
+   - REDUCE CÁLCULOS PESADOS
+   - MANUAL LISTO DESDE PREPARAR
+   - TARGET ACTUALIZA REFERENCIA
+   - BOTÓN DISPONIBLE MÁS RÁPIDO
+   - GANADA / PERDIDA NO DESAPARECE
+   - ESTADÍSTICAS SE ACTUALIZAN EN BLOQUE
+   - COMPATIBLE CON BOT-ENGINE FIX13.7
 
    CONSERVA:
    - DERIV DEMO
+   - AUTOMÁTICO
+   - MANUAL DIAGNÓSTICO
    - HISTORIAL
    - TELEMETRÍA
    - 12 MERCADOS
    - COMPARADORES
    - CALIBRACIÓN
-   - PERFIL DE SEÑAL
+   - SCORE BRUTO
    ========================================== */
 
 
@@ -40,7 +35,7 @@ import {
 
 import {
   botEngine
-} from "./bot-engine.js?v=FIX13-6-ENGINE-1";
+} from "./bot-engine.js?v=FIX13-7-ENGINE-1";
 
 
 import {
@@ -53,11 +48,11 @@ import {
    ========================================== */
 
 const BOT_VERSION =
-  "FIX13.6";
+  "FIX13.7";
 
 
 const BOT_BUILD =
-  "MANUAL-DIAGNOSTICO-1";
+  "ESTABLE-RAPIDA-1";
 
 
 const MODO_AUTOMATICO =
@@ -71,6 +66,46 @@ const MODO_MANUAL =
 const $ =
   (id) =>
     document.getElementById(id);
+
+
+/* ==========================================
+   ESTADO VISUAL LOCAL
+   ========================================== */
+
+let ultimoEstadoManualFinal =
+  null;
+
+
+/* ==========================================
+   ESTADO MOTOR
+   ========================================== */
+
+function obtenerEstadoRapido() {
+
+  if (
+    typeof botEngine
+      .obtenerEstadoRapido ===
+    "function"
+  ) {
+
+    return botEngine
+      .obtenerEstadoRapido();
+
+  }
+
+
+  return botEngine
+    .obtenerEstado();
+
+}
+
+
+function obtenerEstadoCompleto() {
+
+  return botEngine
+    .obtenerEstado();
+
+}
 
 
 /* ==========================================
@@ -164,10 +199,7 @@ const UI = {
     $("botonDesactivarDemo"),
 
 
-  /* ======================================
-     NUEVO FIX13.6
-     MODO DE EJECUCIÓN
-     ====================================== */
+  /* MODO */
 
   modoEjecucionSelect:
     $("modoEjecucionSelect"),
@@ -524,15 +556,11 @@ function formatoMs(
 ) {
 
   const numero =
-    Number(
-      valor
-    );
+    Number(valor);
 
 
   if (
-    !Number.isFinite(
-      numero
-    )
+    !Number.isFinite(numero)
   ) {
 
     return "--";
@@ -550,15 +578,11 @@ function formatoOffsetMs(
 ) {
 
   const numero =
-    Number(
-      valor
-    );
+    Number(valor);
 
 
   if (
-    !Number.isFinite(
-      numero
-    )
+    !Number.isFinite(numero)
   ) {
 
     return "--";
@@ -566,14 +590,11 @@ function formatoOffsetMs(
   }
 
 
-  const signo =
-    numero >
-      0
+  return `${
+    numero > 0
       ? "+"
-      : "";
-
-
-  return `${signo}${numero.toFixed(2)} ms`;
+      : ""
+  }${numero.toFixed(2)} ms`;
 
 }
 
@@ -583,15 +604,11 @@ function formatoSegundosDesdeMs(
 ) {
 
   const numero =
-    Number(
-      valor
-    );
+    Number(valor);
 
 
   if (
-    !Number.isFinite(
-      numero
-    )
+    !Number.isFinite(numero)
   ) {
 
     return "--";
@@ -600,13 +617,11 @@ function formatoSegundosDesdeMs(
 
 
   const segundos =
-    numero /
-    1000;
+    numero / 1000;
 
 
   return `${
-    segundos >
-      0
+    segundos > 0
       ? "+"
       : ""
   }${segundos.toFixed(1)} s`;
@@ -619,15 +634,11 @@ function formatoPorcentaje(
 ) {
 
   const numero =
-    Number(
-      valor
-    );
+    Number(valor);
 
 
   if (
-    !Number.isFinite(
-      numero
-    )
+    !Number.isFinite(numero)
   ) {
 
     return "--";
@@ -641,7 +652,7 @@ function formatoPorcentaje(
 
 
 /* ==========================================
-   REGISTRO
+   REGISTRO OPTIMIZADO
    ========================================== */
 
 function registrarActividad(
@@ -659,9 +670,7 @@ function registrarActividad(
 
 
   const linea =
-    document.createElement(
-      "p"
-    );
+    document.createElement("p");
 
 
   linea.textContent =
@@ -669,8 +678,7 @@ function registrarActividad(
 
 
   if (
-    tipo ===
-    "correcto"
+    tipo === "correcto"
   ) {
 
     linea.style.color =
@@ -680,8 +688,7 @@ function registrarActividad(
 
 
   if (
-    tipo ===
-    "aviso"
+    tipo === "aviso"
   ) {
 
     linea.style.color =
@@ -691,8 +698,7 @@ function registrarActividad(
 
 
   if (
-    tipo ===
-    "error"
+    tipo === "error"
   ) {
 
     linea.style.color =
@@ -705,18 +711,35 @@ function registrarActividad(
     linea
   );
 
+
+  /*
+    FIX13.7:
+    evita miles de nodos visibles
+    dentro del registro.
+  */
+
+  while (
+    UI.registroBot.children.length >
+    120
+  ) {
+
+    UI.registroBot.removeChild(
+      UI.registroBot.lastElementChild
+    );
+
+  }
+
 }
 
 
 /* ==========================================
-   MODO EJECUCIÓN FIX13.6
+   MODO
    ========================================== */
 
 function obtenerModoActual() {
 
   return (
-    botEngine
-      .obtenerEstado()
+    obtenerEstadoRapido()
       ?.modoEjecucion ||
     MODO_AUTOMATICO
   );
@@ -724,16 +747,18 @@ function obtenerModoActual() {
 }
 
 
+/* ==========================================
+   RENDER MANUAL LIGERO
+   ========================================== */
+
 function renderModoEjecucion() {
 
   const estado =
-    botEngine
-      .obtenerEstado();
+    obtenerEstadoRapido();
 
 
   const modo =
-    estado
-      ?.modoEjecucion ||
+    estado?.modoEjecucion ||
     MODO_AUTOMATICO;
 
 
@@ -752,8 +777,7 @@ function renderModoEjecucion() {
   ) {
 
     UI.modoEjecucionEstado.textContent =
-      modo ===
-        MODO_MANUAL
+      modo === MODO_MANUAL
         ? "MANUAL DIAGNÓSTICO"
         : "AUTOMÁTICO";
 
@@ -765,15 +789,13 @@ function renderModoEjecucion() {
   ) {
 
     UI.manualPanel.hidden =
-      modo !==
-      MODO_MANUAL;
+      modo !== MODO_MANUAL;
 
   }
 
 
   const pendiente =
-    estado
-      ?.manualPendiente ||
+    estado?.manualPendiente ||
     null;
 
 
@@ -783,8 +805,7 @@ function renderModoEjecucion() {
 
     UI.botonEjecutarManual.disabled =
       !(
-        modo ===
-          MODO_MANUAL &&
+        modo === MODO_MANUAL &&
         pendiente
       );
 
@@ -794,19 +815,6 @@ function renderModoEjecucion() {
   if (
     !pendiente
   ) {
-
-    if (
-      UI.manualEstado
-    ) {
-
-      UI.manualEstado.textContent =
-        modo ===
-          MODO_MANUAL
-          ? "ESPERANDO PREDICCIÓN"
-          : "MODO AUTOMÁTICO";
-
-    }
-
 
     if (
       UI.manualOperacion
@@ -858,9 +866,42 @@ function renderModoEjecucion() {
     }
 
 
+    /*
+      No borrar GANADA/PERDIDA.
+    */
+
+    if (
+      UI.manualEstado
+    ) {
+
+      if (
+        ultimoEstadoManualFinal
+      ) {
+
+        UI.manualEstado.textContent =
+          ultimoEstadoManualFinal;
+
+      }
+
+      else {
+
+        UI.manualEstado.textContent =
+          modo === MODO_MANUAL
+            ? "ESPERANDO PREDICCIÓN"
+            : "MODO AUTOMÁTICO";
+
+      }
+
+    }
+
+
     return;
 
   }
+
+
+  ultimoEstadoManualFinal =
+    null;
 
 
   if (
@@ -868,7 +909,9 @@ function renderModoEjecucion() {
   ) {
 
     UI.manualEstado.textContent =
-      "LISTO PARA EJECUTAR";
+      pendiente.targetDisponible
+        ? "LISTO PARA EJECUTAR"
+        : "LISTO · ESPERANDO TARGET";
 
   }
 
@@ -912,7 +955,7 @@ function renderModoEjecucion() {
 
     UI.manualTarget.textContent =
       pendiente.targetExecutionAt ??
-      "--";
+      "ESPERANDO";
 
   }
 
@@ -923,7 +966,7 @@ function renderModoEjecucion() {
 
     UI.manualProgramado.textContent =
       pendiente.programmedExecutionAt ??
-      "--";
+      "ESPERANDO";
 
   }
 
@@ -940,10 +983,13 @@ UI.modoEjecucionSelect
     () => {
 
       const modo =
-        UI
-          .modoEjecucionSelect
+        UI.modoEjecucionSelect
           ?.value ||
         MODO_AUTOMATICO;
+
+
+      ultimoEstadoManualFinal =
+        null;
 
 
       const resultado =
@@ -969,7 +1015,7 @@ UI.modoEjecucionSelect
 
 
 /* ==========================================
-   EVENTO CAMBIO DE MODO
+   EVENTO CAMBIO MODO
    ========================================== */
 
 window.addEventListener(
@@ -979,14 +1025,16 @@ window.addEventListener(
   ) => {
 
     const modo =
-      evento.detail
-        ?.modo ||
+      evento.detail?.modo ||
       MODO_AUTOMATICO;
 
 
+    ultimoEstadoManualFinal =
+      null;
+
+
     registrarActividad(
-      modo ===
-        MODO_MANUAL
+      modo === MODO_MANUAL
         ? "MODO → MANUAL DIAGNÓSTICO."
         : "MODO → AUTOMÁTICO.",
       "correcto"
@@ -1000,7 +1048,37 @@ window.addEventListener(
 
 
 /* ==========================================
-   PREPARACIÓN LISTA
+   MANUAL REEMPLAZADO
+   ========================================== */
+
+window.addEventListener(
+  "bot:manual-replaced",
+  (
+    evento
+  ) => {
+
+    const datos =
+      evento.detail ||
+      {};
+
+
+    registrarActividad(
+      `Manual anterior reemplazado · ${
+        datos.operacionId ||
+        "--"
+      } → ${
+        datos.nuevaOperacionId ||
+        "--"
+      }.`,
+      "aviso"
+    );
+
+  }
+);
+
+
+/* ==========================================
+   PREPARACIÓN
    ========================================== */
 
 window.addEventListener(
@@ -1044,11 +1122,38 @@ window.addEventListener(
 
         <strong>Modo:</strong>
         ${datos.modoEjecucion ?? "--"}
-        <br><br>
-
-        Esperando TARGET...
 
       `;
+
+
+      if (
+        datos.modoEjecucion ===
+        MODO_MANUAL
+      ) {
+
+        UI.operacionDemo.innerHTML += `
+
+          <br><br>
+
+          ⚡ Propuesta preparada.
+          El botón manual puede quedar disponible
+          antes de recibir TARGET.
+
+        `;
+
+      }
+
+      else {
+
+        UI.operacionDemo.innerHTML += `
+
+          <br><br>
+
+          Esperando TARGET...
+
+        `;
+
+      }
 
     }
 
@@ -1060,7 +1165,7 @@ window.addEventListener(
       } · ${
         datos.direccion ||
         "--"
-      } · esperando TARGET.`,
+      }.`,
       "correcto"
     );
 
@@ -1069,8 +1174,7 @@ window.addEventListener(
 
 
 /* ==========================================
-   FIX13.6
-   MANUAL LISTO
+   MANUAL LISTO FIX13.7
    ========================================== */
 
 window.addEventListener(
@@ -1084,12 +1188,18 @@ window.addEventListener(
       {};
 
 
+    ultimoEstadoManualFinal =
+      null;
+
+
     if (
       UI.manualEstado
     ) {
 
       UI.manualEstado.textContent =
-        "LISTO PARA EJECUTAR";
+        datos.targetDisponible
+          ? "LISTO PARA EJECUTAR"
+          : "LISTO · ESPERANDO TARGET";
 
     }
 
@@ -1133,7 +1243,7 @@ window.addEventListener(
 
       UI.manualTarget.textContent =
         datos.targetExecutionAt ??
-        "--";
+        "ESPERANDO";
 
     }
 
@@ -1144,7 +1254,7 @@ window.addEventListener(
 
       UI.manualProgramado.textContent =
         datos.programmedExecutionAt ??
-        "--";
+        "ESPERANDO";
 
     }
 
@@ -1187,15 +1297,27 @@ window.addEventListener(
         ${datos.confianza ?? "--"}%
         <br>
 
-        <strong>Target:</strong>
-        ${datos.targetExecutionAt ?? "--"}
+        <strong>TARGET:</strong>
+        ${datos.targetExecutionAt ?? "ESPERANDO"}
         <br>
 
         <strong>Referencia programada:</strong>
-        ${datos.programmedExecutionAt ?? "--"}
+        ${datos.programmedExecutionAt ?? "ESPERANDO"}
+        <br>
+
+        <strong>PREPARAR → botón listo:</strong>
+        ${formatoMs(
+          datos.prepareToReadyMs
+        )}
+        <br>
+
+        <strong>TARGET → botón listo:</strong>
+        ${formatoOffsetMs(
+          datos.targetToReadyMs
+        )}
         <br><br>
 
-        ⚡ Esperando EJECUTAR AHORA
+        ⚡ EJECUTAR AHORA disponible.
 
       `;
 
@@ -1209,7 +1331,15 @@ window.addEventListener(
       } · ${
         datos.direccion ||
         "--"
-      } · pulse EJECUTAR AHORA cuando decida entrar.`,
+      } · PREPARAR→LISTO ${
+        formatoMs(
+          datos.prepareToReadyMs
+        )
+      } · TARGET ${
+        datos.targetDisponible
+          ? "RECIBIDO"
+          : "PENDIENTE"
+      }.`,
       "aviso"
     );
 
@@ -1221,7 +1351,6 @@ window.addEventListener(
 
 
 /* ==========================================
-   FIX13.6
    CLIC MANUAL
    ========================================== */
 
@@ -1251,9 +1380,11 @@ window.addEventListener(
     ) {
 
       UI.manualClickOffset.textContent =
-        formatoOffsetMs(
-          datos.clickToTargetMs
-        );
+        datos.targetDisponible
+          ? formatoOffsetMs(
+              datos.clickToTargetMs
+            )
+          : "SIN TARGET";
 
     }
 
@@ -1272,10 +1403,14 @@ window.addEventListener(
       `🖐️ CLIC MANUAL · ${
         datos.mercado ||
         "--"
-      } · respecto TARGET ${
-        formatoOffsetMs(
-          datos.clickToTargetMs
-        )
+      } · ${
+        datos.targetDisponible
+          ? `TARGET ${
+              formatoOffsetMs(
+                datos.clickToTargetMs
+              )
+            }`
+          : "TARGET todavía no recibido"
       }.`,
       "correcto"
     );
@@ -1301,8 +1436,7 @@ window.addEventListener(
 
     const desviacion =
       Number(
-        datos
-          .buyTargetDeviationMs
+        datos.buyTargetDeviationMs
       );
 
 
@@ -1330,8 +1464,8 @@ window.addEventListener(
         ${datos.direccion ?? "--"}
         <br>
 
-        <strong>Target:</strong>
-        ${datos.targetExecutionAt ?? "--"}
+        <strong>TARGET:</strong>
+        ${datos.targetExecutionAt ?? "SIN TARGET"}
         <br>
 
         <strong>Programado:</strong>
@@ -1369,9 +1503,13 @@ window.addEventListener(
     ) {
 
       UI.manualBuyOffset.textContent =
-        formatoOffsetMs(
-          datos.buyTargetDeviationMs
-        );
+        Number.isFinite(
+          desviacion
+        )
+          ? formatoOffsetMs(
+              desviacion
+            )
+          : "SIN TARGET";
 
     }
 
@@ -1381,9 +1519,15 @@ window.addEventListener(
     ) {
 
       UI.calibradorSignalBuy.textContent =
-        `TARGET ${formatoOffsetMs(
+        Number.isFinite(
           desviacion
-        )}`;
+        )
+          ? `TARGET ${formatoOffsetMs(
+              desviacion
+            )}`
+          : `CLIC→BUY ${formatoMs(
+              datos.manualClickToBuyMs
+            )}`;
 
     }
 
@@ -1395,12 +1539,9 @@ window.addEventListener(
       } · ${
         datos.direccion ||
         "--"
-      } · modo ${
-        datos.modoEjecucion ||
-        "--"
-      } · desviación ${
-        formatoOffsetMs(
-          desviacion
+      } · CLIC→BUY ${
+        formatoMs(
+          datos.manualClickToBuyMs
         )
       }.`,
       "correcto"
@@ -1423,7 +1564,6 @@ window.addEventListener(
     const datos =
       evento.detail ||
       {};
-
 
     const compra =
       datos.compra ||
@@ -1466,12 +1606,8 @@ window.addEventListener(
           ${compra.buyPrice ?? "--"} USD
           <br>
 
-          <strong>Target:</strong>
-          ${datos.targetExecutionAt ?? "--"}
-          <br>
-
-          <strong>Programado:</strong>
-          ${datos.programmedExecutionAt ?? "--"}
+          <strong>TARGET:</strong>
+          ${datos.targetExecutionAt ?? "SIN TARGET"}
           <br>
 
           <strong>Desviación envío:</strong>
@@ -1523,7 +1659,7 @@ window.addEventListener(
 
 
 /* ==========================================
-   RESULTADO EN TIEMPO REAL
+   RESULTADO
    ========================================== */
 
 window.addEventListener(
@@ -1551,8 +1687,7 @@ window.addEventListener(
         datos.modoEjecucion ||
         "--"
       }.`,
-      datos.resultado ===
-        "GANADA"
+      datos.resultado === "GANADA"
         ? "correcto"
         : datos.resultado ===
             "PERDIDA"
@@ -1573,17 +1708,31 @@ window.addEventListener(
 
 
     if (
-      UI.manualEstado
+      datos.modoEjecucion ===
+      MODO_MANUAL
     ) {
 
-      UI.manualEstado.textContent =
+      ultimoEstadoManualFinal =
         datos.resultado ||
         "--";
+
+
+      if (
+        UI.manualEstado
+      ) {
+
+        UI.manualEstado.textContent =
+          ultimoEstadoManualFinal;
+
+      }
 
     }
 
 
-    renderModoEjecucion();
+    /*
+      NO llamamos aquí a renderModoEjecucion()
+      para evitar borrar GANADA/PERDIDA.
+    */
 
   }
 );
@@ -1607,8 +1756,7 @@ window.addEventListener(
     const fase =
       String(
         datos.fase ||
-        datos.metadata
-          ?.fase ||
+        datos.metadata?.fase ||
         "?"
       )
         .toUpperCase();
@@ -1627,7 +1775,7 @@ window.addEventListener(
 
 
 /* ==========================================
-   CALIBRACIÓN
+   CALIBRACIÓN LIGERA
    ========================================== */
 
 function obtenerMercadoSeleccionado() {
@@ -1644,8 +1792,7 @@ function obtenerMercadoSeleccionado() {
 function actualizarPanelCalibracion() {
 
   const estado =
-    botEngine
-      .obtenerEstado();
+    obtenerEstadoRapido();
 
 
   const mercado =
@@ -1688,9 +1835,7 @@ function actualizarPanelCalibracion() {
   ) {
 
     UI.calibracionAjusteSelect.value =
-      String(
-        ajuste
-      );
+      String(ajuste);
 
   }
 
@@ -1857,8 +2002,7 @@ function mostrarSenal(
   const fase =
     String(
       senal.fase ||
-      senal.metadata
-        ?.fase ||
+      senal.metadata?.fase ||
       "--"
     )
       .toUpperCase();
@@ -1875,8 +2019,7 @@ function mostrarSenal(
   const rawScore =
     senal.rawScore ??
     senal.scoreBruto ??
-    senal.metadata
-      ?.rawScore ??
+    senal.metadata?.rawScore ??
     "--";
 
 
@@ -1934,7 +2077,7 @@ function mostrarSenal(
       ${senal.segundosEntrada ?? "--"}
       <br>
 
-      <strong>Target:</strong>
+      <strong>TARGET:</strong>
       ${target ?? "ESPERANDO"}
 
     `;
@@ -1984,12 +2127,10 @@ function mostrarEstadoTarget(
     ) {
 
       UI.calibracionProgramacion.textContent =
-        telemetria
-          .modoEjecucion ===
+        telemetria.modoEjecucion ===
           MODO_MANUAL
           ? "REFERENCIA MANUAL"
-          : telemetria
-              .puedeAnticipar
+          : telemetria.puedeAnticipar
             ? "PROGRAMADA"
             : "TARGET ALCANZADO";
 
@@ -2133,7 +2274,7 @@ function mostrarPropuestaDeriv(
 
 
 /* ==========================================
-   COMPRA DEMO
+   COMPRA
    ========================================== */
 
 function mostrarCompraDemo(
@@ -2282,8 +2423,7 @@ function pintarResultadoFinal(
 
 
   const ganada =
-    profit >
-    0;
+    profit > 0;
 
 
   UI.resultadoDemo
@@ -2364,15 +2504,13 @@ function mostrarResultadoDemo(
 
 
   if (
-    resultado.ok ===
-      true &&
+    resultado.ok === true &&
     resultado.resultado
   ) {
 
     pintarResultadoFinal(
       resultado.resultado
     );
-
 
     return;
 
@@ -2397,8 +2535,7 @@ function mostrarResultadoDemo(
 function recuperarResultadoEngine() {
 
   const ultimo =
-    botEngine
-      .obtenerEstado()
+    obtenerEstadoRapido()
       ?.ultimoResultadoDemo;
 
 
@@ -2512,8 +2649,7 @@ function mostrarTelemetria(
   ) {
 
     UI.calibradorSignalBuy.textContent =
-      telemetria
-        .modoEjecucion ===
+      telemetria.modoEjecucion ===
         MODO_MANUAL
         ? `CLIC ${formatoOffsetMs(
             telemetria
@@ -2580,10 +2716,17 @@ function mostrarTelemetria(
   ) {
 
     UI.manualClickOffset.textContent =
-      formatoOffsetMs(
-        telemetria
-          .manualClickToTargetMs
-      );
+      Number.isFinite(
+        Number(
+          telemetria
+            .manualClickToTargetMs
+        )
+      )
+        ? formatoOffsetMs(
+            telemetria
+              .manualClickToTargetMs
+          )
+        : "--";
 
   }
 
@@ -2593,10 +2736,17 @@ function mostrarTelemetria(
   ) {
 
     UI.manualBuyOffset.textContent =
-      formatoOffsetMs(
-        telemetria
-          .manualBuyToTargetMs
-      );
+      Number.isFinite(
+        Number(
+          telemetria
+            .manualBuyToTargetMs
+        )
+      )
+        ? formatoOffsetMs(
+            telemetria
+              .manualBuyToTargetMs
+          )
+        : "--";
 
   }
 
@@ -2609,7 +2759,7 @@ function mostrarTelemetria(
 
 
 /* ==========================================
-   DIAGNÓSTICO TIMING
+   DIAGNÓSTICO
    ========================================== */
 
 function registrarDiagnosticoTiming(
@@ -2651,10 +2801,10 @@ function registrarDiagnosticoTiming(
   ) {
 
     registrarActividad(
-      `MANUAL · CLIC/TARGET ${
-        formatoOffsetMs(
+      `MANUAL · PREPARAR→LISTO ${
+        formatoMs(
           telemetria
-            .manualClickToTargetMs
+            .prepareToManualReadyMs
         )
       } · CLIC→BUY ${
         formatoMs(
@@ -2666,8 +2816,7 @@ function registrarDiagnosticoTiming(
           telemetria
             .manualBuyToTargetMs
         )
-      }.`,
-      "normal"
+      }.`
     );
 
   }
@@ -2689,33 +2838,8 @@ function registrarDiagnosticoTiming(
         telemetria
           .proposalLatencyMs
       )
-    }.`,
-    "normal"
+    }.`
   );
-
-
-  if (
-    Array.isArray(
-      telemetria.timingAnomalias
-    )
-  ) {
-
-    telemetria
-      .timingAnomalias
-      .forEach(
-        (
-          anomalia
-        ) => {
-
-          registrarActividad(
-            `TIMING → ${anomalia}`,
-            "aviso"
-          );
-
-        }
-      );
-
-  }
 
 }
 
@@ -2756,15 +2880,14 @@ function registrarPerfilOperacion(
     } · Vol ${
       telemetria.volatilidad ??
       "--"
-    }.`,
-    "normal"
+    }.`
   );
 
 }
 
 
 /* ==========================================
-   TABLA MERCADOS
+   TABLA
    ========================================== */
 
 function renderFilaMercado(
@@ -2793,8 +2916,7 @@ function renderFilaMercado(
   ) {
 
     fila.pruebas.textContent =
-      resumen.pruebas ??
-      0;
+      resumen.pruebas ?? 0;
 
   }
 
@@ -2804,8 +2926,7 @@ function renderFilaMercado(
   ) {
 
     fila.ganadas.textContent =
-      resumen.ganadas ??
-      0;
+      resumen.ganadas ?? 0;
 
   }
 
@@ -2815,8 +2936,7 @@ function renderFilaMercado(
   ) {
 
     fila.perdidas.textContent =
-      resumen.perdidas ??
-      0;
+      resumen.perdidas ?? 0;
 
   }
 
@@ -2847,38 +2967,8 @@ function renderFilaMercado(
 }
 
 
-function actualizarTablaMercados() {
-
-  const resumenes =
-    botEngine
-      .obtenerEstado()
-      ?.resumenMercados ||
-    {};
-
-
-  Object.keys(
-    FILAS_MERCADO
-  )
-    .forEach(
-      (
-        mercado
-      ) => {
-
-        renderFilaMercado(
-          mercado,
-          resumenes[
-            mercado
-          ]
-        );
-
-      }
-    );
-
-}
-
-
 /* ==========================================
-   COMPARADORES
+   COMPARADOR
    ========================================== */
 
 function renderComparador(
@@ -2917,8 +3007,7 @@ function renderComparador(
   ) {
 
     ui.ganadasCantidad.textContent =
-      ganadas.cantidad ??
-      0;
+      ganadas.cantidad ?? 0;
 
   }
 
@@ -2991,8 +3080,7 @@ function renderComparador(
   ) {
 
     ui.perdidasCantidad.textContent =
-      perdidas.cantidad ??
-      0;
+      perdidas.cantidad ?? 0;
 
   }
 
@@ -3085,28 +3173,51 @@ function renderComparador(
 }
 
 
-function actualizarComparadores() {
+/* ==========================================
+   FIX13.7
+   ESTADÍSTICAS EN UNA SOLA LLAMADA
+   ========================================== */
+
+function actualizarEstadisticasCompletas() {
+
+  const estado =
+    obtenerEstadoCompleto();
+
+
+  const resumenes =
+    estado?.resumenMercados ||
+    {};
+
+
+  Object.keys(
+    FILAS_MERCADO
+  )
+    .forEach(
+      (mercado) => {
+
+        renderFilaMercado(
+          mercado,
+          resumenes[mercado]
+        );
+
+      }
+    );
+
 
   const comparaciones =
-    botEngine
-      .obtenerEstado()
-      ?.comparaciones ||
+    estado?.comparaciones ||
     {};
 
 
   renderComparador(
     "R_50",
-    comparaciones[
-      "R_50"
-    ]
+    comparaciones["R_50"]
   );
 
 
   renderComparador(
     "1HZ75V",
-    comparaciones[
-      "1HZ75V"
-    ]
+    comparaciones["1HZ75V"]
   );
 
 }
@@ -3118,10 +3229,12 @@ function actualizarComparadores() {
 
 function renderEjecucionDemo() {
 
+  const estado =
+    obtenerEstadoRapido();
+
+
   const trade =
-    botEngine
-      .obtenerEstado()
-      ?.trade ||
+    estado?.trade ||
     {};
 
 
@@ -3135,8 +3248,7 @@ function renderEjecucionDemo() {
 
   const activa =
     Boolean(
-      trade
-        .ejecucionActiva
+      trade.ejecucionActiva
     );
 
 
@@ -3179,7 +3291,7 @@ function renderEjecucionDemo() {
 
 
 /* ==========================================
-   EJECUTAR AHORA MANUAL
+   EJECUTAR MANUAL
    ========================================== */
 
 UI.botonEjecutarManual
@@ -3196,7 +3308,6 @@ UI.botonEjecutarManual
           "EJECUTAR AHORA solo funciona en MANUAL DIAGNÓSTICO.",
           "aviso"
         );
-
 
         return;
 
@@ -3220,10 +3331,8 @@ UI.botonEjecutarManual
             .ejecutarManual(
               null,
               {
-
                 onOperacionUpdate:
                   mostrarActualizacionContrato
-
               }
             );
 
@@ -3240,7 +3349,6 @@ UI.botonEjecutarManual
 
 
           renderModoEjecucion();
-
 
           return;
 
@@ -3284,10 +3392,12 @@ UI.botonEjecutarManual
         );
 
 
-        actualizarTablaMercados();
+        /*
+          Solo aquí actualizamos
+          estadísticas pesadas.
+        */
 
-
-        actualizarComparadores();
+        actualizarEstadisticasCompletas();
 
 
         actualizarPanelCalibracion();
@@ -3307,9 +3417,7 @@ UI.botonEjecutarManual
         registrarActividad(
           `Error MANUAL · ${
             error?.message ||
-            String(
-              error
-            )
+            String(error)
           }`,
           "error"
         );
@@ -3335,8 +3443,7 @@ signalBridge.onSenal(
     const fase =
       String(
         senal?.fase ||
-        senal?.metadata
-          ?.fase ||
+        senal?.metadata?.fase ||
         "?"
       )
         .toUpperCase();
@@ -3361,8 +3468,7 @@ signalBridge.onSenal(
 
     const marcaPuente =
       Number(
-        senal
-          ?.bridgeReceivedPerf
+        senal?.bridgeReceivedPerf
       );
 
 
@@ -3381,12 +3487,10 @@ signalBridge.onSenal(
           .procesarSenal(
             senal,
             {
-
               onOperacionUpdate:
                 mostrarActualizacionContrato,
 
               senalRecibidaPerf
-
             }
           );
 
@@ -3409,9 +3513,7 @@ signalBridge.onSenal(
       }
 
 
-      /* ====================================
-         PREPARAR
-         ==================================== */
+      /* PREPARAR */
 
       if (
         resultado.fase ===
@@ -3462,25 +3564,26 @@ signalBridge.onSenal(
         }
 
 
+        /*
+          En FIX13.7 el evento
+          bot:manual-ready ya puede haberse
+          emitido desde PREPARAR.
+        */
+
+        renderModoEjecucion();
+
+
         return;
 
       }
 
 
-      /* ====================================
-         EJECUTAR
-         ==================================== */
+      /* EJECUTAR / TARGET */
 
       if (
         resultado.fase ===
         "EJECUTAR"
       ) {
-
-        /*
-          MANUAL:
-          TARGET llegó pero todavía
-          NO debe comprarse.
-        */
 
         if (
           resultado.estado ===
@@ -3491,7 +3594,7 @@ signalBridge.onSenal(
             `MANUAL · TARGET recibido · ${
               senal.mercado ||
               "--"
-            } · esperando EJECUTAR AHORA.`,
+            } · botón permanece disponible.`,
             "aviso"
           );
 
@@ -3508,11 +3611,6 @@ signalBridge.onSenal(
 
         }
 
-
-        /*
-          AUTOMÁTICO:
-          la operación ya fue ejecutada.
-        */
 
         registrarActividad(
           `EJECUTAR FINALIZADO · ${
@@ -3583,10 +3681,7 @@ signalBridge.onSenal(
         );
 
 
-        actualizarTablaMercados();
-
-
-        actualizarComparadores();
+        actualizarEstadisticasCompletas();
 
 
         actualizarPanelCalibracion();
@@ -3605,9 +3700,7 @@ signalBridge.onSenal(
       registrarActividad(
         `Error ${BOT_VERSION} · fase ${fase} · ${
           error?.message ||
-          String(
-            error
-          )
+          String(error)
         }`,
         "error"
       );
@@ -3751,8 +3844,7 @@ UI.botonConectar
 
 
       const estadoMotor =
-        botEngine
-          .obtenerEstado();
+        obtenerEstadoRapido();
 
 
       registrarActividad(
@@ -3763,7 +3855,7 @@ UI.botonConectar
         } · ${BOT_BUILD}`,
         estadoMotor
             ?.versionTelemetria ===
-          "FIX13.6"
+          "FIX13.7"
           ? "correcto"
           : "aviso"
       );
@@ -3805,16 +3897,14 @@ UI.botonPausar
     () => {
 
       const estado =
-        botEngine
-          .obtenerEstado();
+        obtenerEstadoRapido();
 
 
       if (
         !estado?.pausado
       ) {
 
-        botEngine
-          .pausar();
+        botEngine.pausar();
 
 
         UI.botonPausar.textContent =
@@ -3824,8 +3914,7 @@ UI.botonPausar
 
       else {
 
-        botEngine
-          .reanudar();
+        botEngine.reanudar();
 
 
         UI.botonPausar.textContent =
@@ -3892,7 +3981,7 @@ UI.botonDesactivarDemo
 
 
 /* ==========================================
-   PRUEBA INTERNA
+   PRUEBA INTERNA FIX13.7
    ========================================== */
 
 UI.botonProbar
@@ -3916,7 +4005,7 @@ UI.botonProbar
             "PREPARAR",
 
           protocolo:
-            "FIX13.6",
+            "FIX13.7",
 
           mercado:
             "R_50",
@@ -3965,7 +4054,7 @@ UI.botonProbar
               "PREPARAR",
 
             protocolo:
-              "FIX13.6",
+              "FIX13.7",
 
             rawScore:
               108.63,
@@ -4009,7 +4098,7 @@ UI.botonProbar
             "EJECUTAR",
 
           protocolo:
-            "FIX13.6",
+            "FIX13.7",
 
           mercado:
             "R_50",
@@ -4063,7 +4152,7 @@ UI.botonProbar
               "EJECUTAR",
 
             protocolo:
-              "FIX13.6",
+              "FIX13.7",
 
             rawScore:
               108.63,
@@ -4218,8 +4307,7 @@ derivConnection.on(
       ) {
 
         UI.derivConexion.textContent =
-          estado ===
-            "connecting"
+          estado === "connecting"
             ? "CONECTANDO"
             : "OFF";
 
@@ -4227,8 +4315,7 @@ derivConnection.on(
 
 
       if (
-        estado !==
-        "connecting"
+        estado !== "connecting"
       ) {
 
         if (
@@ -4317,7 +4404,6 @@ UI.botonConectarDeriv
           "aviso"
         );
 
-
         return;
 
       }
@@ -4331,7 +4417,6 @@ UI.botonConectarDeriv
           "Falta Token PAT.",
           "aviso"
         );
-
 
         return;
 
@@ -4464,22 +4549,18 @@ window.addEventListener(
 
 
     if (
-      signalBridge
-        .destruir
+      signalBridge.destruir
     ) {
 
-      signalBridge
-        .destruir();
+      signalBridge.destruir();
 
     }
 
     else if (
-      signalBridge
-        .desconectar
+      signalBridge.desconectar
     ) {
 
-      signalBridge
-        .desconectar();
+      signalBridge.desconectar();
 
     }
 
@@ -4508,12 +4589,6 @@ if (
 renderEjecucionDemo();
 
 
-actualizarTablaMercados();
-
-
-actualizarComparadores();
-
-
 actualizarPanelCalibracion();
 
 
@@ -4523,9 +4598,15 @@ renderModoEjecucion();
 recuperarResultadoEngine();
 
 
+/*
+  Una sola carga pesada inicial.
+*/
+
+actualizarEstadisticasCompletas();
+
+
 const estadoInicialMotor =
-  botEngine
-    .obtenerEstado();
+  obtenerEstadoRapido();
 
 
 registrarActividad(
@@ -4542,7 +4623,7 @@ registrarActividad(
   }.`,
   estadoInicialMotor
       ?.versionTelemetria ===
-    "FIX13.6"
+    "FIX13.7"
     ? "correcto"
     : "aviso"
 );
@@ -4569,23 +4650,33 @@ registrarActividad(
 
 
 registrarActividad(
-  "FIX13.6 MANUAL DIAGNÓSTICO activo.",
+  "FIX13.7 ESTABLE + RÁPIDA activo.",
   "correcto"
 );
 
 
 registrarActividad(
-  "AUTOMÁTICO conserva TARGET + calibración + BUY."
+  "Interfaz usa estado rápido."
 );
 
 
 registrarActividad(
-  "MANUAL conserva TARGET como referencia y espera EJECUTAR AHORA."
+  "Estadísticas pesadas quedan fuera del camino crítico."
 );
 
 
 registrarActividad(
-  "El clic manual, BUY enviado, confirmación y resultado serán registrados."
+  "MANUAL puede quedar listo desde PREPARAR."
+);
+
+
+registrarActividad(
+  "TARGET actualizará la referencia sin bloquear el botón."
+);
+
+
+registrarActividad(
+  "GANADA / PERDIDA permanecerá visible."
 );
 
 
@@ -4596,5 +4687,5 @@ registrarActividad(
 
 /* ==========================================
    FIN BOT.JS
-   FIX13.6 MANUAL DIAGNÓSTICO
+   FIX13.7 ESTABLE + RÁPIDA
    ========================================== */
