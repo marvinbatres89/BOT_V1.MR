@@ -1,7 +1,9 @@
 /* ==========================================
    BOT V1 MR
    BOT.CSS
-   FIX13.6 MANUAL DIAGNÓSTICO
+   FIX13.7 ESTABLE + RÁPIDA
+
+   BASE: FIX13.6
 
    CONSERVA:
    - DISEÑO MÓVIL
@@ -12,15 +14,14 @@
    - REGISTRO
    - 12 MERCADOS
    - CALIBRACIÓN
+   - AUTOMÁTICO / MANUAL
 
-   AGREGA:
-   - AUTOMÁTICO / MANUAL DIAGNÓSTICO
-   - PANEL MANUAL
-   - BOTÓN EJECUTAR AHORA
-   - TARGET DE REFERENCIA
-   - CLIC MANUAL
-   - OFFSET BUY
-   - COMPATIBILIDAD INDEX FIX13.6
+   FIX13.7:
+   - SIN ANIMACIÓN INFINITA
+   - MENOS SOMBRAS PESADAS
+   - MENOS REPINTADOS
+   - SCROLL MÁS ESTABLE
+   - BOTÓN MANUAL VISIBLE Y RÁPIDO
    ========================================== */
 
 
@@ -33,14 +34,17 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
+  background: #07111f;
 }
 
 body {
   margin: 0;
+  min-height: 100vh;
   background: #07111f;
   color: #eaf2ff;
   font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
 }
 
 button,
@@ -52,6 +56,10 @@ select {
 button,
 select {
   -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  touch-action: manipulation;
 }
 
 .app {
@@ -126,6 +134,7 @@ select {
    ========================================== */
 
 .tarjeta {
+  position: relative;
   background: #0d1b2a;
   border: 1px solid #1f3348;
   border-radius: 18px;
@@ -298,19 +307,16 @@ select {
   font-size: 14px;
   font-weight: bold;
   cursor: pointer;
-  transition:
-    transform 0.08s ease,
-    opacity 0.15s ease;
+  transition: none;
 }
 
 .boton:active {
-  transform: scale(0.98);
+  opacity: 0.88;
 }
 
 .boton:disabled {
   opacity: 0.45;
   cursor: not-allowed;
-  transform: none;
 }
 
 .conectar {
@@ -371,7 +377,6 @@ select {
 
 
 /* ==========================================
-   FIX13.6
    MODO DE EJECUCIÓN
    ========================================== */
 
@@ -389,16 +394,12 @@ select {
 
 
 /* ==========================================
-   FIX13.6
    PANEL MANUAL
    ========================================== */
 
 .manual-panel {
   border: 2px solid #d9932d;
   background: #141b26;
-  box-shadow:
-    0 0 0 1px rgba(255, 196, 90, 0.08),
-    0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .manual-panel[hidden] {
@@ -454,6 +455,7 @@ select {
 
 /* ==========================================
    BOTÓN EJECUTAR AHORA
+   FIX13.7 SIN ANIMACIÓN
    ========================================== */
 
 .ejecutar-manual {
@@ -469,18 +471,20 @@ select {
   font-size: 21px;
   font-weight: 900;
   letter-spacing: 0.5px;
-  box-shadow:
-    0 0 0 3px rgba(67, 217, 163, 0.08),
-    0 8px 24px rgba(67, 217, 163, 0.18);
+  box-shadow: none;
+  animation: none !important;
+  transition: none;
 }
 
 .ejecutar-manual:not(:disabled) {
-  animation:
-    pulsoManual 1.4s ease-in-out infinite;
+  background: #43d9a3;
+  color: #04140e;
+  border-color: #7cf2c4;
+  animation: none !important;
 }
 
 .ejecutar-manual:active {
-  transform: scale(0.97);
+  opacity: 0.85;
 }
 
 .ejecutar-manual:disabled {
@@ -488,26 +492,7 @@ select {
   background: #1b2b3e;
   color: #71869a;
   box-shadow: none;
-  animation: none;
-}
-
-@keyframes pulsoManual {
-
-  0% {
-    box-shadow:
-      0 0 0 0 rgba(67, 217, 163, 0.22);
-  }
-
-  50% {
-    box-shadow:
-      0 0 0 7px rgba(67, 217, 163, 0.06);
-  }
-
-  100% {
-    box-shadow:
-      0 0 0 0 rgba(67, 217, 163, 0);
-  }
-
+  animation: none !important;
 }
 
 .nota-manual {
@@ -684,16 +669,19 @@ select {
 
 
 /* ==========================================
-   TABLAS FIX13.6
+   TABLAS
    ========================================== */
 
 .tabla-wrap,
 .tabla-scroll {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
   border-radius: 12px;
   border: 1px solid #1f3348;
   background: #07111f;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tabla-estadisticas,
@@ -732,11 +720,6 @@ select {
   border-bottom: none;
 }
 
-.tabla-estadisticas tbody tr:hover,
-.tabla-diagnostico tbody tr:hover {
-  background: #0a1623;
-}
-
 .tabla-estadisticas td:nth-child(1),
 .tabla-diagnostico td:nth-child(1) {
   font-weight: bold;
@@ -745,7 +728,7 @@ select {
 
 
 /* ==========================================
-   COLORES TABLA MERCADOS
+   COLORES TABLA
    ========================================== */
 
 .tabla-diagnostico td:nth-child(3) {
@@ -789,7 +772,7 @@ select {
 
 .tabla-wrap::-webkit-scrollbar,
 .tabla-scroll::-webkit-scrollbar {
-  height: 7px;
+  height: 6px;
 }
 
 .tabla-wrap::-webkit-scrollbar-thumb,
@@ -812,12 +795,14 @@ select {
   min-height: 160px;
   max-height: 360px;
   overflow-y: auto;
+  overflow-x: hidden;
   background: #07111f;
   border: 1px solid #16283a;
   border-radius: 12px;
   padding: 12px;
   font-family: monospace;
   font-size: 12px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .registro p {
@@ -827,7 +812,7 @@ select {
 }
 
 .registro::-webkit-scrollbar {
-  width: 7px;
+  width: 6px;
 }
 
 .registro::-webkit-scrollbar-thumb {
@@ -991,6 +976,23 @@ footer small {
 
 
 /* ==========================================
+   REDUCIR EFECTOS DEL SISTEMA
+   ========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+
+}
+
+
+/* ==========================================
    FIN BOT.CSS
-   FIX13.6 MANUAL DIAGNÓSTICO
+   FIX13.7 ESTABLE + RÁPIDA
    ========================================== */
