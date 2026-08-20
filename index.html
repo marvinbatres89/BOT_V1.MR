@@ -10,12 +10,12 @@
   >
 
   <title>
-    BOT V1 MR · FIX13.6
+    BOT V1 MR · FIX13.7
   </title>
 
   <link
     rel="stylesheet"
-    href="./bot.css?v=FIX13-6"
+    href="./bot.css?v=FIX13-7"
   >
 </head>
 
@@ -42,7 +42,7 @@
         </h1>
 
         <p class="subtitulo">
-          FIX13.6 · Automático + Manual Diagnóstico
+          FIX13.7 · Automático + Manual Diagnóstico
         </p>
 
       </div>
@@ -68,7 +68,6 @@
         Sincronización con Trading Analyzer
       </h2>
 
-
       <div class="datos-grid">
 
         <div class="dato">
@@ -76,30 +75,25 @@
           <strong id="mercado">--</strong>
         </div>
 
-
         <div class="dato">
           <small>Estrategia</small>
           <strong id="estrategia">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Dirección</small>
           <strong id="direccion">--</strong>
         </div>
 
-
         <div class="dato">
           <small>Confianza</small>
           <strong id="confianza">--</strong>
         </div>
 
-
         <div class="dato">
           <small>Punto de entrada</small>
           <strong id="entrada">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Precio</small>
@@ -117,7 +111,6 @@
         >
           CONECTAR PUENTE
         </button>
-
 
         <button
           id="botonPausar"
@@ -142,19 +135,16 @@
         Deriv DEMO
       </h2>
 
-
       <p class="descripcion">
         Conexión autenticada mediante PAT.
         El BOT debe trabajar únicamente
         con la cuenta DEMO durante estas pruebas.
       </p>
 
-
       <p class="aviso">
         La ejecución real con dinero no forma parte
         de esta fase de diagnóstico.
       </p>
-
 
       <div
         id="estadoDeriv"
@@ -162,7 +152,6 @@
       >
         Deriv desconectado.
       </div>
-
 
       <div class="campo">
 
@@ -180,7 +169,6 @@
 
       </div>
 
-
       <div class="campo">
 
         <label for="derivAccountId">
@@ -197,7 +185,6 @@
 
       </div>
 
-
       <div class="campo">
 
         <label for="derivToken">
@@ -213,7 +200,6 @@
 
       </div>
 
-
       <div class="botones">
 
         <button
@@ -222,7 +208,6 @@
         >
           CONECTAR DERIV DEMO
         </button>
-
 
         <button
           id="botonDesconectarDeriv"
@@ -234,14 +219,12 @@
 
       </div>
 
-
       <div class="datos-grid separacion">
 
         <div class="dato">
           <small>Cuenta</small>
           <strong id="derivCuenta">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Estado</small>
@@ -263,13 +246,11 @@
         Ejecución DEMO
       </h2>
 
-
       <p class="descripcion">
         Debe activarse manualmente en cada sesión.
         El monto permanece en 1 USD durante
         las pruebas de diagnóstico.
       </p>
-
 
       <div
         id="estadoEjecucion"
@@ -278,7 +259,6 @@
         EJECUCIÓN DEMO OFF
       </div>
 
-
       <div class="datos-grid separacion">
 
         <div class="dato">
@@ -286,14 +266,12 @@
           <strong>1 USD</strong>
         </div>
 
-
         <div class="dato">
           <small>Operaciones simultáneas</small>
           <strong>1 máximo</strong>
         </div>
 
       </div>
-
 
       <div class="botones">
 
@@ -303,7 +281,6 @@
         >
           ACTIVAR EJECUCIÓN DEMO
         </button>
-
 
         <button
           id="botonDesactivarDemo"
@@ -319,7 +296,7 @@
 
 
     <!-- =====================================
-         NUEVO FIX13.6
+         FIX13.7
          MODO DE EJECUCIÓN
          ===================================== -->
 
@@ -329,7 +306,6 @@
         Modo de ejecución
       </h2>
 
-
       <p class="descripcion">
         AUTOMÁTICO conserva la ejecución por TARGET
         y calibración. MANUAL DIAGNÓSTICO prepara
@@ -337,13 +313,11 @@
         usted pulse EJECUTAR AHORA.
       </p>
 
-
       <div class="campo">
 
         <label for="modoEjecucionSelect">
           Seleccione el modo
         </label>
-
 
         <select
           id="modoEjecucionSelect"
@@ -362,7 +336,6 @@
 
       </div>
 
-
       <div class="datos-grid separacion">
 
         <div class="dato">
@@ -371,7 +344,6 @@
             AUTOMÁTICO
           </strong>
         </div>
-
 
         <div class="dato">
           <small>Protocolo</small>
@@ -399,13 +371,11 @@
         ⚡ Manual Diagnóstico
       </h2>
 
-
       <p class="descripcion">
         El TARGET sirve como referencia.
         El BUY solamente se enviará cuando
         usted pulse EJECUTAR AHORA.
       </p>
-
 
       <div
         id="manualEstado"
@@ -414,74 +384,49 @@
         ESPERANDO PREDICCIÓN
       </div>
 
-
       <div class="datos-grid separacion">
 
         <div class="dato">
           <small>Operación</small>
-          <strong id="manualOperacion">
-            --
-          </strong>
+          <strong id="manualOperacion">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Mercado</small>
-          <strong id="manualMercado">
-            --
-          </strong>
+          <strong id="manualMercado">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Dirección</small>
-          <strong id="manualDireccion">
-            --
-          </strong>
+          <strong id="manualDireccion">--</strong>
         </div>
-
 
         <div class="dato">
           <small>TARGET</small>
-          <strong id="manualTarget">
-            --
-          </strong>
+          <strong id="manualTarget">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Referencia programada</small>
-          <strong id="manualProgramado">
-            --
-          </strong>
+          <strong id="manualProgramado">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Clic respecto TARGET</small>
-          <strong id="manualClickOffset">
-            --
-          </strong>
+          <strong id="manualClickOffset">--</strong>
         </div>
-
 
         <div class="dato">
           <small>BUY respecto TARGET</small>
-          <strong id="manualBuyOffset">
-            --
-          </strong>
+          <strong id="manualBuyOffset">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Resultado</small>
-          <strong>
-            Deriv DEMO
-          </strong>
+          <strong>Deriv DEMO</strong>
         </div>
 
       </div>
-
 
       <button
         id="botonEjecutarManual"
@@ -490,7 +435,6 @@
       >
         ⚡ EJECUTAR AHORA
       </button>
-
 
       <p class="nota-manual">
         Pulse este botón únicamente cuando usted
@@ -512,12 +456,10 @@
         Prueba interna
       </h2>
 
-
       <p class="descripcion">
         Genera una señal interna de prueba para
         comprobar PREPARAR y TARGET.
       </p>
-
 
       <button
         id="botonProbar"
@@ -539,7 +481,6 @@
         Última señal recibida
       </h2>
 
-
       <div
         id="ultimaSenal"
         class="ultima-senal"
@@ -559,7 +500,6 @@
       <h2>
         Contrato preparado
       </h2>
-
 
       <div
         id="ultimoContrato"
@@ -581,7 +521,6 @@
         Cotización Deriv DEMO
       </h2>
 
-
       <div
         id="ultimaPropuesta"
         class="ultima-senal"
@@ -601,7 +540,6 @@
       <h2>
         Operación DEMO
       </h2>
-
 
       <div
         id="operacionDemo"
@@ -623,7 +561,6 @@
         Resultado
       </h2>
 
-
       <div
         id="resultadoDemo"
         class="ultima-senal"
@@ -644,86 +581,56 @@
         Calibrador de ejecución
       </h2>
 
-
       <div class="datos-grid">
 
         <div class="dato">
           <small>Familia</small>
-          <strong id="calibradorFamilia">
-            --
-          </strong>
+          <strong id="calibradorFamilia">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Mercado</small>
-          <strong id="calibradorMercado">
-            --
-          </strong>
+          <strong id="calibradorMercado">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Punto</small>
-          <strong id="calibradorPunto">
-            --
-          </strong>
+          <strong id="calibradorPunto">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Referencia</small>
-          <strong id="calibradorReferencia">
-            --
-          </strong>
+          <strong id="calibradorReferencia">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Ajuste</small>
-          <strong id="calibradorAjuste">
-            --
-          </strong>
+          <strong id="calibradorAjuste">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Espera</small>
-          <strong id="calibradorEspera">
-            --
-          </strong>
+          <strong id="calibradorEspera">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Entrada / clic</small>
-          <strong id="calibradorSignalBuy">
-            --
-          </strong>
+          <strong id="calibradorSignalBuy">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Propuesta</small>
-          <strong id="calibradorPropuesta">
-            --
-          </strong>
+          <strong id="calibradorPropuesta">--</strong>
         </div>
-
 
         <div class="dato">
           <small>BUY</small>
-          <strong id="calibradorBuy">
-            --
-          </strong>
+          <strong id="calibradorBuy">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Resultado</small>
-          <strong id="calibradorResultado">
-            --
-          </strong>
+          <strong id="calibradorResultado">--</strong>
         </div>
 
       </div>
@@ -741,20 +648,17 @@
         Calibración por mercado
       </h2>
 
-
       <p class="descripcion">
         El modo AUTOMÁTICO usa esta calibración.
         En MANUAL se conserva como referencia
         para comparar el momento elegido.
       </p>
 
-
       <div class="campo">
 
         <label for="calibracionMercadoSelect">
           Mercado
         </label>
-
 
         <select
           id="calibracionMercadoSelect"
@@ -779,13 +683,11 @@
 
       </div>
 
-
       <div class="campo">
 
         <label for="calibracionAjusteSelect">
           Ajuste
         </label>
-
 
         <select
           id="calibracionAjusteSelect"
@@ -813,32 +715,22 @@
 
       </div>
 
-
       <div class="datos-grid separacion">
 
         <div class="dato">
           <small>Mercado seleccionado</small>
-          <strong id="calibracionMercadoActual">
-            --
-          </strong>
+          <strong id="calibracionMercadoActual">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Ajuste actual</small>
-          <strong id="calibracionAjusteActual">
-            --
-          </strong>
+          <strong id="calibracionAjusteActual">--</strong>
         </div>
-
 
         <div class="dato">
           <small>TARGET disponible</small>
-          <strong id="calibracionTargetDisponible">
-            NO
-          </strong>
+          <strong id="calibracionTargetDisponible">NO</strong>
         </div>
-
 
         <div class="dato">
           <small>Programación</small>
@@ -849,7 +741,6 @@
 
       </div>
 
-
       <div class="botones">
 
         <button
@@ -858,7 +749,6 @@
         >
           GUARDAR CALIBRACIÓN
         </button>
-
 
         <button
           id="botonResetCalibracion"
@@ -882,13 +772,11 @@
         Resultados por mercado
       </h2>
 
-
       <div class="tabla-scroll">
 
         <table class="tabla-diagnostico">
 
           <thead>
-
             <tr>
               <th>Mercado</th>
               <th>Pruebas</th>
@@ -897,9 +785,7 @@
               <th>Accuracy</th>
               <th>Latencia</th>
             </tr>
-
           </thead>
-
 
           <tbody>
 
@@ -912,7 +798,6 @@
               <td id="r10Latencia">--</td>
             </tr>
 
-
             <tr>
               <td>R_25</td>
               <td id="r25Pruebas">0</td>
@@ -921,7 +806,6 @@
               <td id="r25Accuracy">--</td>
               <td id="r25Latencia">--</td>
             </tr>
-
 
             <tr>
               <td>R_50</td>
@@ -932,7 +816,6 @@
               <td id="r50Latencia">--</td>
             </tr>
 
-
             <tr>
               <td>R_75</td>
               <td id="r75Pruebas">0</td>
@@ -941,7 +824,6 @@
               <td id="r75Accuracy">--</td>
               <td id="r75Latencia">--</td>
             </tr>
-
 
             <tr>
               <td>R_100</td>
@@ -952,7 +834,6 @@
               <td id="r100Latencia">--</td>
             </tr>
 
-
             <tr>
               <td>1HZ10V</td>
               <td id="hz10Pruebas">0</td>
@@ -961,7 +842,6 @@
               <td id="hz10Accuracy">--</td>
               <td id="hz10Latencia">--</td>
             </tr>
-
 
             <tr>
               <td>1HZ15V</td>
@@ -972,7 +852,6 @@
               <td id="hz15Latencia">--</td>
             </tr>
 
-
             <tr>
               <td>1HZ25V</td>
               <td id="hz25Pruebas">0</td>
@@ -981,7 +860,6 @@
               <td id="hz25Accuracy">--</td>
               <td id="hz25Latencia">--</td>
             </tr>
-
 
             <tr>
               <td>1HZ30V</td>
@@ -992,7 +870,6 @@
               <td id="hz30Latencia">--</td>
             </tr>
 
-
             <tr>
               <td>1HZ50V</td>
               <td id="hz50Pruebas">0</td>
@@ -1002,7 +879,6 @@
               <td id="hz50Latencia">--</td>
             </tr>
 
-
             <tr>
               <td>1HZ75V</td>
               <td id="hz75Pruebas">0</td>
@@ -1011,7 +887,6 @@
               <td id="hz75Accuracy">--</td>
               <td id="hz75Latencia">--</td>
             </tr>
-
 
             <tr>
               <td>1HZ100V</td>
@@ -1041,13 +916,11 @@
         Comparador timing · R_50
       </h2>
 
-
       <div class="tabla-scroll">
 
         <table class="tabla-diagnostico">
 
           <thead>
-
             <tr>
               <th>Grupo</th>
               <th>Cantidad</th>
@@ -1057,9 +930,7 @@
               <th>PULL</th>
               <th>BUY</th>
             </tr>
-
           </thead>
-
 
           <tbody>
 
@@ -1072,7 +943,6 @@
               <td id="r50TimingGanadasProposal">--</td>
               <td id="r50TimingGanadasBuy">--</td>
             </tr>
-
 
             <tr>
               <td>Perdidas</td>
@@ -1090,16 +960,12 @@
 
       </div>
 
-
       <div class="datos-grid separacion">
 
         <div class="dato">
           <small>Diferencia</small>
-          <strong id="r50TimingDiferencia">
-            --
-          </strong>
+          <strong id="r50TimingDiferencia">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Lectura</small>
@@ -1123,13 +989,11 @@
         Comparador timing · 1HZ75V
       </h2>
 
-
       <div class="tabla-scroll">
 
         <table class="tabla-diagnostico">
 
           <thead>
-
             <tr>
               <th>Grupo</th>
               <th>Cantidad</th>
@@ -1139,9 +1003,7 @@
               <th>PULL</th>
               <th>BUY</th>
             </tr>
-
           </thead>
-
 
           <tbody>
 
@@ -1154,7 +1016,6 @@
               <td id="hz75TimingGanadasProposal">--</td>
               <td id="hz75TimingGanadasBuy">--</td>
             </tr>
-
 
             <tr>
               <td>Perdidas</td>
@@ -1172,16 +1033,12 @@
 
       </div>
 
-
       <div class="datos-grid separacion">
 
         <div class="dato">
           <small>Diferencia</small>
-          <strong id="hz75TimingDiferencia">
-            --
-          </strong>
+          <strong id="hz75TimingDiferencia">--</strong>
         </div>
-
 
         <div class="dato">
           <small>Lectura</small>
@@ -1205,13 +1062,12 @@
         Registro del BOT
       </h2>
 
-
       <div
         id="registroBot"
         class="registro"
       >
         <p>
-          BOT V1 MR FIX13.6 preparado.
+          BOT V1 MR FIX13.7 preparado.
         </p>
       </div>
 
@@ -1225,7 +1081,7 @@
     <footer>
 
       <p>
-        BOT V1 MR · FIX13.6
+        BOT V1 MR · FIX13.7
       </p>
 
       <small>
@@ -1241,7 +1097,7 @@
 
   <script
     type="module"
-    src="./bot.js?v=FIX13-6"
+    src="./bot.js?v=FIX13-7"
   ></script>
 
 </body>
