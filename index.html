@@ -9,1054 +9,1240 @@
     content="width=device-width, initial-scale=1.0"
   >
 
-  <title>BOT V1 MR · FIX11 BRIDGE-2</title>
+  <title>
+    BOT V1 MR · FIX13.6
+  </title>
 
   <link
     rel="stylesheet"
-    href="./bot.css"
+    href="./bot.css?v=FIX13-6"
   >
 </head>
 
+
 <body>
 
-<main class="app">
+  <main class="app">
 
-  <!-- ENCABEZADO -->
+    <!-- =====================================
+         ENCABEZADO
+         ===================================== -->
 
-  <header class="hero">
+    <header class="hero">
 
-    <div>
-      <p class="eyebrow">
-        TRADING ANALYZER → BOT → DERIV DEMO
-      </p>
+      <div>
 
-      <h1>
-        BOT V1 MR
-        <span>FIX11 BRIDGE-2</span>
-      </h1>
+        <p class="eyebrow">
+          TRADING ANALYZER · BOT SINCRONIZADO · DERIV DEMO
+        </p>
 
-      <p class="subtitulo">
-        Calibración independiente por mercado
-      </p>
-    </div>
+        <h1>
+          BOT V1
+          <span>MR</span>
+        </h1>
 
-    <div
-      id="estadoBot"
-      class="estado-bot apagado"
-    >
-      BOT OFF
-    </div>
+        <p class="subtitulo">
+          FIX13.6 · Automático + Manual Diagnóstico
+        </p>
 
-  </header>
+      </div>
 
 
-  <!-- CONTROL DEL BOT -->
-
-  <section class="tarjeta">
-
-    <h2>Control del bot</h2>
-
-    <div class="botones">
-
-      <button
-        id="botonConectar"
-        class="boton conectar"
-        type="button"
+      <div
+        id="estadoBot"
+        class="estado-bot apagado"
       >
-        CONECTAR BOT
-      </button>
-
-      <button
-        id="botonPausar"
-        class="boton pausar"
-        type="button"
-        disabled
-      >
-        PAUSAR
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- DERIV DEMO -->
-
-  <section class="tarjeta">
-
-    <h2>Conexión Deriv DEMO</h2>
-
-    <p class="descripcion">
-      FIX11 continúa trabajando únicamente
-      con cuenta DEMO durante la calibración.
-    </p>
-
-    <div class="datos-grid">
-
-      <div class="dato">
-        <small>Estado</small>
-        <strong id="estadoDeriv">
-          Desconectado
-        </strong>
+        BOT OFF
       </div>
 
-      <div class="dato">
-        <small>Conexión</small>
-        <strong id="derivConexion">
-          OFF
-        </strong>
+    </header>
+
+
+    <!-- =====================================
+         SINCRONIZACIÓN
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Sincronización con Trading Analyzer
+      </h2>
+
+
+      <div class="datos-grid">
+
+        <div class="dato">
+          <small>Mercado</small>
+          <strong id="mercado">--</strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Estrategia</small>
+          <strong id="estrategia">--</strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Dirección</small>
+          <strong id="direccion">--</strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Confianza</small>
+          <strong id="confianza">--</strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Punto de entrada</small>
+          <strong id="entrada">--</strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Precio</small>
+          <strong id="precio">--</strong>
+        </div>
+
       </div>
 
-      <div class="dato">
-        <small>Cuenta</small>
-        <strong id="derivCuenta">
-          --
-        </strong>
-      </div>
 
-      <div class="dato">
-        <small>Ejecución</small>
+      <div class="botones">
 
-        <strong
-          id="estadoEjecucion"
-          class="apagado-ejecucion"
+        <button
+          id="botonConectar"
+          class="boton conectar"
         >
-          EJECUCIÓN DEMO OFF
-        </strong>
+          CONECTAR PUENTE
+        </button>
+
+
+        <button
+          id="botonPausar"
+          class="boton pausar"
+          disabled
+        >
+          PAUSAR
+        </button>
+
       </div>
 
-    </div>
+    </section>
 
 
-    <div class="datos-grid">
+    <!-- =====================================
+         DERIV DEMO
+         ===================================== -->
 
-      <div class="dato">
+    <section class="tarjeta">
 
-        <small>Deriv App ID</small>
+      <h2>
+        Deriv DEMO
+      </h2>
+
+
+      <p class="descripcion">
+        Conexión autenticada mediante PAT.
+        El BOT debe trabajar únicamente
+        con la cuenta DEMO durante estas pruebas.
+      </p>
+
+
+      <p class="aviso">
+        La ejecución real con dinero no forma parte
+        de esta fase de diagnóstico.
+      </p>
+
+
+      <div
+        id="estadoDeriv"
+        class="ultima-senal"
+      >
+        Deriv desconectado.
+      </div>
+
+
+      <div class="campo">
+
+        <label for="derivAppId">
+          Deriv App ID
+        </label>
 
         <input
           id="derivAppId"
           type="text"
-          inputmode="numeric"
+          inputmode="text"
+          placeholder="Pegue aquí su App ID"
           autocomplete="off"
-          placeholder="App ID"
         >
 
       </div>
 
 
-      <div class="dato">
+      <div class="campo">
 
-        <small>Cuenta DEMO</small>
+        <label for="derivAccountId">
+          ID cuenta DEMO
+        </label>
 
         <input
           id="derivAccountId"
           type="text"
-          value="Se detectará automáticamente"
+          placeholder="Se detectará automáticamente"
+          autocomplete="off"
           disabled
         >
 
       </div>
 
-    </div>
+
+      <div class="campo">
+
+        <label for="derivToken">
+          Token PAT
+        </label>
+
+        <input
+          id="derivToken"
+          type="password"
+          placeholder="Pegue aquí su token PAT"
+          autocomplete="off"
+        >
+
+      </div>
 
 
-    <div class="dato">
+      <div class="botones">
 
-      <small>Token PAT DEMO</small>
+        <button
+          id="botonConectarDeriv"
+          class="boton conectar"
+        >
+          CONECTAR DERIV DEMO
+        </button>
 
-      <input
-        id="derivToken"
-        type="password"
-        autocomplete="off"
-        placeholder="Token de cuenta DEMO"
+
+        <button
+          id="botonDesconectarDeriv"
+          class="boton pausar"
+          disabled
+        >
+          DESCONECTAR
+        </button>
+
+      </div>
+
+
+      <div class="datos-grid separacion">
+
+        <div class="dato">
+          <small>Cuenta</small>
+          <strong id="derivCuenta">--</strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Estado</small>
+          <strong id="derivConexion">OFF</strong>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =====================================
+         EJECUCIÓN DEMO
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Ejecución DEMO
+      </h2>
+
+
+      <p class="descripcion">
+        Debe activarse manualmente en cada sesión.
+        El monto permanece en 1 USD durante
+        las pruebas de diagnóstico.
+      </p>
+
+
+      <div
+        id="estadoEjecucion"
+        class="estado-ejecucion apagado-ejecucion"
       >
+        EJECUCIÓN DEMO OFF
+      </div>
 
-    </div>
+
+      <div class="datos-grid separacion">
+
+        <div class="dato">
+          <small>Monto</small>
+          <strong>1 USD</strong>
+        </div>
 
 
-    <div class="botones">
+        <div class="dato">
+          <small>Operaciones simultáneas</small>
+          <strong>1 máximo</strong>
+        </div>
+
+      </div>
+
+
+      <div class="botones">
+
+        <button
+          id="botonActivarDemo"
+          class="boton activar-demo"
+        >
+          ACTIVAR EJECUCIÓN DEMO
+        </button>
+
+
+        <button
+          id="botonDesactivarDemo"
+          class="boton pausar"
+          disabled
+        >
+          DESACTIVAR
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <!-- =====================================
+         NUEVO FIX13.6
+         MODO DE EJECUCIÓN
+         ===================================== -->
+
+    <section class="tarjeta tarjeta-modo">
+
+      <h2>
+        Modo de ejecución
+      </h2>
+
+
+      <p class="descripcion">
+        AUTOMÁTICO conserva la ejecución por TARGET
+        y calibración. MANUAL DIAGNÓSTICO prepara
+        la operación pero solamente compra cuando
+        usted pulse EJECUTAR AHORA.
+      </p>
+
+
+      <div class="campo">
+
+        <label for="modoEjecucionSelect">
+          Seleccione el modo
+        </label>
+
+
+        <select
+          id="modoEjecucionSelect"
+          class="selector-modo"
+        >
+
+          <option value="AUTOMATICO">
+            AUTOMÁTICO
+          </option>
+
+          <option value="MANUAL_DIAGNOSTICO">
+            MANUAL DIAGNÓSTICO
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <div class="datos-grid separacion">
+
+        <div class="dato">
+          <small>Modo actual</small>
+          <strong id="modoEjecucionEstado">
+            AUTOMÁTICO
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Protocolo</small>
+          <strong>
+            PREPARAR → TARGET → BUY
+          </strong>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =====================================
+         MANUAL DIAGNÓSTICO
+         ===================================== -->
+
+    <section
+      id="manualPanel"
+      class="tarjeta manual-panel"
+      hidden
+    >
+
+      <h2>
+        ⚡ Manual Diagnóstico
+      </h2>
+
+
+      <p class="descripcion">
+        El TARGET sirve como referencia.
+        El BUY solamente se enviará cuando
+        usted pulse EJECUTAR AHORA.
+      </p>
+
+
+      <div
+        id="manualEstado"
+        class="estado-manual"
+      >
+        ESPERANDO PREDICCIÓN
+      </div>
+
+
+      <div class="datos-grid separacion">
+
+        <div class="dato">
+          <small>Operación</small>
+          <strong id="manualOperacion">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Mercado</small>
+          <strong id="manualMercado">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Dirección</small>
+          <strong id="manualDireccion">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>TARGET</small>
+          <strong id="manualTarget">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Referencia programada</small>
+          <strong id="manualProgramado">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Clic respecto TARGET</small>
+          <strong id="manualClickOffset">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>BUY respecto TARGET</small>
+          <strong id="manualBuyOffset">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Resultado</small>
+          <strong>
+            Deriv DEMO
+          </strong>
+        </div>
+
+      </div>
+
 
       <button
-        id="botonConectarDeriv"
-        class="boton conectar"
-        type="button"
-      >
-        CONECTAR DERIV DEMO
-      </button>
-
-      <button
-        id="botonDesconectarDeriv"
-        class="boton detener"
-        type="button"
+        id="botonEjecutarManual"
+        class="boton ejecutar-manual"
         disabled
       >
-        DESCONECTAR
+        ⚡ EJECUTAR AHORA
       </button>
 
-    </div>
+
+      <p class="nota-manual">
+        Pulse este botón únicamente cuando usted
+        decida que es el momento de entrar.
+        El BOT registrará automáticamente el clic,
+        el BUY, la confirmación y el resultado.
+      </p>
+
+    </section>
 
 
-    <div class="botones">
+    <!-- =====================================
+         PRUEBA INTERNA
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Prueba interna
+      </h2>
+
+
+      <p class="descripcion">
+        Genera una señal interna de prueba para
+        comprobar PREPARAR y TARGET.
+      </p>
+
 
       <button
-        id="botonActivarDemo"
-        class="boton ejecutar"
-        type="button"
-        disabled
+        id="botonProbar"
+        class="boton probar"
       >
-        ACTIVAR EJECUCIÓN DEMO
+        PROBAR SEÑAL DEMO
       </button>
 
-      <button
-        id="botonDesactivarDemo"
-        class="boton detener"
-        type="button"
-        disabled
+    </section>
+
+
+    <!-- =====================================
+         ÚLTIMA SEÑAL
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Última señal recibida
+      </h2>
+
+
+      <div
+        id="ultimaSenal"
+        class="ultima-senal"
       >
-        DESACTIVAR EJECUCIÓN
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- SEÑAL ACTUAL -->
-
-  <section class="tarjeta">
-
-    <h2>Señal actual</h2>
-
-    <div class="datos-grid">
-
-      <div class="dato">
-        <small>Mercado</small>
-        <strong id="mercado">--</strong>
+        Esperando señal de Trading Analyzer...
       </div>
 
-      <div class="dato">
-        <small>Estrategia</small>
-        <strong id="estrategia">--</strong>
+    </section>
+
+
+    <!-- =====================================
+         CONTRATO
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Contrato preparado
+      </h2>
+
+
+      <div
+        id="ultimoContrato"
+        class="ultima-senal"
+      >
+        Esperando una señal válida...
       </div>
 
-      <div class="dato">
-        <small>Dirección</small>
-        <strong id="direccion">--</strong>
+    </section>
+
+
+    <!-- =====================================
+         PROPUESTA DERIV
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Cotización Deriv DEMO
+      </h2>
+
+
+      <div
+        id="ultimaPropuesta"
+        class="ultima-senal"
+      >
+        Todavía no existe una cotización preparada.
       </div>
 
-      <div class="dato">
-        <small>Confianza</small>
-        <strong id="confianza">--</strong>
+    </section>
+
+
+    <!-- =====================================
+         OPERACIÓN
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Operación DEMO
+      </h2>
+
+
+      <div
+        id="operacionDemo"
+        class="ultima-senal"
+      >
+        No existe una operación DEMO activa.
       </div>
 
-      <div class="dato">
-        <small>Punto de entrada</small>
-        <strong id="entrada">--</strong>
+    </section>
+
+
+    <!-- =====================================
+         RESULTADO
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Resultado
+      </h2>
+
+
+      <div
+        id="resultadoDemo"
+        class="ultima-senal"
+      >
+        Esperando una operación DEMO.
       </div>
 
-      <div class="dato">
-        <small>Precio</small>
-        <strong id="precio">--</strong>
+    </section>
+
+
+    <!-- =====================================
+         CALIBRADOR
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Calibrador de ejecución
+      </h2>
+
+
+      <div class="datos-grid">
+
+        <div class="dato">
+          <small>Familia</small>
+          <strong id="calibradorFamilia">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Mercado</small>
+          <strong id="calibradorMercado">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Punto</small>
+          <strong id="calibradorPunto">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Referencia</small>
+          <strong id="calibradorReferencia">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Ajuste</small>
+          <strong id="calibradorAjuste">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Espera</small>
+          <strong id="calibradorEspera">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Entrada / clic</small>
+          <strong id="calibradorSignalBuy">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Propuesta</small>
+          <strong id="calibradorPropuesta">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>BUY</small>
+          <strong id="calibradorBuy">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Resultado</small>
+          <strong id="calibradorResultado">
+            --
+          </strong>
+        </div>
+
       </div>
 
-    </div>
-
-  </section>
+    </section>
 
 
-  <!-- CALIBRACIÓN FIX11 -->
+    <!-- =====================================
+         CONFIGURACIÓN CALIBRACIÓN
+         ===================================== -->
 
-  <section class="tarjeta">
+    <section class="tarjeta">
 
-    <h2>
-      Calibración FIX11
-    </h2>
-
-    <p class="descripcion">
-      Permite probar un ajuste distinto
-      para cada mercado.
-    </p>
-
-    <p class="aviso">
-      Valores negativos = intentar entrar antes.
-      Valores positivos = entrar después.
-      La anticipación real requiere
-      targetExecutionAt desde Trading Analyzer.
-    </p>
+      <h2>
+        Calibración por mercado
+      </h2>
 
 
-    <div class="datos-grid">
+      <p class="descripcion">
+        El modo AUTOMÁTICO usa esta calibración.
+        En MANUAL se conserva como referencia
+        para comparar el momento elegido.
+      </p>
 
-      <div class="dato">
 
-        <small>
-          Mercado a calibrar
-        </small>
+      <div class="campo">
+
+        <label for="calibracionMercadoSelect">
+          Mercado
+        </label>
+
 
         <select
           id="calibracionMercadoSelect"
-          class="selector"
+          class="selector-modo"
         >
 
-          <optgroup label="STANDARD">
+          <option value="R_10">R_10</option>
+          <option value="R_25">R_25</option>
+          <option value="R_50">R_50</option>
+          <option value="R_75">R_75</option>
+          <option value="R_100">R_100</option>
 
-            <option value="R_10">R_10</option>
-            <option value="R_25">R_25</option>
-            <option value="R_50">R_50</option>
-            <option value="R_75">R_75</option>
-            <option value="R_100">R_100</option>
-
-          </optgroup>
-
-
-          <optgroup label="1 SEGUNDO">
-
-            <option value="1HZ10V">1HZ10V</option>
-            <option value="1HZ15V">1HZ15V</option>
-            <option value="1HZ25V">1HZ25V</option>
-            <option value="1HZ30V">1HZ30V</option>
-            <option value="1HZ50V">1HZ50V</option>
-            <option value="1HZ75V">1HZ75V</option>
-            <option value="1HZ100V">1HZ100V</option>
-
-          </optgroup>
+          <option value="1HZ10V">1HZ10V</option>
+          <option value="1HZ15V">1HZ15V</option>
+          <option value="1HZ25V">1HZ25V</option>
+          <option value="1HZ30V">1HZ30V</option>
+          <option value="1HZ50V">1HZ50V</option>
+          <option value="1HZ75V">1HZ75V</option>
+          <option value="1HZ100V">1HZ100V</option>
 
         </select>
 
       </div>
 
 
-      <div class="dato">
+      <div class="campo">
 
-        <small>
+        <label for="calibracionAjusteSelect">
           Ajuste
-        </small>
+        </label>
+
 
         <select
           id="calibracionAjusteSelect"
-          class="selector"
+          class="selector-modo"
         >
 
-         <option value="-300">-0.3 s</option>
-<option value="-200">-0.2 s</option>
-<option value="-100">-0.1 s</option>
+          <option value="-300">-0.3 s</option>
+          <option value="-200">-0.2 s</option>
+          <option value="-100">-0.1 s</option>
 
-<option
-  value="0"
-  selected
->
-  0.0 s
-</option>
+          <option value="0">0.0 s</option>
 
-<option value="100">+0.1 s</option>
-<option value="200">+0.2 s</option>
-<option value="300">+0.3 s</option>
-<option value="400">+0.4 s</option>
-<option value="500">+0.5 s</option>
-<option value="600">+0.6 s</option>
-<option value="700">+0.7 s</option>
-<option value="800">+0.8 s</option>
-<option value="900">+0.9 s</option>
-<option value="1000">+1.0 s</option> 
+          <option value="100">+0.1 s</option>
+          <option value="200">+0.2 s</option>
+          <option value="300">+0.3 s</option>
+          <option value="400">+0.4 s</option>
+          <option value="500">+0.5 s</option>
+          <option value="600">+0.6 s</option>
+          <option value="700">+0.7 s</option>
+          <option value="800">+0.8 s</option>
+          <option value="900">+0.9 s</option>
+          <option value="1000">+1.0 s</option>
 
         </select>
 
       </div>
 
-    </div>
+
+      <div class="datos-grid separacion">
+
+        <div class="dato">
+          <small>Mercado seleccionado</small>
+          <strong id="calibracionMercadoActual">
+            --
+          </strong>
+        </div>
 
 
-    <div class="botones">
+        <div class="dato">
+          <small>Ajuste actual</small>
+          <strong id="calibracionAjusteActual">
+            --
+          </strong>
+        </div>
 
-      <button
-        id="botonGuardarCalibracion"
-        class="boton ejecutar"
-        type="button"
+
+        <div class="dato">
+          <small>TARGET disponible</small>
+          <strong id="calibracionTargetDisponible">
+            NO
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Programación</small>
+          <strong id="calibracionProgramacion">
+            ESPERANDO TARGET
+          </strong>
+        </div>
+
+      </div>
+
+
+      <div class="botones">
+
+        <button
+          id="botonGuardarCalibracion"
+          class="boton conectar"
+        >
+          GUARDAR CALIBRACIÓN
+        </button>
+
+
+        <button
+          id="botonResetCalibracion"
+          class="boton pausar"
+        >
+          RESTABLECER
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <!-- =====================================
+         TABLA 12 MERCADOS
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Resultados por mercado
+      </h2>
+
+
+      <div class="tabla-scroll">
+
+        <table class="tabla-diagnostico">
+
+          <thead>
+
+            <tr>
+              <th>Mercado</th>
+              <th>Pruebas</th>
+              <th>Ganadas</th>
+              <th>Perdidas</th>
+              <th>Accuracy</th>
+              <th>Latencia</th>
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            <tr>
+              <td>R_10</td>
+              <td id="r10Pruebas">0</td>
+              <td id="r10Ganadas">0</td>
+              <td id="r10Perdidas">0</td>
+              <td id="r10Accuracy">--</td>
+              <td id="r10Latencia">--</td>
+            </tr>
+
+
+            <tr>
+              <td>R_25</td>
+              <td id="r25Pruebas">0</td>
+              <td id="r25Ganadas">0</td>
+              <td id="r25Perdidas">0</td>
+              <td id="r25Accuracy">--</td>
+              <td id="r25Latencia">--</td>
+            </tr>
+
+
+            <tr>
+              <td>R_50</td>
+              <td id="r50Pruebas">0</td>
+              <td id="r50Ganadas">0</td>
+              <td id="r50Perdidas">0</td>
+              <td id="r50Accuracy">--</td>
+              <td id="r50Latencia">--</td>
+            </tr>
+
+
+            <tr>
+              <td>R_75</td>
+              <td id="r75Pruebas">0</td>
+              <td id="r75Ganadas">0</td>
+              <td id="r75Perdidas">0</td>
+              <td id="r75Accuracy">--</td>
+              <td id="r75Latencia">--</td>
+            </tr>
+
+
+            <tr>
+              <td>R_100</td>
+              <td id="r100Pruebas">0</td>
+              <td id="r100Ganadas">0</td>
+              <td id="r100Perdidas">0</td>
+              <td id="r100Accuracy">--</td>
+              <td id="r100Latencia">--</td>
+            </tr>
+
+
+            <tr>
+              <td>1HZ10V</td>
+              <td id="hz10Pruebas">0</td>
+              <td id="hz10Ganadas">0</td>
+              <td id="hz10Perdidas">0</td>
+              <td id="hz10Accuracy">--</td>
+              <td id="hz10Latencia">--</td>
+            </tr>
+
+
+            <tr>
+              <td>1HZ15V</td>
+              <td id="hz15Pruebas">0</td>
+              <td id="hz15Ganadas">0</td>
+              <td id="hz15Perdidas">0</td>
+              <td id="hz15Accuracy">--</td>
+              <td id="hz15Latencia">--</td>
+            </tr>
+
+
+            <tr>
+              <td>1HZ25V</td>
+              <td id="hz25Pruebas">0</td>
+              <td id="hz25Ganadas">0</td>
+              <td id="hz25Perdidas">0</td>
+              <td id="hz25Accuracy">--</td>
+              <td id="hz25Latencia">--</td>
+            </tr>
+
+
+            <tr>
+              <td>1HZ30V</td>
+              <td id="hz30Pruebas">0</td>
+              <td id="hz30Ganadas">0</td>
+              <td id="hz30Perdidas">0</td>
+              <td id="hz30Accuracy">--</td>
+              <td id="hz30Latencia">--</td>
+            </tr>
+
+
+            <tr>
+              <td>1HZ50V</td>
+              <td id="hz50Pruebas">0</td>
+              <td id="hz50Ganadas">0</td>
+              <td id="hz50Perdidas">0</td>
+              <td id="hz50Accuracy">--</td>
+              <td id="hz50Latencia">--</td>
+            </tr>
+
+
+            <tr>
+              <td>1HZ75V</td>
+              <td id="hz75Pruebas">0</td>
+              <td id="hz75Ganadas">0</td>
+              <td id="hz75Perdidas">0</td>
+              <td id="hz75Accuracy">--</td>
+              <td id="hz75Latencia">--</td>
+            </tr>
+
+
+            <tr>
+              <td>1HZ100V</td>
+              <td id="hz100Pruebas">0</td>
+              <td id="hz100Ganadas">0</td>
+              <td id="hz100Perdidas">0</td>
+              <td id="hz100Accuracy">--</td>
+              <td id="hz100Latencia">--</td>
+            </tr>
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </section>
+
+
+    <!-- =====================================
+         COMPARADOR R_50
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Comparador timing · R_50
+      </h2>
+
+
+      <div class="tabla-scroll">
+
+        <table class="tabla-diagnostico">
+
+          <thead>
+
+            <tr>
+              <th>Grupo</th>
+              <th>Cantidad</th>
+              <th>Signal→BUY</th>
+              <th>Mín</th>
+              <th>Máx</th>
+              <th>PULL</th>
+              <th>BUY</th>
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            <tr>
+              <td>Ganadas</td>
+              <td id="r50TimingGanadasCantidad">0</td>
+              <td id="r50TimingGanadasSignalBuy">--</td>
+              <td id="r50TimingGanadasMin">--</td>
+              <td id="r50TimingGanadasMax">--</td>
+              <td id="r50TimingGanadasProposal">--</td>
+              <td id="r50TimingGanadasBuy">--</td>
+            </tr>
+
+
+            <tr>
+              <td>Perdidas</td>
+              <td id="r50TimingPerdidasCantidad">0</td>
+              <td id="r50TimingPerdidasSignalBuy">--</td>
+              <td id="r50TimingPerdidasMin">--</td>
+              <td id="r50TimingPerdidasMax">--</td>
+              <td id="r50TimingPerdidasProposal">--</td>
+              <td id="r50TimingPerdidasBuy">--</td>
+            </tr>
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+
+      <div class="datos-grid separacion">
+
+        <div class="dato">
+          <small>Diferencia</small>
+          <strong id="r50TimingDiferencia">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Lectura</small>
+          <strong id="r50TimingLectura">
+            ESPERANDO MUESTRAS
+          </strong>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =====================================
+         COMPARADOR 1HZ75V
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Comparador timing · 1HZ75V
+      </h2>
+
+
+      <div class="tabla-scroll">
+
+        <table class="tabla-diagnostico">
+
+          <thead>
+
+            <tr>
+              <th>Grupo</th>
+              <th>Cantidad</th>
+              <th>Signal→BUY</th>
+              <th>Mín</th>
+              <th>Máx</th>
+              <th>PULL</th>
+              <th>BUY</th>
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            <tr>
+              <td>Ganadas</td>
+              <td id="hz75TimingGanadasCantidad">0</td>
+              <td id="hz75TimingGanadasSignalBuy">--</td>
+              <td id="hz75TimingGanadasMin">--</td>
+              <td id="hz75TimingGanadasMax">--</td>
+              <td id="hz75TimingGanadasProposal">--</td>
+              <td id="hz75TimingGanadasBuy">--</td>
+            </tr>
+
+
+            <tr>
+              <td>Perdidas</td>
+              <td id="hz75TimingPerdidasCantidad">0</td>
+              <td id="hz75TimingPerdidasSignalBuy">--</td>
+              <td id="hz75TimingPerdidasMin">--</td>
+              <td id="hz75TimingPerdidasMax">--</td>
+              <td id="hz75TimingPerdidasProposal">--</td>
+              <td id="hz75TimingPerdidasBuy">--</td>
+            </tr>
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+
+      <div class="datos-grid separacion">
+
+        <div class="dato">
+          <small>Diferencia</small>
+          <strong id="hz75TimingDiferencia">
+            --
+          </strong>
+        </div>
+
+
+        <div class="dato">
+          <small>Lectura</small>
+          <strong id="hz75TimingLectura">
+            ESPERANDO MUESTRAS
+          </strong>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =====================================
+         REGISTRO
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Registro del BOT
+      </h2>
+
+
+      <div
+        id="registroBot"
+        class="registro"
       >
-        GUARDAR AJUSTE
-      </button>
-
-      <button
-        id="botonResetCalibracion"
-        class="boton pausar"
-        type="button"
-      >
-        RESTABLECER A 0.0
-      </button>
-
-    </div>
-
-
-    <div class="datos-grid">
-
-      <div class="dato">
-
-        <small>
-          Mercado seleccionado
-        </small>
-
-        <strong id="calibracionMercadoActual">
-          --
-        </strong>
-
+        <p>
+          BOT V1 MR FIX13.6 preparado.
+        </p>
       </div>
 
-
-      <div class="dato">
-
-        <small>
-          Ajuste activo
-        </small>
-
-        <strong id="calibracionAjusteActual">
-          0.0 s
-        </strong>
-
-      </div>
+    </section>
 
 
-      <div class="dato">
+    <!-- =====================================
+         PIE
+         ===================================== -->
 
-        <small>
-          Target disponible
-        </small>
+    <footer>
 
-        <strong id="calibracionTargetDisponible">
-          NO
-        </strong>
-
-      </div>
-
-
-      <div class="dato">
-
-        <small>
-          Programación
-        </small>
-
-        <strong id="calibracionProgramacion">
-          SIN TARGET
-        </strong>
-
-      </div>
-
-    </div>
-
-  </section>
-
-
-  <p class="descripcion">
-    Diagnóstico FIX11 BRIDGE-2
-  </p>
-
-
-  <!-- TELEMETRÍA FIX11 -->
-
-  <section class="tarjeta">
-
-    <h2>
-      Telemetría FIX11
-    </h2>
-
-    <div class="datos-grid">
-
-      <div class="dato">
-        <small>Familia</small>
-        <strong id="calibradorFamilia">--</strong>
-      </div>
-
-      <div class="dato">
-        <small>Mercado</small>
-        <strong id="calibradorMercado">--</strong>
-      </div>
-
-      <div class="dato">
-        <small>Punto de entrada</small>
-        <strong id="calibradorPunto">--</strong>
-      </div>
-
-      <div class="dato">
-        <small>Referencia</small>
-        <strong id="calibradorReferencia">--</strong>
-      </div>
-
-      <div class="dato">
-        <small>Calibración aplicada</small>
-        <strong id="calibradorAjuste">--</strong>
-      </div>
-
-      <div class="dato">
-        <small>Espera programada</small>
-        <strong id="calibradorEspera">--</strong>
-      </div>
-
-      <div class="dato">
-        <small>Señal → BUY</small>
-        <strong id="calibradorSignalBuy">--</strong>
-      </div>
-
-      <div class="dato">
-        <small>Cotización</small>
-        <strong id="calibradorPropuesta">--</strong>
-      </div>
-
-      <div class="dato">
-        <small>BUY → confirmación</small>
-        <strong id="calibradorBuy">--</strong>
-      </div>
-
-      <div class="dato">
-        <small>Resultado</small>
-        <strong id="calibradorResultado">--</strong>
-      </div>
-
-    </div>
-
-  </section>
-
-
-  <!-- COMPARADOR R_50 -->
-
-  <section class="tarjeta">
-
-    <h2>
-      Comparador de timing · R_50
-    </h2>
-
-    <div class="comparador-grid">
-
-      <div class="comparador-columna ganadoras">
-
-        <h3>GANADAS</h3>
-
-        <div class="dato">
-          <small>Operaciones</small>
-          <strong id="r50TimingGanadasCantidad">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Promedio Señal → BUY</small>
-          <strong id="r50TimingGanadasSignalBuy">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Mínimo</small>
-          <strong id="r50TimingGanadasMin">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Máximo</small>
-          <strong id="r50TimingGanadasMax">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Cotización</small>
-          <strong id="r50TimingGanadasProposal">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>BUY → confirmación</small>
-          <strong id="r50TimingGanadasBuy">--</strong>
-        </div>
-
-      </div>
-
-
-      <div class="comparador-columna perdedoras">
-
-        <h3>PERDIDAS</h3>
-
-        <div class="dato">
-          <small>Operaciones</small>
-          <strong id="r50TimingPerdidasCantidad">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Promedio Señal → BUY</small>
-          <strong id="r50TimingPerdidasSignalBuy">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Mínimo</small>
-          <strong id="r50TimingPerdidasMin">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Máximo</small>
-          <strong id="r50TimingPerdidasMax">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Cotización</small>
-          <strong id="r50TimingPerdidasProposal">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>BUY → confirmación</small>
-          <strong id="r50TimingPerdidasBuy">--</strong>
-        </div>
-
-      </div>
-
-    </div>
-
-
-    <div class="comparador-conclusion">
+      <p>
+        BOT V1 MR · FIX13.6
+      </p>
 
       <small>
-        Diferencia Señal → BUY
+        Trading Analyzer → PREPARAR → TARGET →
+        Automático o EJECUTAR AHORA → Deriv DEMO →
+        GANADA / PERDIDA
       </small>
 
-      <strong id="r50TimingDiferencia">
-        --
-      </strong>
+    </footer>
 
-      <span id="r50TimingLectura">
-        Esperando datos
-      </span>
+  </main>
 
-    </div>
 
-  </section>
-
-
-  <!-- COMPARADOR 1HZ75V -->
-
-  <section class="tarjeta">
-
-    <h2>
-      Comparador de timing · 1HZ75V
-    </h2>
-
-    <div class="comparador-grid">
-
-      <div class="comparador-columna ganadoras">
-
-        <h3>GANADAS</h3>
-
-        <div class="dato">
-          <small>Operaciones</small>
-          <strong id="hz75TimingGanadasCantidad">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Promedio Señal → BUY</small>
-          <strong id="hz75TimingGanadasSignalBuy">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Mínimo</small>
-          <strong id="hz75TimingGanadasMin">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Máximo</small>
-          <strong id="hz75TimingGanadasMax">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Cotización</small>
-          <strong id="hz75TimingGanadasProposal">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>BUY → confirmación</small>
-          <strong id="hz75TimingGanadasBuy">--</strong>
-        </div>
-
-      </div>
-
-
-      <div class="comparador-columna perdedoras">
-
-        <h3>PERDIDAS</h3>
-
-        <div class="dato">
-          <small>Operaciones</small>
-          <strong id="hz75TimingPerdidasCantidad">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Promedio Señal → BUY</small>
-          <strong id="hz75TimingPerdidasSignalBuy">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Mínimo</small>
-          <strong id="hz75TimingPerdidasMin">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Máximo</small>
-          <strong id="hz75TimingPerdidasMax">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>Cotización</small>
-          <strong id="hz75TimingPerdidasProposal">--</strong>
-        </div>
-
-        <div class="dato">
-          <small>BUY → confirmación</small>
-          <strong id="hz75TimingPerdidasBuy">--</strong>
-        </div>
-
-      </div>
-
-    </div>
-
-
-    <div class="comparador-conclusion">
-
-      <small>
-        Diferencia Señal → BUY
-      </small>
-
-      <strong id="hz75TimingDiferencia">
-        --
-      </strong>
-
-      <span id="hz75TimingLectura">
-        Esperando datos
-      </span>
-
-    </div>
-
-  </section>
-
-
-  <!-- ESTADÍSTICAS STANDARD -->
-
-  <section class="tarjeta">
-
-    <h2>
-      Estadísticas por mercado · STANDARD
-    </h2>
-
-    <div class="tabla-wrap">
-
-      <table class="tabla-estadisticas">
-
-        <thead>
-          <tr>
-            <th>Mercado</th>
-            <th>Pruebas</th>
-            <th>G</th>
-            <th>P</th>
-            <th>Acierto</th>
-            <th>Señal→BUY</th>
-          </tr>
-        </thead>
-
-        <tbody>
-
-          <tr>
-            <td>R_10</td>
-            <td id="r10Pruebas">0</td>
-            <td id="r10Ganadas">0</td>
-            <td id="r10Perdidas">0</td>
-            <td id="r10Accuracy">--</td>
-            <td id="r10Latencia">--</td>
-          </tr>
-
-          <tr>
-            <td>R_25</td>
-            <td id="r25Pruebas">0</td>
-            <td id="r25Ganadas">0</td>
-            <td id="r25Perdidas">0</td>
-            <td id="r25Accuracy">--</td>
-            <td id="r25Latencia">--</td>
-          </tr>
-
-          <tr>
-            <td>R_50</td>
-            <td id="r50Pruebas">0</td>
-            <td id="r50Ganadas">0</td>
-            <td id="r50Perdidas">0</td>
-            <td id="r50Accuracy">--</td>
-            <td id="r50Latencia">--</td>
-          </tr>
-
-          <tr>
-            <td>R_75</td>
-            <td id="r75Pruebas">0</td>
-            <td id="r75Ganadas">0</td>
-            <td id="r75Perdidas">0</td>
-            <td id="r75Accuracy">--</td>
-            <td id="r75Latencia">--</td>
-          </tr>
-
-          <tr>
-            <td>R_100</td>
-            <td id="r100Pruebas">0</td>
-            <td id="r100Ganadas">0</td>
-            <td id="r100Perdidas">0</td>
-            <td id="r100Accuracy">--</td>
-            <td id="r100Latencia">--</td>
-          </tr>
-
-        </tbody>
-
-      </table>
-
-    </div>
-
-  </section>
-
-
-  <!-- ESTADÍSTICAS 1S -->
-
-  <section class="tarjeta">
-
-    <h2>
-      Estadísticas por mercado · 1S
-    </h2>
-
-    <div class="tabla-wrap">
-
-      <table class="tabla-estadisticas">
-
-        <thead>
-          <tr>
-            <th>Mercado</th>
-            <th>Pruebas</th>
-            <th>G</th>
-            <th>P</th>
-            <th>Acierto</th>
-            <th>Señal→BUY</th>
-          </tr>
-        </thead>
-
-        <tbody>
-
-          <tr>
-            <td>1HZ10V</td>
-            <td id="hz10Pruebas">0</td>
-            <td id="hz10Ganadas">0</td>
-            <td id="hz10Perdidas">0</td>
-            <td id="hz10Accuracy">--</td>
-            <td id="hz10Latencia">--</td>
-          </tr>
-
-          <tr>
-            <td>1HZ15V</td>
-            <td id="hz15Pruebas">0</td>
-            <td id="hz15Ganadas">0</td>
-            <td id="hz15Perdidas">0</td>
-            <td id="hz15Accuracy">--</td>
-            <td id="hz15Latencia">--</td>
-          </tr>
-
-          <tr>
-            <td>1HZ25V</td>
-            <td id="hz25Pruebas">0</td>
-            <td id="hz25Ganadas">0</td>
-            <td id="hz25Perdidas">0</td>
-            <td id="hz25Accuracy">--</td>
-            <td id="hz25Latencia">--</td>
-          </tr>
-
-          <tr>
-            <td>1HZ30V</td>
-            <td id="hz30Pruebas">0</td>
-            <td id="hz30Ganadas">0</td>
-            <td id="hz30Perdidas">0</td>
-            <td id="hz30Accuracy">--</td>
-            <td id="hz30Latencia">--</td>
-          </tr>
-
-          <tr>
-            <td>1HZ50V</td>
-            <td id="hz50Pruebas">0</td>
-            <td id="hz50Ganadas">0</td>
-            <td id="hz50Perdidas">0</td>
-            <td id="hz50Accuracy">--</td>
-            <td id="hz50Latencia">--</td>
-          </tr>
-
-          <tr>
-            <td>1HZ75V</td>
-            <td id="hz75Pruebas">0</td>
-            <td id="hz75Ganadas">0</td>
-            <td id="hz75Perdidas">0</td>
-            <td id="hz75Accuracy">--</td>
-            <td id="hz75Latencia">--</td>
-          </tr>
-
-          <tr>
-            <td>1HZ100V</td>
-            <td id="hz100Pruebas">0</td>
-            <td id="hz100Ganadas">0</td>
-            <td id="hz100Perdidas">0</td>
-            <td id="hz100Accuracy">--</td>
-            <td id="hz100Latencia">--</td>
-          </tr>
-
-        </tbody>
-
-      </table>
-
-    </div>
-
-  </section>
-
-
-  <!-- ÚLTIMA SEÑAL -->
-
-  <section class="tarjeta">
-
-    <h2>
-      Última señal recibida
-    </h2>
-
-    <div
-      id="ultimaSenal"
-      class="ultima-senal"
-    >
-      Esperando señal...
-    </div>
-
-  </section>
-
-
-  <!-- CONTRATO -->
-
-  <section class="tarjeta">
-
-    <h2>
-      Contrato preparado
-    </h2>
-
-    <div
-      id="ultimoContrato"
-      class="ultima-senal"
-    >
-      Esperando contrato...
-    </div>
-
-  </section>
-
-
-  <!-- COTIZACIÓN -->
-
-  <section class="tarjeta">
-
-    <h2>
-      Cotización Deriv
-    </h2>
-
-    <div
-      id="ultimaPropuesta"
-      class="ultima-senal"
-    >
-      Esperando cotización...
-    </div>
-
-  </section>
-
-
-  <!-- OPERACIÓN DEMO -->
-
-  <section class="tarjeta">
-
-    <h2>
-      Operación DEMO
-    </h2>
-
-    <div
-      id="operacionDemo"
-      class="operacion-demo"
-    >
-      Sin operación activa.
-    </div>
-
-  </section>
-
-
-  <!-- RESULTADO FINAL -->
-
-  <section class="tarjeta">
-
-    <h2>
-      Resultado final
-    </h2>
-
-    <div
-      id="resultadoDemo"
-      class="operacion-demo"
-    >
-      Esperando resultado...
-    </div>
-
-  </section>
-
-
-  <!-- PRUEBA INTERNA -->
-
-  <section class="tarjeta">
-
-    <h2>
-      Modo de prueba
-    </h2>
-
-    <p class="aviso">
-      Esta señal interna es únicamente
-      para comprobar el flujo técnico
-      del bot.
-    </p>
-
-    <button
-      id="botonProbar"
-      class="boton probar"
-      type="button"
-    >
-      ENVIAR SEÑAL DE PRUEBA
-    </button>
-
-  </section>
-
-
-  <!-- REGISTRO -->
-
-  <section class="tarjeta">
-
-    <h2>
-      Registro del bot
-    </h2>
-
-    <div
-      id="registroBot"
-      class="registro"
-    ></div>
-
-  </section>
-
-
-  <!-- PIE -->
-
-  <footer>
-
-    <p>
-      BOT V1 MR · FIX11 BRIDGE-2
-    </p>
-
-    <small>
-      Trading Analyzer → Señal → BOT →
-      Deriv DEMO → Calibración por mercado
-    </small>
-
-  </footer>
-
-
-</main>
-
-
-<script
-  type="module"
-  src="./bot.js?v=FIX11-BRIDGE-2"
-></script>
-
+  <script
+    type="module"
+    src="./bot.js?v=FIX13-6"
+  ></script>
 
 </body>
 
