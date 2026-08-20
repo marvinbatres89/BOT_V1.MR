@@ -1,7 +1,7 @@
 /* ==========================================
    BOT V1 MR
    BOT.CSS
-   FIX11 - CALIBRACIÓN POR MERCADO
+   FIX13.6 MANUAL DIAGNÓSTICO
 
    CONSERVA:
    - DISEÑO MÓVIL
@@ -11,13 +11,16 @@
    - RESULTADO FINAL
    - REGISTRO
    - 12 MERCADOS
+   - CALIBRACIÓN
 
    AGREGA:
-   - PANEL CALIBRACIÓN FIX11
-   - SELECTORES -0.3 A +0.3
-   - ESTADO DE TARGET
-   - PROGRAMACIÓN
-   - TELEMETRÍA DE AJUSTE
+   - AUTOMÁTICO / MANUAL DIAGNÓSTICO
+   - PANEL MANUAL
+   - BOTÓN EJECUTAR AHORA
+   - TARGET DE REFERENCIA
+   - CLIC MANUAL
+   - OFFSET BUY
+   - COMPATIBILIDAD INDEX FIX13.6
    ========================================== */
 
 
@@ -44,6 +47,11 @@ button,
 input,
 select {
   font-family: inherit;
+}
+
+button,
+select {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .app {
@@ -143,6 +151,7 @@ select {
    ========================================== */
 
 .descripcion {
+  margin-top: 0;
   color: #9fb4c8;
   line-height: 1.5;
   font-size: 14px;
@@ -152,6 +161,10 @@ select {
   color: #ffd37a;
   line-height: 1.5;
   font-size: 14px;
+}
+
+.separacion {
+  margin-top: 14px;
 }
 
 
@@ -189,10 +202,25 @@ select {
 
 
 /* ==========================================
-   INPUTS
+   CAMPOS
    ========================================== */
 
-.dato input {
+.campo {
+  margin-top: 14px;
+}
+
+.campo label {
+  display: block;
+  margin-bottom: 7px;
+  color: #9fb4c8;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.campo input,
+.campo select,
+.dato input,
+.dato select {
   width: 100%;
   border: 1px solid #29435d;
   border-radius: 10px;
@@ -203,24 +231,30 @@ select {
   outline: none;
 }
 
+.campo input::placeholder,
 .dato input::placeholder {
   color: #60778d;
 }
 
-.dato input:focus {
+.campo input:focus,
+.campo select:focus,
+.dato input:focus,
+.dato select:focus {
   border-color: #43d9a3;
 }
 
+.campo input:disabled,
 .dato input:disabled {
   opacity: 0.65;
 }
 
 
 /* ==========================================
-   SELECTORES FIX11
+   SELECTORES
    ========================================== */
 
-.selector {
+.selector,
+.selector-modo {
   width: 100%;
   border: 1px solid #29435d;
   border-radius: 10px;
@@ -232,12 +266,15 @@ select {
   cursor: pointer;
 }
 
-.selector:focus {
+.selector:focus,
+.selector-modo:focus {
   border-color: #43d9a3;
 }
 
 .selector option,
-.selector optgroup {
+.selector optgroup,
+.selector-modo option,
+.selector-modo optgroup {
   background: #0a1623;
   color: #eaf2ff;
 }
@@ -261,6 +298,9 @@ select {
   font-size: 14px;
   font-weight: bold;
   cursor: pointer;
+  transition:
+    transform 0.08s ease,
+    opacity 0.15s ease;
 }
 
 .boton:active {
@@ -270,6 +310,7 @@ select {
 .boton:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+  transform: none;
 }
 
 .conectar {
@@ -298,22 +339,188 @@ select {
   color: #ffffff;
 }
 
+.activar-demo {
+  background: #43d9a3;
+  color: #06130f;
+}
+
 
 /* ==========================================
    EJECUCIÓN DEMO
    ========================================== */
 
+.estado-ejecucion {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #07111f;
+  border: 1px solid #1f3348;
+  font-weight: bold;
+  text-align: center;
+}
+
 .encendido-ejecucion {
   color: #79f3c2 !important;
+  border-color: #2a725a;
 }
 
 .apagado-ejecucion {
   color: #ff9fb4 !important;
+  border-color: #713346;
 }
 
 
 /* ==========================================
-   CALIBRACIÓN FIX11
+   FIX13.6
+   MODO DE EJECUCIÓN
+   ========================================== */
+
+.tarjeta-modo {
+  border-color: #31587b;
+}
+
+#modoEjecucionEstado {
+  color: #79d8ff;
+}
+
+#modoEjecucionSelect {
+  font-weight: bold;
+}
+
+
+/* ==========================================
+   FIX13.6
+   PANEL MANUAL
+   ========================================== */
+
+.manual-panel {
+  border: 2px solid #d9932d;
+  background: #141b26;
+  box-shadow:
+    0 0 0 1px rgba(255, 196, 90, 0.08),
+    0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.manual-panel[hidden] {
+  display: none !important;
+}
+
+.manual-panel h2 {
+  color: #ffd37a;
+}
+
+.estado-manual {
+  width: 100%;
+  margin: 12px 0 14px;
+  padding: 14px;
+  border: 1px solid #8b6529;
+  border-radius: 12px;
+  background: #241c0d;
+  color: #ffd37a;
+  font-weight: bold;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+#manualOperacion {
+  color: #bcd0e4;
+}
+
+#manualMercado {
+  color: #79d8ff;
+}
+
+#manualDireccion {
+  color: #ffd37a;
+  font-size: 18px;
+}
+
+#manualTarget {
+  color: #79d8ff;
+}
+
+#manualProgramado {
+  color: #79d8ff;
+}
+
+#manualClickOffset {
+  color: #ffd37a;
+}
+
+#manualBuyOffset {
+  color: #79f3c2;
+}
+
+
+/* ==========================================
+   BOTÓN EJECUTAR AHORA
+   ========================================== */
+
+.ejecutar-manual {
+  display: block;
+  width: 100%;
+  min-height: 72px;
+  margin-top: 18px;
+  padding: 18px 14px;
+  border: 2px solid #7cf2c4;
+  border-radius: 16px;
+  background: #43d9a3;
+  color: #04140e;
+  font-size: 21px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  box-shadow:
+    0 0 0 3px rgba(67, 217, 163, 0.08),
+    0 8px 24px rgba(67, 217, 163, 0.18);
+}
+
+.ejecutar-manual:not(:disabled) {
+  animation:
+    pulsoManual 1.4s ease-in-out infinite;
+}
+
+.ejecutar-manual:active {
+  transform: scale(0.97);
+}
+
+.ejecutar-manual:disabled {
+  border-color: #39495a;
+  background: #1b2b3e;
+  color: #71869a;
+  box-shadow: none;
+  animation: none;
+}
+
+@keyframes pulsoManual {
+
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(67, 217, 163, 0.22);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 7px rgba(67, 217, 163, 0.06);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(67, 217, 163, 0);
+  }
+
+}
+
+.nota-manual {
+  margin: 12px 4px 0;
+  color: #9fb4c8;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+
+/* ==========================================
+   CALIBRACIÓN
    ========================================== */
 
 #calibracionMercadoActual {
@@ -334,7 +541,7 @@ select {
 
 
 /* ==========================================
-   TELEMETRÍA FIX11
+   TELEMETRÍA
    ========================================== */
 
 #calibradorFamilia,
@@ -400,7 +607,7 @@ select {
 
 
 /* ==========================================
-   COMPARADOR FIX11
+   COMPARADOR
    ========================================== */
 
 .comparador-grid {
@@ -477,10 +684,11 @@ select {
 
 
 /* ==========================================
-   TABLAS
+   TABLAS FIX13.6
    ========================================== */
 
-.tabla-wrap {
+.tabla-wrap,
+.tabla-scroll {
   width: 100%;
   overflow-x: auto;
   border-radius: 12px;
@@ -488,18 +696,21 @@ select {
   background: #07111f;
 }
 
-.tabla-estadisticas {
+.tabla-estadisticas,
+.tabla-diagnostico {
   width: 100%;
   min-width: 620px;
   border-collapse: collapse;
   font-size: 12px;
 }
 
-.tabla-estadisticas thead {
+.tabla-estadisticas thead,
+.tabla-diagnostico thead {
   background: #0a1623;
 }
 
-.tabla-estadisticas th {
+.tabla-estadisticas th,
+.tabla-diagnostico th {
   padding: 11px 9px;
   text-align: left;
   color: #9fb4c8;
@@ -508,39 +719,48 @@ select {
   border-bottom: 1px solid #29435d;
 }
 
-.tabla-estadisticas td {
+.tabla-estadisticas td,
+.tabla-diagnostico td {
   padding: 11px 9px;
   border-bottom: 1px solid #16283a;
   color: #dce8f5;
   white-space: nowrap;
 }
 
-.tabla-estadisticas tbody tr:last-child td {
+.tabla-estadisticas tbody tr:last-child td,
+.tabla-diagnostico tbody tr:last-child td {
   border-bottom: none;
 }
 
-.tabla-estadisticas tbody tr:hover {
+.tabla-estadisticas tbody tr:hover,
+.tabla-diagnostico tbody tr:hover {
   background: #0a1623;
 }
 
-.tabla-estadisticas td:nth-child(1) {
+.tabla-estadisticas td:nth-child(1),
+.tabla-diagnostico td:nth-child(1) {
   font-weight: bold;
   color: #79d8ff;
 }
 
-.tabla-estadisticas td:nth-child(3) {
+
+/* ==========================================
+   COLORES TABLA MERCADOS
+   ========================================== */
+
+.tabla-diagnostico td:nth-child(3) {
   color: #79f3c2;
 }
 
-.tabla-estadisticas td:nth-child(4) {
+.tabla-diagnostico td:nth-child(4) {
   color: #ff9fb4;
 }
 
-.tabla-estadisticas td:nth-child(5) {
+.tabla-diagnostico td:nth-child(5) {
   color: #ffd37a;
 }
 
-.tabla-estadisticas td:nth-child(6) {
+.tabla-diagnostico td:nth-child(6) {
   color: #79d8ff;
 }
 
@@ -567,16 +787,19 @@ select {
    SCROLL TABLAS
    ========================================== */
 
-.tabla-wrap::-webkit-scrollbar {
+.tabla-wrap::-webkit-scrollbar,
+.tabla-scroll::-webkit-scrollbar {
   height: 7px;
 }
 
-.tabla-wrap::-webkit-scrollbar-thumb {
+.tabla-wrap::-webkit-scrollbar-thumb,
+.tabla-scroll::-webkit-scrollbar-thumb {
   background: #29435d;
   border-radius: 999px;
 }
 
-.tabla-wrap::-webkit-scrollbar-track {
+.tabla-wrap::-webkit-scrollbar-track,
+.tabla-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -677,8 +900,14 @@ footer small {
     font-size: 14px;
   }
 
-  .selector {
-    padding: 11px 9px;
+  .selector,
+  .selector-modo {
+    padding: 12px 9px;
+    font-size: 13px;
+  }
+
+  .campo input,
+  .campo select {
     font-size: 13px;
   }
 
@@ -696,16 +925,31 @@ footer small {
     font-size: 12px;
   }
 
+  .ejecutar-manual {
+    min-height: 78px;
+    padding: 18px 12px;
+    font-size: 20px;
+    border-radius: 16px;
+  }
+
+  .estado-manual {
+    padding: 13px 10px;
+    font-size: 13px;
+  }
+
   .comparador-grid {
     grid-template-columns: 1fr;
   }
 
-  .tabla-estadisticas {
+  .tabla-estadisticas,
+  .tabla-diagnostico {
     font-size: 11px;
   }
 
   .tabla-estadisticas th,
-  .tabla-estadisticas td {
+  .tabla-estadisticas td,
+  .tabla-diagnostico th,
+  .tabla-diagnostico td {
     padding: 9px 8px;
   }
 
@@ -738,9 +982,15 @@ footer small {
     align-self: flex-start;
   }
 
+  .ejecutar-manual {
+    min-height: 82px;
+    font-size: 19px;
+  }
+
 }
 
 
 /* ==========================================
-   FIN BOT.CSS FIX11
+   FIN BOT.CSS
+   FIX13.6 MANUAL DIAGNÓSTICO
    ========================================== */
