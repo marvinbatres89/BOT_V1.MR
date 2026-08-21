@@ -1,33 +1,34 @@
 /* ==========================================
    BOT V1 MR
    BOT.JS
-   FIX13.7.1 ESTABLE + RÁPIDA
+   FIX13.8 MEMORIA DE PATRONES
 
    BASE: FIX13.7
 
-   CORRIGE:
-   - NULL YA NO SE INTERPRETA COMO 0
-   - SIN TARGET NO MUESTRA 0.00 ms
-   - SIN TARGET NO CALCULA DESVIACIÓN FALSA
-   - VALIDACIÓN SEGURA DE MILISEGUNDOS
-   - MANUAL PUEDE OPERAR ANTES DEL TARGET
+   AGREGA:
+   - MEMORIA DE PATRONES EN PANTALLA
+   - RESUMEN DE APRENDIZAJE
+   - FAVORABLE / RIESGO / SIN EVIDENCIA
+   - MUESTRAS / GANADAS / PERDIDAS / ACCURACY
+   - PATRÓN ACTUAL
+   - DECISIÓN AUTOMÁTICA
+   - EVENTO PATTERN-EVALUATED
+   - EVENTO PATTERN-UPDATED
+   - EVENTO PATTERN-BLOCKED
+   - RESET MEMORIA
+   - TESTLOG JSON
+   - PANEL AUTOMÁTICO SI INDEX NO LO TIENE
 
    CONSERVA:
-   - obtenerEstadoRapido()
-   - MANUAL LISTO DESDE PREPARAR
-   - TARGET ACTUALIZA REFERENCIA
-   - BOTÓN DISPONIBLE MÁS RÁPIDO
-   - GANADA / PERDIDA PERMANECE VISIBLE
-   - ESTADÍSTICAS EN BLOQUE
-   - DERIV DEMO
    - AUTOMÁTICO
    - MANUAL DIAGNÓSTICO
-   - HISTORIAL
-   - TELEMETRÍA
+   - DERIV DEMO
+   - PREPARAR / TARGET
+   - CALIBRACIÓN
    - 12 MERCADOS
    - COMPARADORES
-   - CALIBRACIÓN
-   - SCORE BRUTO
+   - TELEMETRÍA
+   - GANADA / PERDIDA
    ========================================== */
 
 
@@ -38,7 +39,7 @@ import {
 
 import {
   botEngine
-} from "./bot-engine.js?v=FIX13-7-ENGINE-1";
+} from "./bot-engine.js?v=FIX13-8-ENGINE-1";
 
 
 import {
@@ -51,11 +52,11 @@ import {
    ========================================== */
 
 const BOT_VERSION =
-  "FIX13.7.1";
+  "FIX13.8";
 
 
 const BOT_BUILD =
-  "ESTABLE-RAPIDA-NULLSAFE-1";
+  "MEMORIA-PATRONES-1";
 
 
 const MODO_AUTOMATICO =
@@ -66,9 +67,337 @@ const MODO_MANUAL =
   "MANUAL_DIAGNOSTICO";
 
 
+/* ==========================================
+   UTILIDADES DOM
+   ========================================== */
+
 const $ =
   (id) =>
-    document.getElementById(id);
+    document.getElementById(
+      id
+    );
+
+
+function primerElemento(
+  ...ids
+) {
+
+  for (
+    const id
+    of ids
+  ) {
+
+    const elemento =
+      document.getElementById(
+        id
+      );
+
+
+    if (
+      elemento
+    ) {
+
+      return elemento;
+
+    }
+
+  }
+
+
+  return null;
+
+}
+
+
+/* ==========================================
+   FIX13.8
+   CREAR PANEL MEMORIA SI NO EXISTE
+   ========================================== */
+
+function asegurarPanelMemoria() {
+
+  if (
+    document.getElementById(
+      "panelMemoriaPatrones"
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  const registro =
+    document.getElementById(
+      "registroBot"
+    );
+
+
+  if (
+    !registro
+  ) {
+
+    return;
+
+  }
+
+
+  const tarjetaRegistro =
+    registro.closest(
+      ".tarjeta"
+    );
+
+
+  if (
+    !tarjetaRegistro
+  ) {
+
+    return;
+
+  }
+
+
+  const panel =
+    document.createElement(
+      "section"
+    );
+
+
+  panel.id =
+    "panelMemoriaPatrones";
+
+
+  panel.className =
+    "tarjeta";
+
+
+  panel.innerHTML = `
+
+    <h2>
+      🧠 Memoria de patrones
+    </h2>
+
+    <p class="descripcion">
+      El BOT compara cada nueva predicción
+      con resultados anteriores del mismo patrón.
+      En modo AUTOMÁTICO puede evitar operaciones
+      clasificadas como RIESGO.
+    </p>
+
+
+    <div
+      id="patronEstadoVisual"
+      class="ultima-senal"
+    >
+      SIN EVIDENCIA · ESPERANDO PREDICCIÓN
+    </div>
+
+
+    <div class="datos-grid separacion">
+
+      <div class="dato">
+        <small>Clasificación</small>
+        <strong id="patronClasificacion">
+          SIN EVIDENCIA
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Decisión</small>
+        <strong id="patronDecision">
+          APRENDER
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Fuerza</small>
+        <strong id="patronFuerza">
+          RECOPILANDO
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Muestras</small>
+        <strong id="patronMuestras">
+          0
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Ganadas</small>
+        <strong id="patronGanadas">
+          0
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Perdidas</small>
+        <strong id="patronPerdidas">
+          0
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Accuracy</small>
+        <strong id="patronAccuracy">
+          --
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Valor patrón</small>
+        <strong id="patronValor">
+          --
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Score bruto</small>
+        <strong id="patronScore">
+          --
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Timing promedio</small>
+        <strong id="patronTiming">
+          --
+        </strong>
+      </div>
+
+    </div>
+
+
+    <div
+      id="patronClave"
+      class="ultima-senal separacion"
+    >
+      Esperando firma de patrón...
+    </div>
+
+
+    <h2 class="separacion">
+      📊 Resumen de aprendizaje
+    </h2>
+
+
+    <div class="datos-grid separacion">
+
+      <div class="dato">
+        <small>Patrones guardados</small>
+        <strong id="memoriaPatronesTotal">
+          0
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Operaciones aprendidas</small>
+        <strong id="memoriaOperaciones">
+          0
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Favorables</small>
+        <strong id="memoriaFavorables">
+          0
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Riesgo</small>
+        <strong id="memoriaRiesgos">
+          0
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Sin evidencia</small>
+        <strong id="memoriaSinEvidencia">
+          0
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Modo aprendizaje</small>
+        <strong id="memoriaAprendizaje">
+          ACTIVO
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Filtro automático</small>
+        <strong id="memoriaFiltro">
+          ACTIVO
+        </strong>
+      </div>
+
+
+      <div class="dato">
+        <small>Mínimo decisión</small>
+        <strong id="memoriaMinimo">
+          4 muestras
+        </strong>
+      </div>
+
+    </div>
+
+
+    <div
+      id="memoriaEstado"
+      class="ultima-senal separacion"
+    >
+      RECOPILANDO DATOS
+    </div>
+
+
+    <div class="botones separacion">
+
+      <button
+        id="botonDescargarTestLog"
+        class="boton conectar"
+      >
+        DESCARGAR TESTLOG
+      </button>
+
+
+      <button
+        id="botonResetMemoria"
+        class="boton pausar"
+      >
+        BORRAR MEMORIA
+      </button>
+
+    </div>
+
+  `;
+
+
+  tarjetaRegistro.parentNode
+    .insertBefore(
+      panel,
+      tarjetaRegistro
+    );
+
+}
+
+
+asegurarPanelMemoria();
 
 
 /* ==========================================
@@ -79,61 +408,8 @@ let ultimoEstadoManualFinal =
   null;
 
 
-/* ==========================================
-   VALIDACIÓN NUMÉRICA FIX13.7.1
-
-   IMPORTANTE:
-   Number(null) === 0
-
-   Por eso NO utilizaremos Number()
-   directamente para decidir si existe
-   TARGET, offset o medición.
-   ========================================== */
-
-function numeroValido(
-  valor
-) {
-
-  if (
-    valor === null ||
-    valor === undefined ||
-    valor === ""
-  ) {
-
-    return false;
-
-  }
-
-
-  return Number.isFinite(
-    Number(
-      valor
-    )
-  );
-
-}
-
-
-function numeroSeguro(
-  valor
-) {
-
-  if (
-    !numeroValido(
-      valor
-    )
-  ) {
-
-    return null;
-
-  }
-
-
-  return Number(
-    valor
-  );
-
-}
+let ultimoPatronVisual =
+  null;
 
 
 /* ==========================================
@@ -352,7 +628,150 @@ const UI = {
     $("calibracionTargetDisponible"),
 
   calibracionProgramacion:
-    $("calibracionProgramacion")
+    $("calibracionProgramacion"),
+
+
+  /* ======================================
+     FIX13.8 MEMORIA
+     ====================================== */
+
+  patronEstadoVisual:
+    primerElemento(
+      "patronEstadoVisual",
+      "patronEstado"
+    ),
+
+  patronClasificacion:
+    primerElemento(
+      "patronClasificacion",
+      "memoriaPatronClasificacion"
+    ),
+
+  patronDecision:
+    primerElemento(
+      "patronDecision",
+      "memoriaPatronDecision"
+    ),
+
+  patronFuerza:
+    primerElemento(
+      "patronFuerza",
+      "memoriaPatronFuerza"
+    ),
+
+  patronMuestras:
+    primerElemento(
+      "patronMuestras",
+      "memoriaPatronMuestras"
+    ),
+
+  patronGanadas:
+    primerElemento(
+      "patronGanadas",
+      "memoriaPatronGanadas"
+    ),
+
+  patronPerdidas:
+    primerElemento(
+      "patronPerdidas",
+      "memoriaPatronPerdidas"
+    ),
+
+  patronAccuracy:
+    primerElemento(
+      "patronAccuracy",
+      "memoriaPatronAccuracy"
+    ),
+
+  patronValor:
+    primerElemento(
+      "patronValor",
+      "memoriaPatronValor"
+    ),
+
+  patronScore:
+    primerElemento(
+      "patronScore",
+      "memoriaPatronScore"
+    ),
+
+  patronTiming:
+    primerElemento(
+      "patronTiming",
+      "memoriaPatronTiming"
+    ),
+
+  patronClave:
+    primerElemento(
+      "patronClave",
+      "memoriaPatronClave"
+    ),
+
+  memoriaPatronesTotal:
+    primerElemento(
+      "memoriaPatronesTotal",
+      "memoriaTotalPatrones"
+    ),
+
+  memoriaOperaciones:
+    primerElemento(
+      "memoriaOperaciones",
+      "memoriaOperacionesAprendidas"
+    ),
+
+  memoriaFavorables:
+    primerElemento(
+      "memoriaFavorables",
+      "memoriaPatronesFavorables"
+    ),
+
+  memoriaRiesgos:
+    primerElemento(
+      "memoriaRiesgos",
+      "memoriaPatronesRiesgo"
+    ),
+
+  memoriaSinEvidencia:
+    primerElemento(
+      "memoriaSinEvidencia",
+      "memoriaPatronesSinEvidencia"
+    ),
+
+  memoriaAprendizaje:
+    primerElemento(
+      "memoriaAprendizaje",
+      "modoAprendizaje"
+    ),
+
+  memoriaFiltro:
+    primerElemento(
+      "memoriaFiltro",
+      "filtroPatrones"
+    ),
+
+  memoriaMinimo:
+    primerElemento(
+      "memoriaMinimo",
+      "memoriaMinimoMuestras"
+    ),
+
+  memoriaEstado:
+    primerElemento(
+      "memoriaEstado",
+      "resumenAprendizajeEstado"
+    ),
+
+  botonDescargarTestLog:
+    primerElemento(
+      "botonDescargarTestLog",
+      "descargarTestLog"
+    ),
+
+  botonResetMemoria:
+    primerElemento(
+      "botonResetMemoria",
+      "resetMemoriaPatrones"
+    )
 
 };
 
@@ -608,21 +1027,34 @@ function obtenerHora() {
 
 
 /* ==========================================
-   FORMATOS FIX13.7.1
+   FORMATOS
    ========================================== */
 
 function formatoMs(
   valor
 ) {
 
+  if (
+    valor === null ||
+    valor === undefined ||
+    valor === ""
+  ) {
+
+    return "--";
+
+  }
+
+
   const numero =
-    numeroSeguro(
+    Number(
       valor
     );
 
 
   if (
-    numero === null
+    !Number.isFinite(
+      numero
+    )
   ) {
 
     return "--";
@@ -639,14 +1071,27 @@ function formatoOffsetMs(
   valor
 ) {
 
+  if (
+    valor === null ||
+    valor === undefined ||
+    valor === ""
+  ) {
+
+    return "--";
+
+  }
+
+
   const numero =
-    numeroSeguro(
+    Number(
       valor
     );
 
 
   if (
-    numero === null
+    !Number.isFinite(
+      numero
+    )
   ) {
 
     return "--";
@@ -655,7 +1100,8 @@ function formatoOffsetMs(
 
 
   return `${
-    numero > 0
+    numero >
+      0
       ? "+"
       : ""
   }${numero.toFixed(2)} ms`;
@@ -667,14 +1113,27 @@ function formatoSegundosDesdeMs(
   valor
 ) {
 
+  if (
+    valor === null ||
+    valor === undefined ||
+    valor === ""
+  ) {
+
+    return "--";
+
+  }
+
+
   const numero =
-    numeroSeguro(
+    Number(
       valor
     );
 
 
   if (
-    numero === null
+    !Number.isFinite(
+      numero
+    )
   ) {
 
     return "--";
@@ -683,11 +1142,13 @@ function formatoSegundosDesdeMs(
 
 
   const segundos =
-    numero / 1000;
+    numero /
+    1000;
 
 
   return `${
-    segundos > 0
+    segundos >
+      0
       ? "+"
       : ""
   }${segundos.toFixed(1)} s`;
@@ -699,14 +1160,27 @@ function formatoPorcentaje(
   valor
 ) {
 
+  if (
+    valor === null ||
+    valor === undefined ||
+    valor === ""
+  ) {
+
+    return "--";
+
+  }
+
+
   const numero =
-    numeroSeguro(
+    Number(
       valor
     );
 
 
   if (
-    numero === null
+    !Number.isFinite(
+      numero
+    )
   ) {
 
     return "--";
@@ -720,7 +1194,7 @@ function formatoPorcentaje(
 
 
 /* ==========================================
-   REGISTRO OPTIMIZADO
+   REGISTRO
    ========================================== */
 
 function registrarActividad(
@@ -786,12 +1260,490 @@ function registrarActividad(
 
 
   while (
-    UI.registroBot.children.length >
-    120
+    UI.registroBot
+      .children
+      .length >
+    150
   ) {
 
-    UI.registroBot.removeChild(
-      UI.registroBot.lastElementChild
+    UI.registroBot
+      .removeChild(
+        UI.registroBot
+          .lastElementChild
+      );
+
+  }
+
+}
+
+
+/* ==========================================
+   FIX13.8
+   RENDER PATRÓN
+   ========================================== */
+
+function renderAnalisisPatron(
+  analisis
+) {
+
+  if (
+    !analisis
+  ) {
+
+    return;
+
+  }
+
+
+  ultimoPatronVisual =
+    {
+      ...analisis
+    };
+
+
+  const clasificacion =
+    String(
+      analisis.clasificacion ||
+      "SIN_EVIDENCIA"
+    )
+      .toUpperCase();
+
+
+  const decision =
+    String(
+      analisis.decision ||
+      "APRENDER"
+    )
+      .toUpperCase();
+
+
+  const fuerza =
+    String(
+      analisis.fuerza ||
+      "RECOPILANDO"
+    )
+      .toUpperCase();
+
+
+  if (
+    UI.patronClasificacion
+  ) {
+
+    UI.patronClasificacion.textContent =
+      clasificacion;
+
+  }
+
+
+  if (
+    UI.patronDecision
+  ) {
+
+    UI.patronDecision.textContent =
+      decision;
+
+  }
+
+
+  if (
+    UI.patronFuerza
+  ) {
+
+    UI.patronFuerza.textContent =
+      fuerza;
+
+  }
+
+
+  if (
+    UI.patronMuestras
+  ) {
+
+    UI.patronMuestras.textContent =
+      String(
+        analisis.muestras ??
+        analisis.total ??
+        0
+      );
+
+  }
+
+
+  if (
+    UI.patronGanadas
+  ) {
+
+    UI.patronGanadas.textContent =
+      String(
+        analisis.ganadas ??
+        0
+      );
+
+  }
+
+
+  if (
+    UI.patronPerdidas
+  ) {
+
+    UI.patronPerdidas.textContent =
+      String(
+        analisis.perdidas ??
+        0
+      );
+
+  }
+
+
+  if (
+    UI.patronAccuracy
+  ) {
+
+    UI.patronAccuracy.textContent =
+      formatoPorcentaje(
+        analisis.accuracy
+      );
+
+  }
+
+
+  if (
+    UI.patronValor
+  ) {
+
+    UI.patronValor.textContent =
+      analisis.valorPatron ??
+      analisis.valorBucket ??
+      "--";
+
+  }
+
+
+  if (
+    UI.patronScore
+  ) {
+
+    UI.patronScore.textContent =
+      analisis.scoreBruto ??
+      analisis.scoreBucket ??
+      "--";
+
+  }
+
+
+  if (
+    UI.patronTiming
+  ) {
+
+    UI.patronTiming.textContent =
+      formatoOffsetMs(
+        analisis
+          .promedioTimingMs
+      );
+
+  }
+
+
+  if (
+    UI.patronClave
+  ) {
+
+    UI.patronClave.innerHTML = `
+
+      <strong>Firma:</strong>
+      ${analisis.key ?? "--"}
+
+      <br><br>
+
+      <strong>Mercado:</strong>
+      ${analisis.mercado ?? "--"}
+
+      <br>
+
+      <strong>Estrategia:</strong>
+      ${analisis.estrategia ?? "--"}
+
+      <br>
+
+      <strong>Dirección:</strong>
+      ${analisis.direccion ?? "--"}
+
+      <br>
+
+      <strong>Confianza agrupada:</strong>
+      ${analisis.confianzaBucket ?? "--"}
+
+      <br>
+
+      <strong>Score agrupado:</strong>
+      ${analisis.scoreBucket ?? "--"}
+
+      <br>
+
+      <strong>Valor agrupado:</strong>
+      ${analisis.valorBucket ?? "--"}
+
+    `;
+
+  }
+
+
+  if (
+    UI.patronEstadoVisual
+  ) {
+
+    let texto =
+      `${clasificacion} · ${decision}`;
+
+
+    if (
+      clasificacion ===
+      "FAVORABLE"
+    ) {
+
+      texto =
+        `🟢 FAVORABLE · ${decision}`;
+
+    }
+
+
+    if (
+      clasificacion ===
+      "RIESGO"
+    ) {
+
+      texto =
+        `🔴 RIESGO · ${
+          analisis.bloquear
+            ? "NO OPERAR AUTOMÁTICO"
+            : decision
+        }`;
+
+    }
+
+
+    if (
+      clasificacion ===
+      "SIN_EVIDENCIA"
+    ) {
+
+      texto =
+        "🟡 SIN EVIDENCIA · APRENDIENDO";
+
+    }
+
+
+    if (
+      clasificacion ===
+      "NEUTRO"
+    ) {
+
+      texto =
+        "🟠 NEUTRO · CONTINUAR APRENDIZAJE";
+
+    }
+
+
+    UI.patronEstadoVisual
+      .textContent =
+      texto;
+
+  }
+
+}
+
+
+/* ==========================================
+   FIX13.8
+   RENDER RESUMEN MEMORIA
+   ========================================== */
+
+function renderResumenMemoria(
+  resumen
+) {
+
+  if (
+    !resumen
+  ) {
+
+    return;
+
+  }
+
+
+  if (
+    UI.memoriaPatronesTotal
+  ) {
+
+    UI.memoriaPatronesTotal.textContent =
+      String(
+        resumen.patrones ??
+        0
+      );
+
+  }
+
+
+  if (
+    UI.memoriaOperaciones
+  ) {
+
+    UI.memoriaOperaciones.textContent =
+      String(
+        resumen.operaciones ??
+        0
+      );
+
+  }
+
+
+  if (
+    UI.memoriaFavorables
+  ) {
+
+    UI.memoriaFavorables.textContent =
+      String(
+        resumen.favorables ??
+        0
+      );
+
+  }
+
+
+  if (
+    UI.memoriaRiesgos
+  ) {
+
+    UI.memoriaRiesgos.textContent =
+      String(
+        resumen.riesgos ??
+        0
+      );
+
+  }
+
+
+  if (
+    UI.memoriaSinEvidencia
+  ) {
+
+    UI.memoriaSinEvidencia.textContent =
+      String(
+        resumen.sinEvidencia ??
+        0
+      );
+
+  }
+
+
+  if (
+    UI.memoriaAprendizaje
+  ) {
+
+    UI.memoriaAprendizaje.textContent =
+      resumen.learningMode
+        ? "ACTIVO"
+        : "OFF";
+
+  }
+
+
+  if (
+    UI.memoriaFiltro
+  ) {
+
+    UI.memoriaFiltro.textContent =
+      resumen.filtroAutomatico
+        ? "ACTIVO"
+        : "OFF";
+
+  }
+
+
+  if (
+    UI.memoriaMinimo
+  ) {
+
+    UI.memoriaMinimo.textContent =
+      `${
+        resumen.minimumDecisionSamples ??
+        4
+      } muestras`;
+
+  }
+
+
+  if (
+    UI.memoriaEstado
+  ) {
+
+    const operaciones =
+      Number(
+        resumen.operaciones ??
+        0
+      );
+
+
+    const patrones =
+      Number(
+        resumen.patrones ??
+        0
+      );
+
+
+    if (
+      operaciones ===
+      0
+    ) {
+
+      UI.memoriaEstado.textContent =
+        "RECOPILANDO · TODAVÍA NO HAY OPERACIONES APRENDIDAS";
+
+    }
+
+    else {
+
+      UI.memoriaEstado.textContent =
+        `MEMORIA ACTIVA · ${operaciones} operaciones · ${patrones} patrones`;
+
+    }
+
+  }
+
+}
+
+
+/* ==========================================
+   REFRESCAR MEMORIA DESDE ENGINE
+   ========================================== */
+
+function actualizarMemoriaDesdeEngine() {
+
+  const estado =
+    obtenerEstadoRapido();
+
+
+  if (
+    estado
+      ?.resumenMemoriaPatrones
+  ) {
+
+    renderResumenMemoria(
+      estado
+        .resumenMemoriaPatrones
+    );
+
+  }
+
+
+  if (
+    estado
+      ?.ultimoAnalisisPatron
+  ) {
+
+    renderAnalisisPatron(
+      estado
+        .ultimoAnalisisPatron
     );
 
   }
@@ -800,7 +1752,547 @@ function registrarActividad(
 
 
 /* ==========================================
-   MODO
+   EVENTO PATRÓN EVALUADO
+   ========================================== */
+
+window.addEventListener(
+  "bot:pattern-evaluated",
+  (
+    evento
+  ) => {
+
+    const datos =
+      evento.detail ||
+      {};
+
+
+    renderAnalisisPatron(
+      datos
+    );
+
+
+    registrarActividad(
+      `🧠 PATRÓN · ${
+        datos.clasificacion ||
+        "SIN_EVIDENCIA"
+      } · ${
+        datos.muestras ??
+        0
+      } muestras · ${
+        datos.ganadas ??
+        0
+      }G/${
+        datos.perdidas ??
+        0
+      }P · ${
+        formatoPorcentaje(
+          datos.accuracy
+        )
+      }.`,
+      datos.clasificacion ===
+        "FAVORABLE"
+        ? "correcto"
+        : datos.clasificacion ===
+            "RIESGO"
+          ? "error"
+          : "aviso"
+    );
+
+  }
+);
+
+
+/* ==========================================
+   EVENTO PATRÓN ACTUALIZADO
+   ========================================== */
+
+window.addEventListener(
+  "bot:pattern-updated",
+  (
+    evento
+  ) => {
+
+    const datos =
+      evento.detail ||
+      {};
+
+
+    /*
+      El evento actualizado no siempre trae
+      toda la firma. Combinamos con el último.
+    */
+
+    renderAnalisisPatron({
+
+      ...(
+        ultimoPatronVisual ||
+        {}
+      ),
+
+      ...datos,
+
+      muestras:
+        datos.total ??
+        datos.muestras ??
+        ultimoPatronVisual
+          ?.muestras ??
+        0
+
+    });
+
+
+    actualizarMemoriaDesdeEngine();
+
+
+    registrarActividad(
+      `🧠 MEMORIA ACTUALIZADA · ${
+        datos.mercado ||
+        "--"
+      } · ${
+        datos.clasificacion ||
+        "--"
+      } · ${
+        datos.total ??
+        0
+      } muestras · ${
+        datos.ganadas ??
+        0
+      }G/${
+        datos.perdidas ??
+        0
+      }P · ${
+        formatoPorcentaje(
+          datos.accuracy
+        )
+      }.`,
+      datos.clasificacion ===
+        "FAVORABLE"
+        ? "correcto"
+        : datos.clasificacion ===
+            "RIESGO"
+          ? "error"
+          : "aviso"
+    );
+
+  }
+);
+
+
+/* ==========================================
+   EVENTO OPERACIÓN BLOQUEADA
+   ========================================== */
+
+window.addEventListener(
+  "bot:pattern-blocked",
+  (
+    evento
+  ) => {
+
+    const datos =
+      evento.detail ||
+      {};
+
+
+    if (
+      datos.analisisPatron
+    ) {
+
+      renderAnalisisPatron(
+        datos.analisisPatron
+      );
+
+    }
+
+
+    if (
+      UI.operacionDemo
+    ) {
+
+      UI.operacionDemo.innerHTML = `
+
+        <strong>
+          🛑 NO OPERAR
+        </strong>
+
+        <br><br>
+
+        <strong>Motivo:</strong>
+        Patrón histórico de riesgo.
+        <br><br>
+
+        <strong>Mercado:</strong>
+        ${datos.mercado ?? "--"}
+        <br>
+
+        <strong>Estrategia:</strong>
+        ${datos.estrategia ?? "--"}
+        <br>
+
+        <strong>Dirección:</strong>
+        ${datos.direccion ?? "--"}
+        <br>
+
+        <strong>Confianza:</strong>
+        ${datos.confianza ?? "--"}%
+        <br>
+
+        <strong>Score bruto:</strong>
+        ${datos.scoreBruto ?? "--"}
+        <br>
+
+        <strong>Valor patrón:</strong>
+        ${datos.valorPatron ?? "--"}
+        <br><br>
+
+        ✅ El BOT protegió la operación.
+        No se envió BUY.
+
+      `;
+
+    }
+
+
+    registrarActividad(
+      `🛑 NO OPERAR · PATRÓN RIESGO · ${
+        datos.mercado ||
+        "--"
+      } · BUY bloqueado.`,
+      "error"
+    );
+
+
+    actualizarMemoriaDesdeEngine();
+
+  }
+);
+
+
+/* ==========================================
+   RESET MEMORIA
+   ========================================== */
+
+window.addEventListener(
+  "bot:pattern-memory-reset",
+  () => {
+
+    ultimoPatronVisual =
+      null;
+
+
+    renderResumenMemoria({
+
+      patrones:
+        0,
+
+      operaciones:
+        0,
+
+      favorables:
+        0,
+
+      riesgos:
+        0,
+
+      sinEvidencia:
+        0,
+
+      minimumDecisionSamples:
+        4,
+
+      learningMode:
+        true,
+
+      filtroAutomatico:
+        true
+
+    });
+
+
+    if (
+      UI.patronClasificacion
+    ) {
+
+      UI.patronClasificacion.textContent =
+        "SIN EVIDENCIA";
+
+    }
+
+
+    if (
+      UI.patronDecision
+    ) {
+
+      UI.patronDecision.textContent =
+        "APRENDER";
+
+    }
+
+
+    if (
+      UI.patronFuerza
+    ) {
+
+      UI.patronFuerza.textContent =
+        "RECOPILANDO";
+
+    }
+
+
+    if (
+      UI.patronMuestras
+    ) {
+
+      UI.patronMuestras.textContent =
+        "0";
+
+    }
+
+
+    if (
+      UI.patronGanadas
+    ) {
+
+      UI.patronGanadas.textContent =
+        "0";
+
+    }
+
+
+    if (
+      UI.patronPerdidas
+    ) {
+
+      UI.patronPerdidas.textContent =
+        "0";
+
+    }
+
+
+    if (
+      UI.patronAccuracy
+    ) {
+
+      UI.patronAccuracy.textContent =
+        "--";
+
+    }
+
+
+    if (
+      UI.patronEstadoVisual
+    ) {
+
+      UI.patronEstadoVisual.textContent =
+        "SIN EVIDENCIA · ESPERANDO PREDICCIÓN";
+
+    }
+
+
+    registrarActividad(
+      "Memoria de patrones restablecida.",
+      "aviso"
+    );
+
+  }
+);
+
+
+/* ==========================================
+   BOTÓN BORRAR MEMORIA
+   ========================================== */
+
+UI.botonResetMemoria
+  ?.addEventListener(
+    "click",
+    () => {
+
+      const confirmar =
+        window.confirm(
+          "¿Desea borrar completamente la memoria de patrones aprendida?"
+        );
+
+
+      if (
+        !confirmar
+      ) {
+
+        return;
+
+      }
+
+
+      if (
+        typeof botEngine
+          .restablecerMemoriaPatrones !==
+        "function"
+      ) {
+
+        registrarActividad(
+          "El motor no tiene disponible restablecerMemoriaPatrones().",
+          "error"
+        );
+
+
+        return;
+
+      }
+
+
+      const resultado =
+        botEngine
+          .restablecerMemoriaPatrones();
+
+
+      registrarActividad(
+        resultado?.mensaje ||
+        "Memoria restablecida.",
+        resultado?.ok
+          ? "aviso"
+          : "error"
+      );
+
+
+      actualizarMemoriaDesdeEngine();
+
+    }
+  );
+
+
+/* ==========================================
+   DESCARGAR TESTLOG
+   ========================================== */
+
+UI.botonDescargarTestLog
+  ?.addEventListener(
+    "click",
+    () => {
+
+      try {
+
+        if (
+          typeof botEngine
+            .obtenerTestLog !==
+          "function"
+        ) {
+
+          registrarActividad(
+            "El motor no tiene obtenerTestLog().",
+            "error"
+          );
+
+
+          return;
+
+        }
+
+
+        const datos =
+          botEngine
+            .obtenerTestLog();
+
+
+        const contenido =
+          JSON.stringify(
+            datos,
+            null,
+            2
+          );
+
+
+        const blob =
+          new Blob(
+            [
+              contenido
+            ],
+            {
+              type:
+                "application/json;charset=utf-8"
+            }
+          );
+
+
+        const url =
+          URL.createObjectURL(
+            blob
+          );
+
+
+        const enlace =
+          document.createElement(
+            "a"
+          );
+
+
+        const fecha =
+          new Date()
+            .toISOString()
+            .replace(
+              /[:.]/g,
+              "-"
+            );
+
+
+        enlace.href =
+          url;
+
+
+        enlace.download =
+          `V13_8_TESTLOG_${fecha}.json`;
+
+
+        document.body
+          .appendChild(
+            enlace
+          );
+
+
+        enlace.click();
+
+
+        enlace.remove();
+
+
+        setTimeout(
+          () => {
+
+            URL.revokeObjectURL(
+              url
+            );
+
+          },
+          1000
+        );
+
+
+        registrarActividad(
+          "TESTLOG FIX13.8 generado correctamente.",
+          "correcto"
+        );
+
+      }
+
+      catch (
+        error
+      ) {
+
+        registrarActividad(
+          `Error TESTLOG · ${
+            error?.message ||
+            String(
+              error
+            )
+          }`,
+          "error"
+        );
+
+      }
+
+    }
+  );
+
+
+/* ==========================================
+   MODO EJECUCIÓN
    ========================================== */
 
 function obtenerModoActual() {
@@ -813,10 +2305,6 @@ function obtenerModoActual() {
 
 }
 
-
-/* ==========================================
-   RENDER MANUAL
-   ========================================== */
 
 function renderModoEjecucion() {
 
@@ -844,7 +2332,8 @@ function renderModoEjecucion() {
   ) {
 
     UI.modoEjecucionEstado.textContent =
-      modo === MODO_MANUAL
+      modo ===
+        MODO_MANUAL
         ? "MANUAL DIAGNÓSTICO"
         : "AUTOMÁTICO";
 
@@ -873,7 +2362,8 @@ function renderModoEjecucion() {
 
     UI.botonEjecutarManual.disabled =
       !(
-        modo === MODO_MANUAL &&
+        modo ===
+          MODO_MANUAL &&
         pendiente
       );
 
@@ -950,7 +2440,8 @@ function renderModoEjecucion() {
       else {
 
         UI.manualEstado.textContent =
-          modo === MODO_MANUAL
+          modo ===
+            MODO_MANUAL
             ? "ESPERANDO PREDICCIÓN"
             : "MODO AUTOMÁTICO";
 
@@ -968,18 +2459,12 @@ function renderModoEjecucion() {
     null;
 
 
-  const tieneTarget =
-    numeroValido(
-      pendiente.targetExecutionAt
-    );
-
-
   if (
     UI.manualEstado
   ) {
 
     UI.manualEstado.textContent =
-      tieneTarget
+      pendiente.targetDisponible
         ? "LISTO PARA EJECUTAR"
         : "LISTO · ESPERANDO TARGET";
 
@@ -1024,11 +2509,8 @@ function renderModoEjecucion() {
   ) {
 
     UI.manualTarget.textContent =
-      tieneTarget
-        ? String(
-            pendiente.targetExecutionAt
-          )
-        : "ESPERANDO";
+      pendiente.targetExecutionAt ??
+      "ESPERANDO";
 
   }
 
@@ -1038,13 +2520,19 @@ function renderModoEjecucion() {
   ) {
 
     UI.manualProgramado.textContent =
-      numeroValido(
-        pendiente.programmedExecutionAt
-      )
-        ? String(
-            pendiente.programmedExecutionAt
-          )
-        : "ESPERANDO";
+      pendiente.programmedExecutionAt ??
+      "ESPERANDO";
+
+  }
+
+
+  if (
+    pendiente.patron
+  ) {
+
+    renderAnalisisPatron(
+      pendiente.patron
+    );
 
   }
 
@@ -1092,10 +2580,6 @@ UI.modoEjecucionSelect
   );
 
 
-/* ==========================================
-   EVENTO CAMBIO MODO
-   ========================================== */
-
 window.addEventListener(
   "bot:execution-mode",
   (
@@ -1112,7 +2596,8 @@ window.addEventListener(
 
 
     registrarActividad(
-      modo === MODO_MANUAL
+      modo ===
+        MODO_MANUAL
         ? "MODO → MANUAL DIAGNÓSTICO."
         : "MODO → AUTOMÁTICO.",
       "correcto"
@@ -1171,6 +2656,17 @@ window.addEventListener(
 
 
     if (
+      datos.analisisPatron
+    ) {
+
+      renderAnalisisPatron(
+        datos.analisisPatron
+      );
+
+    }
+
+
+    if (
       UI.operacionDemo
     ) {
 
@@ -1205,29 +2701,25 @@ window.addEventListener(
 
 
       if (
-        datos.modoEjecucion ===
-        MODO_MANUAL
+        datos.analisisPatron
       ) {
 
         UI.operacionDemo.innerHTML += `
 
           <br><br>
 
-          ⚡ Propuesta preparada.
-          El botón manual puede quedar disponible
-          antes de recibir TARGET.
+          <strong>Patrón:</strong>
+          ${datos.analisisPatron.clasificacion ?? "SIN_EVIDENCIA"}
+          <br>
 
-        `;
+          <strong>Muestras:</strong>
+          ${datos.analisisPatron.muestras ?? 0}
+          <br>
 
-      }
-
-      else {
-
-        UI.operacionDemo.innerHTML += `
-
-          <br><br>
-
-          Esperando TARGET...
+          <strong>Accuracy:</strong>
+          ${formatoPorcentaje(
+            datos.analisisPatron.accuracy
+          )}
 
         `;
 
@@ -1252,7 +2744,7 @@ window.addEventListener(
 
 
 /* ==========================================
-   MANUAL LISTO FIX13.7.1
+   MANUAL LISTO
    ========================================== */
 
 window.addEventListener(
@@ -1270,12 +2762,15 @@ window.addEventListener(
       null;
 
 
-    const targetDisponible =
-      datos.targetDisponible ===
-        true &&
-      numeroValido(
-        datos.targetExecutionAt
+    if (
+      datos.analisisPatron
+    ) {
+
+      renderAnalisisPatron(
+        datos.analisisPatron
       );
+
+    }
 
 
     if (
@@ -1283,7 +2778,7 @@ window.addEventListener(
     ) {
 
       UI.manualEstado.textContent =
-        targetDisponible
+        datos.targetDisponible
           ? "LISTO PARA EJECUTAR"
           : "LISTO · ESPERANDO TARGET";
 
@@ -1328,11 +2823,8 @@ window.addEventListener(
     ) {
 
       UI.manualTarget.textContent =
-        targetDisponible
-          ? String(
-              datos.targetExecutionAt
-            )
-          : "ESPERANDO";
+        datos.targetExecutionAt ??
+        "ESPERANDO";
 
     }
 
@@ -1342,13 +2834,8 @@ window.addEventListener(
     ) {
 
       UI.manualProgramado.textContent =
-        numeroValido(
-          datos.programmedExecutionAt
-        )
-          ? String(
-              datos.programmedExecutionAt
-            )
-          : "ESPERANDO";
+        datos.programmedExecutionAt ??
+        "ESPERANDO";
 
     }
 
@@ -1363,75 +2850,6 @@ window.addEventListener(
     }
 
 
-    if (
-      UI.operacionDemo
-    ) {
-
-      UI.operacionDemo.innerHTML = `
-
-        <strong>
-          🟠 MANUAL LISTO
-        </strong>
-
-        <br><br>
-
-        <strong>Mercado:</strong>
-        ${datos.mercado ?? "--"}
-        <br>
-
-        <strong>Estrategia:</strong>
-        ${datos.estrategia ?? "--"}
-        <br>
-
-        <strong>Dirección:</strong>
-        ${datos.direccion ?? "--"}
-        <br>
-
-        <strong>Confianza:</strong>
-        ${datos.confianza ?? "--"}%
-        <br>
-
-        <strong>TARGET:</strong>
-        ${
-          targetDisponible
-            ? datos.targetExecutionAt
-            : "ESPERANDO"
-        }
-        <br>
-
-        <strong>Referencia programada:</strong>
-        ${
-          numeroValido(
-            datos.programmedExecutionAt
-          )
-            ? datos.programmedExecutionAt
-            : "ESPERANDO"
-        }
-        <br>
-
-        <strong>PREPARAR → botón listo:</strong>
-        ${formatoMs(
-          datos.prepareToReadyMs
-        )}
-        <br>
-
-        <strong>TARGET → botón listo:</strong>
-        ${
-          targetDisponible
-            ? formatoOffsetMs(
-                datos.targetToReadyMs
-              )
-            : "--"
-        }
-        <br><br>
-
-        ⚡ EJECUTAR AHORA disponible.
-
-      `;
-
-    }
-
-
     registrarActividad(
       `🟠 MANUAL LISTO · ${
         datos.mercado ||
@@ -1439,14 +2857,10 @@ window.addEventListener(
       } · ${
         datos.direccion ||
         "--"
-      } · PREPARAR→LISTO ${
-        formatoMs(
-          datos.prepareToReadyMs
-        )
-      } · TARGET ${
-        targetDisponible
-          ? "RECIBIDO"
-          : "PENDIENTE"
+      } · patrón ${
+        datos.analisisPatron
+          ?.clasificacion ||
+        "SIN_EVIDENCIA"
       }.`,
       "aviso"
     );
@@ -1473,12 +2887,15 @@ window.addEventListener(
       {};
 
 
-    const targetDisponible =
-      datos.targetDisponible ===
-        true &&
-      numeroValido(
-        datos.targetExecutionAt
+    if (
+      datos.analisisPatron
+    ) {
+
+      renderAnalisisPatron(
+        datos.analisisPatron
       );
+
+    }
 
 
     if (
@@ -1496,7 +2913,7 @@ window.addEventListener(
     ) {
 
       UI.manualClickOffset.textContent =
-        targetDisponible
+        datos.targetDisponible
           ? formatoOffsetMs(
               datos.clickToTargetMs
             )
@@ -1520,13 +2937,11 @@ window.addEventListener(
         datos.mercado ||
         "--"
       } · ${
-        targetDisponible
-          ? `TARGET ${
-              formatoOffsetMs(
-                datos.clickToTargetMs
-              )
-            }`
-          : "TARGET todavía no recibido"
+        datos.targetDisponible
+          ? formatoOffsetMs(
+              datos.clickToTargetMs
+            )
+          : "SIN TARGET"
       }.`,
       "correcto"
     );
@@ -1550,16 +2965,19 @@ window.addEventListener(
       {};
 
 
+    if (
+      datos.analisisPatron
+    ) {
+
+      renderAnalisisPatron(
+        datos.analisisPatron
+      );
+
+    }
+
+
     const desviacion =
-      numeroSeguro(
-        datos.buyTargetDeviationMs
-      );
-
-
-    const tieneTarget =
-      numeroValido(
-        datos.targetExecutionAt
-      );
+      datos.buyTargetDeviationMs;
 
 
     if (
@@ -1587,21 +3005,11 @@ window.addEventListener(
         <br>
 
         <strong>TARGET:</strong>
-        ${
-          tieneTarget
-            ? datos.targetExecutionAt
-            : "SIN TARGET"
-        }
+        ${datos.targetExecutionAt ?? "SIN TARGET"}
         <br>
 
         <strong>Programado:</strong>
-        ${
-          numeroValido(
-            datos.programmedExecutionAt
-          )
-            ? datos.programmedExecutionAt
-            : "--"
-        }
+        ${datos.programmedExecutionAt ?? "--"}
         <br>
 
         <strong>Calibración:</strong>
@@ -1614,14 +3022,10 @@ window.addEventListener(
         ${datos.buyRequestedAt ?? "--"}
         <br>
 
-        <strong>Desviación programada:</strong>
-        ${
-          desviacion !== null
-            ? formatoOffsetMs(
-                desviacion
-              )
-            : "--"
-        }
+        <strong>Desviación:</strong>
+        ${formatoOffsetMs(
+          desviacion
+        )}
         <br>
 
         <strong>Clic → BUY:</strong>
@@ -1639,27 +3043,9 @@ window.addEventListener(
     ) {
 
       UI.manualBuyOffset.textContent =
-        desviacion !== null
-          ? formatoOffsetMs(
-              desviacion
-            )
-          : "SIN TARGET";
-
-    }
-
-
-    if (
-      UI.calibradorSignalBuy
-    ) {
-
-      UI.calibradorSignalBuy.textContent =
-        desviacion !== null
-          ? `TARGET ${formatoOffsetMs(
-              desviacion
-            )}`
-          : `CLIC→BUY ${formatoMs(
-              datos.manualClickToBuyMs
-            )}`;
+        formatoOffsetMs(
+          desviacion
+        );
 
     }
 
@@ -1671,10 +3057,6 @@ window.addEventListener(
       } · ${
         datos.direccion ||
         "--"
-      } · CLIC→BUY ${
-        formatoMs(
-          datos.manualClickToBuyMs
-        )
       }.`,
       "correcto"
     );
@@ -1703,83 +3085,9 @@ window.addEventListener(
       {};
 
 
-    const tieneTarget =
-      numeroValido(
-        datos.targetExecutionAt
-      );
-
-
     if (
       datos.ok
     ) {
-
-      if (
-        UI.operacionDemo
-      ) {
-
-        UI.operacionDemo.innerHTML = `
-
-          <strong>
-            ✅ BUY CONFIRMADO
-          </strong>
-
-          <br><br>
-
-          <strong>Modo:</strong>
-          ${datos.modoEjecucion ?? "--"}
-          <br>
-
-          <strong>Mercado:</strong>
-          ${datos.mercado ?? "--"}
-          <br>
-
-          <strong>Dirección:</strong>
-          ${datos.direccion ?? "--"}
-          <br>
-
-          <strong>Contract ID:</strong>
-          ${compra.contractId ?? "--"}
-          <br>
-
-          <strong>Compra:</strong>
-          ${compra.buyPrice ?? "--"} USD
-          <br>
-
-          <strong>TARGET:</strong>
-          ${
-            tieneTarget
-              ? datos.targetExecutionAt
-              : "SIN TARGET"
-          }
-          <br>
-
-          <strong>Desviación envío:</strong>
-          ${
-            numeroValido(
-              datos.buyTargetDeviationMs
-            )
-              ? formatoOffsetMs(
-                  datos.buyTargetDeviationMs
-                )
-              : "--"
-          }
-          <br>
-
-          <strong>Desviación confirmación:</strong>
-          ${
-            numeroValido(
-              datos.buyConfirmTargetDeviationMs
-            )
-              ? formatoOffsetMs(
-                  datos.buyConfirmTargetDeviationMs
-                )
-              : "--"
-          }
-
-        `;
-
-      }
-
 
       registrarActividad(
         `✅ BUY CONFIRMADO · ${
@@ -1798,12 +3106,9 @@ window.addEventListener(
 
       registrarActividad(
         `❌ BUY RECHAZADO · ${
-          datos.mercado ||
-          "--"
-        } · ${
           datos.error ||
           "Sin detalle"
-        }`,
+        }.`,
         "error"
       );
 
@@ -1837,9 +3142,6 @@ window.addEventListener(
         "--"
       } · PROFIT ${
         datos.profit ??
-        "--"
-      } · MODO ${
-        datos.modoEjecucion ||
         "--"
       }.`,
       datos.resultado ===
@@ -1883,6 +3185,19 @@ window.addEventListener(
       }
 
     }
+
+
+    /*
+      pattern-updated puede llegar
+      inmediatamente después.
+      También hacemos una actualización
+      diferida de seguridad.
+    */
+
+    setTimeout(
+      actualizarMemoriaDesdeEngine,
+      150
+    );
 
   }
 );
@@ -1950,11 +3265,12 @@ function actualizarPanelCalibracion() {
 
 
   const ajuste =
-    numeroSeguro(
+    Number(
       estado
         ?.calibracionActual
-        ?.[mercado]
-    ) ?? 0;
+        ?.[mercado] ??
+      0
+    );
 
 
   if (
@@ -2010,10 +3326,11 @@ UI.botonGuardarCalibracion
 
 
       const ajuste =
-        numeroSeguro(
+        Number(
           UI.calibracionAjusteSelect
-            ?.value
-        ) ?? 0;
+            ?.value ??
+          0
+        );
 
 
       const resultado =
@@ -2108,8 +3425,10 @@ function mostrarSenal(
   ) {
 
     UI.confianza.textContent =
-      numeroValido(
-        senal.confianza
+      Number.isFinite(
+        Number(
+          senal.confianza
+        )
       )
         ? `${Number(
             senal.confianza
@@ -2124,12 +3443,9 @@ function mostrarSenal(
   ) {
 
     UI.entrada.textContent =
-      numeroValido(
-        senal.segundosEntrada
-      )
-        ? `${Number(
-            senal.segundosEntrada
-          )} s`
+      senal.segundosEntrada !=
+        null
+        ? `${senal.segundosEntrada} s`
         : "--";
 
   }
@@ -2140,9 +3456,8 @@ function mostrarSenal(
   ) {
 
     UI.precio.textContent =
-      numeroValido(
-        senal.precio
-      )
+      senal.precio !=
+        null
         ? String(
             senal.precio
           )
@@ -2160,52 +3475,19 @@ function mostrarSenal(
       .toUpperCase();
 
 
-  const candidatosTarget = [
-
-    senal.targetExecutionAt,
-
-    senal.targetVisualAt,
-
+  const target =
+    senal.targetExecutionAt ??
+    senal.targetVisualAt ??
     senal.metadata
-      ?.targetExecutionAt,
-
-    senal.metadata
-      ?.targetVisualAt
-
-  ];
-
-
-  let target =
+      ?.targetExecutionAt ??
     null;
-
-
-  for (
-    const candidato
-    of candidatosTarget
-  ) {
-
-    if (
-      numeroValido(
-        candidato
-      )
-    ) {
-
-      target =
-        Number(
-          candidato
-        );
-
-      break;
-
-    }
-
-  }
 
 
   const rawScore =
     senal.rawScore ??
     senal.scoreBruto ??
-    senal.metadata?.rawScore ??
+    senal.metadata
+      ?.rawScore ??
     "--";
 
 
@@ -2231,7 +3513,7 @@ function mostrarSenal(
       ${senal.direccion ?? "--"}
       <br>
 
-      <strong>Confianza visible:</strong>
+      <strong>Confianza:</strong>
       ${senal.confianza ?? "--"}%
       <br>
 
@@ -2290,21 +3572,13 @@ function mostrarEstadoTarget(
   }
 
 
-  const targetReal =
-    telemetria
-      .programacionDisponible ===
-      true &&
-    numeroValido(
-      telemetria.targetExecutionAt
-    );
-
-
   if (
     UI.calibracionTargetDisponible
   ) {
 
     UI.calibracionTargetDisponible.textContent =
-      targetReal
+      telemetria
+        .programacionDisponible
         ? "SÍ"
         : "NO";
 
@@ -2316,7 +3590,8 @@ function mostrarEstadoTarget(
   ) {
 
     if (
-      targetReal
+      telemetria
+        .programacionDisponible
     ) {
 
       UI.calibracionProgramacion.textContent =
@@ -2609,13 +3884,15 @@ function pintarResultadoFinal(
 
 
   const profit =
-    numeroSeguro(
-      dato.profit
-    ) ?? 0;
+    Number(
+      dato.profit ??
+      0
+    );
 
 
   const ganada =
-    profit > 0;
+    profit >
+    0;
 
 
   UI.resultadoDemo
@@ -2686,7 +3963,6 @@ function mostrarResultadoDemo(
 ) {
 
   if (
-    !UI.resultadoDemo ||
     !resultado
   ) {
 
@@ -2696,7 +3972,8 @@ function mostrarResultadoDemo(
 
 
   if (
-    resultado.ok === true &&
+    resultado.ok ===
+      true &&
     resultado.resultado
   ) {
 
@@ -2805,9 +4082,8 @@ function mostrarTelemetria(
   ) {
 
     UI.calibradorReferencia.textContent =
-      numeroValido(
-        telemetria.retrasoReferenciaSeg
-      )
+      telemetria.retrasoReferenciaSeg !=
+        null
         ? `${telemetria.retrasoReferenciaSeg} s`
         : "--";
 
@@ -2842,33 +4118,19 @@ function mostrarTelemetria(
     UI.calibradorSignalBuy
   ) {
 
-    if (
+    UI.calibradorSignalBuy.textContent =
       telemetria.modoEjecucion ===
-      MODO_MANUAL
-    ) {
-
-      UI.calibradorSignalBuy.textContent =
-        numeroValido(
-          telemetria
-            .manualClickToTargetMs
-        )
-          ? `CLIC ${formatoOffsetMs(
+        MODO_MANUAL
+        ? `CLIC ${
+            formatoOffsetMs(
               telemetria
                 .manualClickToTargetMs
-            )}`
-          : "CLIC · SIN TARGET";
-
-    }
-
-    else {
-
-      UI.calibradorSignalBuy.textContent =
-        formatoMs(
-          telemetria
-            .signalToBuyMs
-        );
-
-    }
+            )
+          }`
+        : formatoMs(
+            telemetria
+              .signalToBuyMs
+          );
 
   }
 
@@ -2926,15 +4188,10 @@ function mostrarTelemetria(
   ) {
 
     UI.manualClickOffset.textContent =
-      numeroValido(
+      formatoOffsetMs(
         telemetria
           .manualClickToTargetMs
-      )
-        ? formatoOffsetMs(
-            telemetria
-              .manualClickToTargetMs
-          )
-        : "--";
+      );
 
   }
 
@@ -2944,15 +4201,10 @@ function mostrarTelemetria(
   ) {
 
     UI.manualBuyOffset.textContent =
-      numeroValido(
+      formatoOffsetMs(
         telemetria
           .manualBuyToTargetMs
-      )
-        ? formatoOffsetMs(
-            telemetria
-              .manualBuyToTargetMs
-          )
-        : "--";
+      );
 
   }
 
@@ -2988,9 +4240,6 @@ function registrarDiagnosticoTiming(
     } · ${
       telemetria.mercado ||
       "--"
-    } · MODO ${
-      telemetria.modoEjecucion ||
-      "--"
     } · TIMING ${
       telemetria.timingClasificacion ||
       "PENDIENTE"
@@ -2998,58 +4247,6 @@ function registrarDiagnosticoTiming(
     telemetria.timingValido
       ? "correcto"
       : "aviso"
-  );
-
-
-  if (
-    telemetria.modoEjecucion ===
-    MODO_MANUAL
-  ) {
-
-    registrarActividad(
-      `MANUAL · PREPARAR→LISTO ${
-        formatoMs(
-          telemetria
-            .prepareToManualReadyMs
-        )
-      } · CLIC→BUY ${
-        formatoMs(
-          telemetria
-            .manualClickToBuyMs
-        )
-      } · BUY/TARGET ${
-        numeroValido(
-          telemetria
-            .manualBuyToTargetMs
-        )
-          ? formatoOffsetMs(
-              telemetria
-                .manualBuyToTargetMs
-            )
-          : "--"
-      }.`
-    );
-
-  }
-
-
-  registrarActividad(
-    `PULL · REQ ${
-      formatoOffsetMs(
-        telemetria
-          .targetToPullRequestMs
-      )
-    } · RESP ${
-      formatoOffsetMs(
-        telemetria
-          .targetToPullReceivedMs
-      )
-    } · LAT ${
-      formatoMs(
-        telemetria
-          .proposalLatencyMs
-      )
-    }.`
   );
 
 }
@@ -3079,17 +4276,11 @@ function registrarPerfilOperacion(
     } · Bruto ${
       telemetria.scoreBruto ??
       "--"
+    } · Valor ${
+      telemetria.valorPatron ??
+      "--"
     } · RSI ${
       telemetria.rsi ??
-      "--"
-    } · Tend ${
-      telemetria.tendencia ??
-      "--"
-    } · Mom ${
-      telemetria.momentum ??
-      "--"
-    } · Vol ${
-      telemetria.volatilidad ??
       "--"
     }.`
   );
@@ -3098,7 +4289,7 @@ function registrarPerfilOperacion(
 
 
 /* ==========================================
-   TABLA
+   TABLA MERCADOS
    ========================================== */
 
 function renderFilaMercado(
@@ -3122,68 +4313,52 @@ function renderFilaMercado(
   }
 
 
-  if (
-    fila.pruebas
-  ) {
-
-    fila.pruebas.textContent =
-      resumen.pruebas ??
-      0;
-
-  }
+  fila.pruebas &&
+    (
+      fila.pruebas.textContent =
+        resumen.pruebas ??
+        0
+    );
 
 
-  if (
-    fila.ganadas
-  ) {
-
-    fila.ganadas.textContent =
-      resumen.ganadas ??
-      0;
-
-  }
+  fila.ganadas &&
+    (
+      fila.ganadas.textContent =
+        resumen.ganadas ??
+        0
+    );
 
 
-  if (
-    fila.perdidas
-  ) {
-
-    fila.perdidas.textContent =
-      resumen.perdidas ??
-      0;
-
-  }
+  fila.perdidas &&
+    (
+      fila.perdidas.textContent =
+        resumen.perdidas ??
+        0
+    );
 
 
-  if (
-    fila.accuracy
-  ) {
-
-    fila.accuracy.textContent =
-      formatoPorcentaje(
-        resumen.accuracy
-      );
-
-  }
+  fila.accuracy &&
+    (
+      fila.accuracy.textContent =
+        formatoPorcentaje(
+          resumen.accuracy
+        )
+    );
 
 
-  if (
-    fila.latencia
-  ) {
-
-    fila.latencia.textContent =
-      formatoMs(
-        resumen
-          .promedioSignalToBuyMs
-      );
-
-  }
+  fila.latencia &&
+    (
+      fila.latencia.textContent =
+        formatoMs(
+          resumen.promedioSignalToBuyMs
+        )
+    );
 
 }
 
 
 /* ==========================================
-   COMPARADOR
+   COMPARADORES
    ========================================== */
 
 function renderComparador(
@@ -3217,182 +4392,134 @@ function renderComparador(
     {};
 
 
-  if (
-    ui.ganadasCantidad
-  ) {
-
-    ui.ganadasCantidad.textContent =
-      ganadas.cantidad ??
-      0;
-
-  }
+  ui.ganadasCantidad &&
+    (
+      ui.ganadasCantidad.textContent =
+        ganadas.cantidad ??
+        0
+    );
 
 
-  if (
-    ui.ganadasSignalBuy
-  ) {
-
-    ui.ganadasSignalBuy.textContent =
-      formatoMs(
-        ganadas
-          .promedioSignalToBuyMs
-      );
-
-  }
-
-
-  if (
-    ui.ganadasMin
-  ) {
-
-    ui.ganadasMin.textContent =
-      formatoMs(
-        ganadas
-          .minimoSignalToBuyMs
-      );
-
-  }
-
-
-  if (
-    ui.ganadasMax
-  ) {
-
-    ui.ganadasMax.textContent =
-      formatoMs(
-        ganadas
-          .maximoSignalToBuyMs
-      );
-
-  }
-
-
-  if (
-    ui.ganadasProposal
-  ) {
-
-    ui.ganadasProposal.textContent =
-      `PULL ${
-        formatoOffsetMs(
-          ganadas
-            .promedioTargetToPullRequestMs
+  ui.ganadasSignalBuy &&
+    (
+      ui.ganadasSignalBuy.textContent =
+        formatoMs(
+          ganadas.promedioSignalToBuyMs
         )
-      }`;
-
-  }
+    );
 
 
-  if (
-    ui.ganadasBuy
-  ) {
-
-    ui.ganadasBuy.textContent =
-      formatoMs(
-        ganadas.promedioBuyMs
-      );
-
-  }
-
-
-  if (
-    ui.perdidasCantidad
-  ) {
-
-    ui.perdidasCantidad.textContent =
-      perdidas.cantidad ??
-      0;
-
-  }
-
-
-  if (
-    ui.perdidasSignalBuy
-  ) {
-
-    ui.perdidasSignalBuy.textContent =
-      formatoMs(
-        perdidas
-          .promedioSignalToBuyMs
-      );
-
-  }
-
-
-  if (
-    ui.perdidasMin
-  ) {
-
-    ui.perdidasMin.textContent =
-      formatoMs(
-        perdidas
-          .minimoSignalToBuyMs
-      );
-
-  }
-
-
-  if (
-    ui.perdidasMax
-  ) {
-
-    ui.perdidasMax.textContent =
-      formatoMs(
-        perdidas
-          .maximoSignalToBuyMs
-      );
-
-  }
-
-
-  if (
-    ui.perdidasProposal
-  ) {
-
-    ui.perdidasProposal.textContent =
-      `PULL ${
-        formatoOffsetMs(
-          perdidas
-            .promedioTargetToPullRequestMs
+  ui.ganadasMin &&
+    (
+      ui.ganadasMin.textContent =
+        formatoMs(
+          ganadas.minimoSignalToBuyMs
         )
-      }`;
-
-  }
+    );
 
 
-  if (
-    ui.perdidasBuy
-  ) {
-
-    ui.perdidasBuy.textContent =
-      formatoMs(
-        perdidas.promedioBuyMs
-      );
-
-  }
+  ui.ganadasMax &&
+    (
+      ui.ganadasMax.textContent =
+        formatoMs(
+          ganadas.maximoSignalToBuyMs
+        )
+    );
 
 
-  if (
-    ui.diferencia
-  ) {
+  ui.ganadasProposal &&
+    (
+      ui.ganadasProposal.textContent =
+        `PULL ${
+          formatoOffsetMs(
+            ganadas
+              .promedioTargetToPullRequestMs
+          )
+        }`
+    );
 
-    ui.diferencia.textContent =
-      formatoMs(
-        comparacion
-          .diferenciaMedianaMs
-      );
 
-  }
+  ui.ganadasBuy &&
+    (
+      ui.ganadasBuy.textContent =
+        formatoMs(
+          ganadas.promedioBuyMs
+        )
+    );
 
 
-  if (
-    ui.lectura
-  ) {
+  ui.perdidasCantidad &&
+    (
+      ui.perdidasCantidad.textContent =
+        perdidas.cantidad ??
+        0
+    );
 
-    ui.lectura.textContent =
-      comparacion.lectura ||
-      "ESPERANDO MUESTRAS";
 
-  }
+  ui.perdidasSignalBuy &&
+    (
+      ui.perdidasSignalBuy.textContent =
+        formatoMs(
+          perdidas.promedioSignalToBuyMs
+        )
+    );
+
+
+  ui.perdidasMin &&
+    (
+      ui.perdidasMin.textContent =
+        formatoMs(
+          perdidas.minimoSignalToBuyMs
+        )
+    );
+
+
+  ui.perdidasMax &&
+    (
+      ui.perdidasMax.textContent =
+        formatoMs(
+          perdidas.maximoSignalToBuyMs
+        )
+    );
+
+
+  ui.perdidasProposal &&
+    (
+      ui.perdidasProposal.textContent =
+        `PULL ${
+          formatoOffsetMs(
+            perdidas
+              .promedioTargetToPullRequestMs
+          )
+        }`
+    );
+
+
+  ui.perdidasBuy &&
+    (
+      ui.perdidasBuy.textContent =
+        formatoMs(
+          perdidas.promedioBuyMs
+        )
+    );
+
+
+  ui.diferencia &&
+    (
+      ui.diferencia.textContent =
+        formatoMs(
+          comparacion
+            .diferenciaMedianaMs
+        )
+    );
+
+
+  ui.lectura &&
+    (
+      ui.lectura.textContent =
+        comparacion.lectura ||
+        "ESPERANDO MUESTRAS"
+    );
 
 }
 
@@ -3450,6 +4577,9 @@ function actualizarEstadisticasCompletas() {
       "1HZ75V"
     ]
   );
+
+
+  actualizarMemoriaDesdeEngine();
 
 }
 
@@ -3610,6 +4740,42 @@ UI.botonEjecutarManual
         }
 
 
+        if (
+          resultado.analisisPatron
+        ) {
+
+          renderAnalisisPatron(
+            resultado.analisisPatron
+          );
+
+        }
+
+
+        if (
+          resultado.patronActualizado
+        ) {
+
+          renderAnalisisPatron({
+
+            ...(
+              resultado
+                .analisisPatron ||
+              {}
+            ),
+
+            ...resultado
+              .patronActualizado,
+
+            muestras:
+              resultado
+                .patronActualizado
+                .total
+
+          });
+
+        }
+
+
         mostrarTelemetria(
           resultado.telemetria
         );
@@ -3632,6 +4798,9 @@ UI.botonEjecutarManual
 
 
         recuperarResultadoEngine();
+
+
+        actualizarMemoriaDesdeEngine();
 
 
         renderModoEjecucion();
@@ -3697,13 +4866,15 @@ signalBridge.onSenal(
 
 
     const marcaPuente =
-      numeroSeguro(
+      Number(
         senal?.bridgeReceivedPerf
       );
 
 
     const senalRecibidaPerf =
-      marcaPuente !== null
+      Number.isFinite(
+        marcaPuente
+      )
         ? marcaPuente
         : ahoraPreciso();
 
@@ -3741,7 +4912,20 @@ signalBridge.onSenal(
       }
 
 
-      /* PREPARAR */
+      if (
+        resultado.analisisPatron
+      ) {
+
+        renderAnalisisPatron(
+          resultado.analisisPatron
+        );
+
+      }
+
+
+      /* ====================================
+         PREPARAR
+         ==================================== */
 
       if (
         resultado.fase ===
@@ -3753,7 +4937,12 @@ signalBridge.onSenal(
             resultado.mercado ||
             senal.mercado ||
             "--"
-          } · cotización lista.`,
+          } · patrón ${
+            resultado
+              .analisisPatron
+              ?.clasificacion ||
+            "SIN_EVIDENCIA"
+          }.`,
           "correcto"
         );
 
@@ -3792,6 +4981,9 @@ signalBridge.onSenal(
         }
 
 
+        actualizarMemoriaDesdeEngine();
+
+
         renderModoEjecucion();
 
 
@@ -3800,7 +4992,9 @@ signalBridge.onSenal(
       }
 
 
-      /* EJECUTAR / TARGET */
+      /* ====================================
+         EJECUTAR
+         ==================================== */
 
       if (
         resultado.fase ===
@@ -3816,7 +5010,12 @@ signalBridge.onSenal(
             `MANUAL · TARGET recibido · ${
               senal.mercado ||
               "--"
-            } · botón permanece disponible.`,
+            } · patrón ${
+              resultado
+                .analisisPatron
+                ?.clasificacion ||
+              "SIN_EVIDENCIA"
+            }.`,
             "aviso"
           );
 
@@ -3826,7 +5025,32 @@ signalBridge.onSenal(
           );
 
 
+          actualizarMemoriaDesdeEngine();
+
+
           renderModoEjecucion();
+
+
+          return;
+
+        }
+
+
+        if (
+          resultado.estado ===
+          "NO_OPERAR_PATRON_RIESGO"
+        ) {
+
+          registrarActividad(
+            `🛑 AUTOMÁTICO BLOQUEADO · ${
+              senal.mercado ||
+              "--"
+            } · patrón histórico RIESGO.`,
+            "error"
+          );
+
+
+          actualizarMemoriaDesdeEngine();
 
 
           return;
@@ -3838,8 +5062,8 @@ signalBridge.onSenal(
           `EJECUTAR FINALIZADO · ${
             senal.mercado ||
             "--"
-          } · MODO ${
-            resultado.modoEjecucion ||
+          } · ${
+            resultado.estado ||
             "--"
           }.`,
           "correcto"
@@ -3857,10 +5081,16 @@ signalBridge.onSenal(
         }
 
 
-        mostrarPropuestaDeriv(
-          resultado.propuestaDeriv,
-          resultado.contrato
-        );
+        if (
+          resultado.propuestaDeriv
+        ) {
+
+          mostrarPropuestaDeriv(
+            resultado.propuestaDeriv,
+            resultado.contrato
+          );
+
+        }
 
 
         if (
@@ -3881,6 +5111,31 @@ signalBridge.onSenal(
           mostrarResultadoDemo(
             resultado.resultadoDemo
           );
+
+        }
+
+
+        if (
+          resultado.patronActualizado
+        ) {
+
+          renderAnalisisPatron({
+
+            ...(
+              resultado
+                .analisisPatron ||
+              {}
+            ),
+
+            ...resultado
+              .patronActualizado,
+
+            muestras:
+              resultado
+                .patronActualizado
+                .total
+
+          });
 
         }
 
@@ -3907,6 +5162,9 @@ signalBridge.onSenal(
 
 
         actualizarPanelCalibracion();
+
+
+        actualizarMemoriaDesdeEngine();
 
 
         renderModoEjecucion();
@@ -4014,20 +5272,6 @@ window.addEventListener(
         UI.estadoBot.textContent =
           "BOT OFF";
 
-
-        UI.estadoBot
-          .classList
-          .remove(
-            "encendido"
-          );
-
-
-        UI.estadoBot
-          .classList
-          .add(
-            "apagado"
-          );
-
       }
 
 
@@ -4093,7 +5337,20 @@ UI.botonConectar
         } · ${BOT_BUILD}`,
         estadoMotor
             ?.versionTelemetria ===
-          "FIX13.7"
+          "FIX13.8"
+          ? "correcto"
+          : "aviso"
+      );
+
+
+      registrarActividad(
+        `MEMORIA → ${
+          estadoMotor
+            ?.versionPatrones ||
+          "NO DETECTADA"
+        }.`,
+        estadoMotor
+            ?.versionPatrones
           ? "correcto"
           : "aviso"
       );
@@ -4104,7 +5361,7 @@ UI.botonConectar
           estadoMotor
             ?.protocolo ||
           "NO DETECTADO"
-        }`,
+        }.`,
         "correcto"
       );
 
@@ -4114,9 +5371,12 @@ UI.botonConectar
           estadoMotor
             ?.modoEjecucion ||
           "NO DETECTADO"
-        }`,
+        }.`,
         "correcto"
       );
+
+
+      actualizarMemoriaDesdeEngine();
 
 
       renderModoEjecucion();
@@ -4221,7 +5481,7 @@ UI.botonDesactivarDemo
 
 
 /* ==========================================
-   PRUEBA INTERNA FIX13.7.1
+   PRUEBA INTERNA FIX13.8
    ========================================== */
 
 UI.botonProbar
@@ -4245,7 +5505,7 @@ UI.botonProbar
             "PREPARAR",
 
           protocolo:
-            "FIX13.7",
+            "FIX13.8",
 
           mercado:
             "R_50",
@@ -4257,10 +5517,16 @@ UI.botonProbar
             "EVEN",
 
           confianza:
-            82,
+            98,
 
           rawScore:
-            108.63,
+            84.4,
+
+          valorPatron:
+            30,
+
+          predictionValue:
+            30,
 
           precio:
             12345.67,
@@ -4294,10 +5560,16 @@ UI.botonProbar
               "PREPARAR",
 
             protocolo:
-              "FIX13.7",
+              "FIX13.8",
 
             rawScore:
-              108.63,
+              84.4,
+
+            valorPatron:
+              30,
+
+            predictionValue:
+              30,
 
             prepararCotizacion:
               true,
@@ -4338,7 +5610,7 @@ UI.botonProbar
             "EJECUTAR",
 
           protocolo:
-            "FIX13.7",
+            "FIX13.8",
 
           mercado:
             "R_50",
@@ -4350,10 +5622,16 @@ UI.botonProbar
             "EVEN",
 
           confianza:
-            82,
+            98,
 
           rawScore:
-            108.63,
+            84.4,
+
+          valorPatron:
+            30,
+
+          predictionValue:
+            30,
 
           precio:
             12345.67,
@@ -4392,10 +5670,16 @@ UI.botonProbar
               "EJECUTAR",
 
             protocolo:
-              "FIX13.7",
+              "FIX13.8",
 
             rawScore:
-              108.63,
+              84.4,
+
+            valorPatron:
+              30,
+
+            predictionValue:
+              30,
 
             targetExecutionAt,
 
@@ -4490,44 +5774,32 @@ derivConnection.on(
       }
 
 
-      if (
-        UI.botonConectarDeriv
-      ) {
-
-        UI.botonConectarDeriv.disabled =
-          true;
-
-      }
+      UI.botonConectarDeriv &&
+        (
+          UI.botonConectarDeriv.disabled =
+            true
+        );
 
 
-      if (
-        UI.botonDesconectarDeriv
-      ) {
-
-        UI.botonDesconectarDeriv.disabled =
-          false;
-
-      }
+      UI.botonDesconectarDeriv &&
+        (
+          UI.botonDesconectarDeriv.disabled =
+            false
+        );
 
 
-      if (
-        UI.derivAppId
-      ) {
-
-        UI.derivAppId.disabled =
-          true;
-
-      }
+      UI.derivAppId &&
+        (
+          UI.derivAppId.disabled =
+            true
+        );
 
 
-      if (
-        UI.derivToken
-      ) {
-
-        UI.derivToken.disabled =
-          true;
-
-      }
+      UI.derivToken &&
+        (
+          UI.derivToken.disabled =
+            true
+        );
 
 
       renderEjecucionDemo();
@@ -4560,44 +5832,32 @@ derivConnection.on(
         "connecting"
       ) {
 
-        if (
-          UI.botonConectarDeriv
-        ) {
-
-          UI.botonConectarDeriv.disabled =
-            false;
-
-        }
+        UI.botonConectarDeriv &&
+          (
+            UI.botonConectarDeriv.disabled =
+              false
+          );
 
 
-        if (
-          UI.botonDesconectarDeriv
-        ) {
-
-          UI.botonDesconectarDeriv.disabled =
-            true;
-
-        }
+        UI.botonDesconectarDeriv &&
+          (
+            UI.botonDesconectarDeriv.disabled =
+              true
+          );
 
 
-        if (
-          UI.derivAppId
-        ) {
-
-          UI.derivAppId.disabled =
-            false;
-
-        }
+        UI.derivAppId &&
+          (
+            UI.derivAppId.disabled =
+              false
+          );
 
 
-        if (
-          UI.derivToken
-        ) {
-
-          UI.derivToken.disabled =
-            false;
-
-        }
+        UI.derivToken &&
+          (
+            UI.derivToken.disabled =
+              false
+          );
 
 
         botEngine
@@ -4847,6 +6107,9 @@ recuperarResultadoEngine();
 actualizarEstadisticasCompletas();
 
 
+actualizarMemoriaDesdeEngine();
+
+
 const estadoInicialMotor =
   obtenerEstadoRapido();
 
@@ -4865,7 +6128,20 @@ registrarActividad(
   }.`,
   estadoInicialMotor
       ?.versionTelemetria ===
-    "FIX13.7"
+    "FIX13.8"
+    ? "correcto"
+    : "aviso"
+);
+
+
+registrarActividad(
+  `Memoria → ${
+    estadoInicialMotor
+      ?.versionPatrones ||
+    "NO DETECTADA"
+  }.`,
+  estadoInicialMotor
+      ?.versionPatrones
     ? "correcto"
     : "aviso"
 );
@@ -4892,44 +6168,33 @@ registrarActividad(
 
 
 registrarActividad(
-  "FIX13.7.1 ESTABLE + RÁPIDA activo.",
+  "FIX13.8 MEMORIA DE PATRONES activa.",
   "correcto"
 );
 
 
 registrarActividad(
-  "Protección NULL/TARGET activa.",
-  "correcto"
+  "Patrones FAVORABLE / RIESGO / SIN EVIDENCIA conectados."
 );
 
 
 registrarActividad(
-  "Interfaz usa estado rápido."
+  "Resumen de aprendizaje conectado."
 );
 
 
 registrarActividad(
-  "Estadísticas pesadas quedan fuera del camino crítico."
+  "MANUAL muestra antecedentes pero nunca bloquea el botón."
 );
 
 
 registrarActividad(
-  "MANUAL puede quedar listo desde PREPARAR."
+  "AUTOMÁTICO puede bloquear patrones históricos de RIESGO."
 );
 
 
 registrarActividad(
-  "TARGET actualizará la referencia sin bloquear el botón."
-);
-
-
-registrarActividad(
-  "Sin TARGET no se mostrará falsamente 0.00 ms."
-);
-
-
-registrarActividad(
-  "GANADA / PERDIDA permanecerá visible."
+  "TESTLOG disponible desde el panel de memoria."
 );
 
 
@@ -4940,5 +6205,5 @@ registrarActividad(
 
 /* ==========================================
    FIN BOT.JS
-   FIX13.7.1 ESTABLE + RÁPIDA
+   FIX13.8 MEMORIA DE PATRONES
    ========================================== */
