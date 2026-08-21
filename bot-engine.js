@@ -1885,28 +1885,22 @@ class BotEngine {
       Timing real disponible.
     */
 
-    const timingPrincipal =
-      Number.isFinite(
-        Number(
-          telemetria
-            .manualClickToTargetMs
-        )
-      )
-        ? Number(
-            telemetria
-              .manualClickToTargetMs
-          )
-        : Number.isFinite(
-            Number(
-              telemetria
-                .buyTargetDeviationMs
-            )
-          )
-          ? Number(
-              telemetria
-                .buyTargetDeviationMs
-            )
-          : null;
+    const manualTimingSeguro =
+  this.numeroSeguro(
+    telemetria
+      .manualClickToTargetMs
+  );
+
+const buyTimingSeguro =
+  this.numeroSeguro(
+    telemetria
+      .buyTargetDeviationMs
+  );
+
+const timingPrincipal =
+  manualTimingSeguro !== null
+    ? manualTimingSeguro
+    : buyTimingSeguro;
 
 
     if (
@@ -1943,10 +1937,14 @@ class BotEngine {
 
 
     const manualClick =
-      Number(
-        telemetria
-          .manualClickToTargetMs
-      );
+  this.numeroSeguro(
+    telemetria
+      .manualClickToTargetMs
+  );
+
+if (
+  manualClick !== null
+) {
 
 
     if (
