@@ -1711,22 +1711,9 @@ class BotEngine {
 
   }
 
-
   /* ========================================
      REGISTRAR RESULTADO EN MEMORIA
-     ======================================== */
-
-     /* ========================================
      FIX13.8.1
-     REGISTRAR RESULTADO EN MEMORIA
-
-     CORRIGE:
-     - MANUAL Y AUTOMÁTICO INDEPENDIENTES
-     - NULL NO SE CONVIERTE EN 0
-     - BUY TARGET SE GUARDA SIN NECESITAR
-       manualClickToTargetMs
-     - ACCURACY SIEMPRE SE ACTUALIZA
-     - MEMORIA SE PERSISTE EN AMBOS MODOS
      ======================================== */
 
   registrarResultadoPatron(
@@ -1749,14 +1736,12 @@ class BotEngine {
 
 
     const firma =
-      telemetria
-        .patronFirma ||
+      telemetria.patronFirma ||
       null;
 
 
     const key =
-      telemetria
-        .patronKey ||
+      telemetria.patronKey ||
       firma?.key ||
       null;
 
@@ -1764,6 +1749,11 @@ class BotEngine {
     if (
       !key
     ) {
+
+      console.warn(
+        "FIX13.8.1 · No se pudo registrar patrón: falta patronKey."
+      );
+
 
       return null;
 
@@ -1796,6 +1786,11 @@ class BotEngine {
           telemetria.direccion ??
           null,
 
+        valorPatron:
+          firma?.valorPatron ??
+          telemetria.valorPatron ??
+          null,
+
         valorBucket:
           firma?.valorBucket ??
           null,
@@ -1816,6 +1811,9 @@ class BotEngine {
 
         perdidas:
           0,
+
+        accuracy:
+          null,
 
         sumaTimingMs:
           0,
@@ -1844,9 +1842,6 @@ class BotEngine {
         promedioBuyTargetMs:
           null,
 
-        accuracy:
-          null,
-
         clasificacion:
           "SIN_EVIDENCIA",
 
@@ -1869,7 +1864,7 @@ class BotEngine {
 
 
     /* ====================================
-       CONTADOR GENERAL
+       CONTAR OPERACIÓN
        ==================================== */
 
     anterior.total =
@@ -1913,13 +1908,8 @@ class BotEngine {
     /* ====================================
        TIMING SEGURO
 
-       MANUAL:
-       usa click respecto TARGET.
-
-       AUTOMÁTICO:
-       usa BUY respecto TARGET.
-
-       NULL permanece NULL.
+       IMPORTANTE:
+       null NO se convierte en 0.
        ==================================== */
 
     const manualTimingSeguro =
@@ -1942,6 +1932,10 @@ class BotEngine {
         ? manualTimingSeguro
         : buyTimingSeguro;
 
+
+    /* ====================================
+       TIMING PRINCIPAL
+       ==================================== */
 
     if (
       timingPrincipal !==
@@ -1975,20 +1969,10 @@ class BotEngine {
 
     /* ====================================
        TIMING MANUAL
-
-       Solo se registra cuando existe
-       realmente click respecto TARGET.
        ==================================== */
 
-    const manualClick =
-      this.numeroSeguro(
-        telemetria
-          .manualClickToTargetMs
-      );
-
-
     if (
-      manualClick !==
+      manualTimingSeguro !==
         null
     ) {
 
@@ -1999,7 +1983,7 @@ class BotEngine {
             .sumaManualClickTargetMs ??
           0
         ) +
-        manualClick;
+        manualTimingSeguro;
 
 
       anterior
@@ -2026,55 +2010,34 @@ class BotEngine {
 
     /* ====================================
        TIMING BUY
-
-       IMPORTANTE FIX13.8.1:
-
-       Este bloque queda FUERA
-       del bloque manual.
-
-       Así AUTOMÁTICO también registra
-       correctamente su timing.
+       AUTOMÁTICO O MANUAL
        ==================================== */
 
-    const buyTarget =
-      this.numeroSeguro(
-        telemetria
-          .buyTargetDeviationMs
-      );
-
-
     if (
-      buyTarget !==
+      buyTimingSeguro !==
         null
     ) {
 
-      anterior
-        .sumaBuyTargetMs =
+      anterior.sumaBuyTargetMs =
         Number(
-          anterior
-            .sumaBuyTargetMs ??
+          anterior.sumaBuyTargetMs ??
           0
         ) +
-        buyTarget;
+        buyTimingSeguro;
 
 
-      anterior
-        .muestrasBuyTarget =
+      anterior.muestrasBuyTarget =
         Number(
-          anterior
-            .muestrasBuyTarget ??
+          anterior.muestrasBuyTarget ??
           0
         ) +
         1;
 
 
-      anterior
-        .promedioBuyTargetMs =
+      anterior.promedioBuyTargetMs =
         this.redondear(
-          anterior
-            .sumaBuyTargetMs /
-          anterior
-            .muestrasBuyTarget
+          anterior.sumaBuyTargetMs /
+          anterior.muestrasBuyTarget
         );
 
     }
@@ -2084,7 +2047,7 @@ class BotEngine {
        ACCURACY DEL PATRÓN
        ==================================== */
 
-    const accuracy =
+    anterior.accuracy =
       anterior.total >
         0
         ? this.redondear(
@@ -2092,17 +2055,13 @@ class BotEngine {
               anterior.ganadas /
               anterior.total
             ) *
-            100
+              100
           )
         : null;
 
 
-    anterior.accuracy =
-      accuracy;
-
-
     /* ====================================
-       RESULTADO INDIVIDUAL
+       GUARDAR ÚLTIMO RESULTADO
        ==================================== */
 
     const resumenResultado = {
@@ -2112,6 +2071,18 @@ class BotEngine {
 
       fecha:
         Date.now(),
+
+      mercado:
+        telemetria.mercado ??
+        null,
+
+      estrategia:
+        telemetria.estrategia ??
+        null,
+
+      direccion:
+        telemetria.direccion ??
+        null,
 
       confianza:
         telemetria.confianza ??
@@ -2130,27 +2101,14 @@ class BotEngine {
         null,
 
       clickTargetMs:
-        this.numeroSeguro(
-          telemetria
-            .manualClickToTargetMs
-        ),
+        manualTimingSeguro,
 
       buyTargetMs:
-        this.numeroSeguro(
-          telemetria
-            .buyTargetDeviationMs
-        ),
-
-      clickBuyMs:
-        this.numeroSeguro(
-          telemetria
-            .manualClickToBuyMs
-        ),
+        buyTimingSeguro,
 
       profit:
-        this.numeroSeguro(
-          telemetria.profit
-        ),
+        telemetria.profit ??
+        null,
 
       contractId:
         telemetria.contractId ??
@@ -2161,13 +2119,11 @@ class BotEngine {
 
     if (
       !Array.isArray(
-        anterior
-          .ultimosResultados
+        anterior.ultimosResultados
       )
     ) {
 
-      anterior
-        .ultimosResultados =
+      anterior.ultimosResultados =
         [];
 
     }
@@ -2197,10 +2153,6 @@ class BotEngine {
     }
 
 
-    anterior.updatedAt =
-      Date.now();
-
-
     /* ====================================
        RECLASIFICAR PATRÓN
        ==================================== */
@@ -2226,8 +2178,17 @@ class BotEngine {
         .decision;
 
 
+    anterior.bloquear =
+      nuevaClasificacion
+        .bloquear;
+
+
+    anterior.updatedAt =
+      Date.now();
+
+
     /* ====================================
-       GUARDAR MEMORIA
+       GUARDAR EN MEMORIA
        ==================================== */
 
     this.memoriaPatrones[
@@ -2236,17 +2197,27 @@ class BotEngine {
       anterior;
 
 
-    this.persistirMemoriaPatrones();
+    const guardado =
+      this.persistirMemoriaPatrones();
 
+
+    /*
+      La analítica del mercado también
+      debe actualizarse después de
+      aprender un nuevo resultado.
+    */
 
     this.invalidarCacheAnalitica();
 
 
     /* ====================================
-       EVENTO
+       RESULTADO PARA INTERFAZ
        ==================================== */
 
     const evento = {
+
+      ok:
+        guardado,
 
       key,
 
@@ -2259,16 +2230,26 @@ class BotEngine {
       direccion:
         anterior.direccion,
 
+      valorPatron:
+        anterior.valorPatron ??
+        null,
+
       valorBucket:
-        anterior.valorBucket,
+        anterior.valorBucket ??
+        null,
 
       confianzaBucket:
-        anterior.confianzaBucket,
+        anterior.confianzaBucket ??
+        null,
 
       scoreBucket:
-        anterior.scoreBucket,
+        anterior.scoreBucket ??
+        null,
 
       total:
+        anterior.total,
+
+      muestras:
         anterior.total,
 
       ganadas:
@@ -2289,9 +2270,11 @@ class BotEngine {
       decision:
         anterior.decision,
 
+      bloquear:
+        anterior.bloquear,
+
       promedioTimingMs:
-        anterior
-          .promedioTimingMs,
+        anterior.promedioTimingMs,
 
       promedioManualClickTargetMs:
         anterior
@@ -2299,13 +2282,105 @@ class BotEngine {
 
       promedioBuyTargetMs:
         anterior
-          .promedioBuyTargetMs
+          .promedioBuyTargetMs,
+
+      ultimoResultado:
+        telemetria.resultado
 
     };
 
 
+    /*
+      Actualizamos también el último
+      análisis visible para que el
+      resumen cambie inmediatamente.
+    */
+
+    this.ultimoAnalisisPatron =
+      {
+
+        key,
+
+        mercado:
+          anterior.mercado,
+
+        estrategia:
+          anterior.estrategia,
+
+        direccion:
+          anterior.direccion,
+
+        valorPatron:
+          anterior.valorPatron ??
+          null,
+
+        valorBucket:
+          anterior.valorBucket ??
+          null,
+
+        confianzaBucket:
+          anterior.confianzaBucket ??
+          null,
+
+        scoreBucket:
+          anterior.scoreBucket ??
+          null,
+
+        total:
+          anterior.total,
+
+        muestras:
+          anterior.total,
+
+        ganadas:
+          anterior.ganadas,
+
+        perdidas:
+          anterior.perdidas,
+
+        accuracy:
+          anterior.accuracy,
+
+        clasificacion:
+          anterior.clasificacion,
+
+        fuerza:
+          anterior.fuerza,
+
+        decision:
+          anterior.decision,
+
+        bloquear:
+          anterior.bloquear,
+
+        promedioTimingMs:
+          anterior.promedioTimingMs,
+
+        promedioManualClickTargetMs:
+          anterior
+            .promedioManualClickTargetMs,
+
+        promedioBuyTargetMs:
+          anterior
+            .promedioBuyTargetMs,
+
+        ultimosResultados:
+          [
+            ...anterior
+              .ultimosResultados
+          ]
+
+      };
+
+
     this.emitirEvento(
       "bot:pattern-updated",
+      evento
+    );
+
+
+    console.log(
+      "FIX13.8.1 · PATRÓN ACTUALIZADO:",
       evento
     );
 
