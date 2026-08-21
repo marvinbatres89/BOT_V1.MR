@@ -10,12 +10,12 @@
   >
 
   <title>
-    BOT V1 MR · FIX13.7
+    BOT V1 MR · FIX13.8
   </title>
 
   <link
     rel="stylesheet"
-    href="./bot.css?v=FIX13-7"
+    href="./bot.css?v=FIX13-8"
   >
 </head>
 
@@ -42,7 +42,7 @@
         </h1>
 
         <p class="subtitulo">
-          FIX13.7 · Automático + Manual Diagnóstico
+          FIX13.8 · Automático + Manual + Memoria de Patrones
         </p>
 
       </div>
@@ -296,7 +296,7 @@
 
 
     <!-- =====================================
-         FIX13.7
+         FIX13.8
          MODO DE EJECUCIÓN
          ===================================== -->
 
@@ -307,10 +307,10 @@
       </h2>
 
       <p class="descripcion">
-        AUTOMÁTICO conserva la ejecución por TARGET
-        y calibración. MANUAL DIAGNÓSTICO prepara
-        la operación pero solamente compra cuando
-        usted pulse EJECUTAR AHORA.
+        AUTOMÁTICO utiliza TARGET, calibración
+        y memoria histórica de patrones.
+        MANUAL DIAGNÓSTICO mantiene el control
+        del BUY mediante EJECUTAR AHORA.
       </p>
 
       <div class="campo">
@@ -348,7 +348,183 @@
         <div class="dato">
           <small>Protocolo</small>
           <strong>
-            PREPARAR → TARGET → BUY
+            PREPARAR → PATRÓN → TARGET → BUY
+          </strong>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =====================================
+         FIX13.8
+         MEMORIA DE PATRONES
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        🧠 Memoria de patrones
+      </h2>
+
+      <p class="descripcion">
+        El BOT compara cada nueva predicción
+        con operaciones anteriores similares.
+        En AUTOMÁTICO puede evitar una entrada
+        cuando exista evidencia histórica de riesgo.
+      </p>
+
+      <div
+        id="patronEstado"
+        class="ultima-senal"
+      >
+        Esperando una predicción para analizar patrón...
+      </div>
+
+      <div class="datos-grid separacion">
+
+        <div class="dato">
+          <small>Clasificación</small>
+          <strong id="patronClasificacion">
+            SIN EVIDENCIA
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Decisión</small>
+          <strong id="patronDecision">
+            APRENDER
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Fuerza</small>
+          <strong id="patronFuerza">
+            RECOPILANDO
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Muestras</small>
+          <strong id="patronMuestras">
+            0
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Ganadas</small>
+          <strong id="patronGanadas">
+            0
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Perdidas</small>
+          <strong id="patronPerdidas">
+            0
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Accuracy</small>
+          <strong id="patronAccuracy">
+            --
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Valor patrón</small>
+          <strong id="patronValor">
+            --
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Score bruto</small>
+          <strong id="patronScore">
+            --
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Timing histórico</small>
+          <strong id="patronTiming">
+            --
+          </strong>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =====================================
+         FIX13.8
+         RESUMEN MEMORIA
+         ===================================== -->
+
+    <section class="tarjeta">
+
+      <h2>
+        Resumen de aprendizaje
+      </h2>
+
+      <div class="datos-grid">
+
+        <div class="dato">
+          <small>Patrones guardados</small>
+          <strong id="memoriaPatronesTotal">
+            0
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Operaciones aprendidas</small>
+          <strong id="memoriaOperaciones">
+            0
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Favorables</small>
+          <strong id="memoriaFavorables">
+            0
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Riesgo</small>
+          <strong id="memoriaRiesgos">
+            0
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Sin evidencia</small>
+          <strong id="memoriaSinEvidencia">
+            0
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Modo aprendizaje</small>
+          <strong id="memoriaAprendizaje">
+            ACTIVO
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Filtro automático</small>
+          <strong id="memoriaFiltro">
+            ACTIVO
+          </strong>
+        </div>
+
+        <div class="dato">
+          <small>Versión memoria</small>
+          <strong id="memoriaVersion">
+            FIX13.8
           </strong>
         </div>
 
@@ -372,7 +548,8 @@
       </h2>
 
       <p class="descripcion">
-        El TARGET sirve como referencia.
+        La memoria histórica se muestra como referencia,
+        pero nunca bloquea una operación manual.
         El BUY solamente se enviará cuando
         usted pulse EJECUTAR AHORA.
       </p>
@@ -440,7 +617,8 @@
         Pulse este botón únicamente cuando usted
         decida que es el momento de entrar.
         El BOT registrará automáticamente el clic,
-        el BUY, la confirmación y el resultado.
+        el BUY, la confirmación, el resultado
+        y actualizará la memoria del patrón.
       </p>
 
     </section>
@@ -458,7 +636,7 @@
 
       <p class="descripcion">
         Genera una señal interna de prueba para
-        comprobar PREPARAR y TARGET.
+        comprobar PREPARAR, memoria y TARGET.
       </p>
 
       <button
@@ -777,6 +955,7 @@
         <table class="tabla-diagnostico">
 
           <thead>
+
             <tr>
               <th>Mercado</th>
               <th>Pruebas</th>
@@ -785,6 +964,7 @@
               <th>Accuracy</th>
               <th>Latencia</th>
             </tr>
+
           </thead>
 
           <tbody>
@@ -921,6 +1101,7 @@
         <table class="tabla-diagnostico">
 
           <thead>
+
             <tr>
               <th>Grupo</th>
               <th>Cantidad</th>
@@ -930,6 +1111,7 @@
               <th>PULL</th>
               <th>BUY</th>
             </tr>
+
           </thead>
 
           <tbody>
@@ -994,6 +1176,7 @@
         <table class="tabla-diagnostico">
 
           <thead>
+
             <tr>
               <th>Grupo</th>
               <th>Cantidad</th>
@@ -1003,6 +1186,7 @@
               <th>PULL</th>
               <th>BUY</th>
             </tr>
+
           </thead>
 
           <tbody>
@@ -1067,7 +1251,7 @@
         class="registro"
       >
         <p>
-          BOT V1 MR FIX13.7 preparado.
+          BOT V1 MR FIX13.8 preparado.
         </p>
       </div>
 
@@ -1081,13 +1265,15 @@
     <footer>
 
       <p>
-        BOT V1 MR · FIX13.7
+        BOT V1 MR · FIX13.8
       </p>
 
       <small>
-        Trading Analyzer → PREPARAR → TARGET →
-        Automático o EJECUTAR AHORA → Deriv DEMO →
-        GANADA / PERDIDA
+        Trading Analyzer → PREPARAR → MEMORIA →
+        TARGET → FILTRO HISTÓRICO →
+        Automático o EJECUTAR AHORA →
+        Deriv DEMO → GANADA / PERDIDA →
+        APRENDIZAJE
       </small>
 
     </footer>
@@ -1097,7 +1283,7 @@
 
   <script
     type="module"
-    src="./bot.js?v=FIX13-7"
+    src="./bot.js?v=FIX13-8"
   ></script>
 
 </body>
