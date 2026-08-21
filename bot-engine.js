@@ -1716,6 +1716,19 @@ class BotEngine {
      REGISTRAR RESULTADO EN MEMORIA
      ======================================== */
 
+     /* ========================================
+     FIX13.8.1
+     REGISTRAR RESULTADO EN MEMORIA
+
+     CORRIGE:
+     - MANUAL Y AUTOMÁTICO INDEPENDIENTES
+     - NULL NO SE CONVIERTE EN 0
+     - BUY TARGET SE GUARDA SIN NECESITAR
+       manualClickToTargetMs
+     - ACCURACY SIEMPRE SE ACTUALIZA
+     - MEMORIA SE PERSISTE EN AMBOS MODOS
+     ======================================== */
+
   registrarResultadoPatron(
     telemetria
   ) {
@@ -1831,6 +1844,18 @@ class BotEngine {
         promedioBuyTargetMs:
           null,
 
+        accuracy:
+          null,
+
+        clasificacion:
+          "SIN_EVIDENCIA",
+
+        fuerza:
+          "RECOPILANDO",
+
+        decision:
+          "APRENDER",
+
         ultimosResultados:
           [],
 
@@ -1842,6 +1867,10 @@ class BotEngine {
 
       };
 
+
+    /* ====================================
+       CONTADOR GENERAL
+       ==================================== */
 
     anterior.total =
       Number(
@@ -1881,32 +1910,42 @@ class BotEngine {
     }
 
 
-    /*
-      Timing real disponible.
-    */
+    /* ====================================
+       TIMING SEGURO
+
+       MANUAL:
+       usa click respecto TARGET.
+
+       AUTOMÁTICO:
+       usa BUY respecto TARGET.
+
+       NULL permanece NULL.
+       ==================================== */
 
     const manualTimingSeguro =
-  this.numeroSeguro(
-    telemetria
-      .manualClickToTargetMs
-  );
+      this.numeroSeguro(
+        telemetria
+          .manualClickToTargetMs
+      );
 
-const buyTimingSeguro =
-  this.numeroSeguro(
-    telemetria
-      .buyTargetDeviationMs
-  );
 
-const timingPrincipal =
-  manualTimingSeguro !== null
-    ? manualTimingSeguro
-    : buyTimingSeguro;
+    const buyTimingSeguro =
+      this.numeroSeguro(
+        telemetria
+          .buyTargetDeviationMs
+      );
+
+
+    const timingPrincipal =
+      manualTimingSeguro !==
+        null
+        ? manualTimingSeguro
+        : buyTimingSeguro;
 
 
     if (
-      Number.isFinite(
-        timingPrincipal
-      )
+      timingPrincipal !==
+        null
     ) {
 
       anterior.sumaTimingMs =
@@ -1927,30 +1966,30 @@ const timingPrincipal =
 
       anterior.promedioTimingMs =
         this.redondear(
-          anterior
-            .sumaTimingMs /
-          anterior
-            .muestrasTiming
+          anterior.sumaTimingMs /
+          anterior.muestrasTiming
         );
 
     }
 
 
-    const manualClick =
-  this.numeroSeguro(
-    telemetria
-      .manualClickToTargetMs
-  );
+    /* ====================================
+       TIMING MANUAL
 
-if (
-  manualClick !== null
-) {
+       Solo se registra cuando existe
+       realmente click respecto TARGET.
+       ==================================== */
+
+    const manualClick =
+      this.numeroSeguro(
+        telemetria
+          .manualClickToTargetMs
+      );
 
 
     if (
-      Number.isFinite(
-        manualClick
-      )
+      manualClick !==
+        null
     ) {
 
       anterior
@@ -1985,17 +2024,28 @@ if (
     }
 
 
+    /* ====================================
+       TIMING BUY
+
+       IMPORTANTE FIX13.8.1:
+
+       Este bloque queda FUERA
+       del bloque manual.
+
+       Así AUTOMÁTICO también registra
+       correctamente su timing.
+       ==================================== */
+
     const buyTarget =
-      Number(
+      this.numeroSeguro(
         telemetria
           .buyTargetDeviationMs
       );
 
 
     if (
-      Number.isFinite(
-        buyTarget
-      )
+      buyTarget !==
+        null
     ) {
 
       anterior
@@ -2030,6 +2080,10 @@ if (
     }
 
 
+    /* ====================================
+       ACCURACY DEL PATRÓN
+       ==================================== */
+
     const accuracy =
       anterior.total >
         0
@@ -2038,7 +2092,7 @@ if (
               anterior.ganadas /
               anterior.total
             ) *
-              100
+            100
           )
         : null;
 
@@ -2046,6 +2100,10 @@ if (
     anterior.accuracy =
       accuracy;
 
+
+    /* ====================================
+       RESULTADO INDIVIDUAL
+       ==================================== */
 
     const resumenResultado = {
 
@@ -2072,18 +2130,27 @@ if (
         null,
 
       clickTargetMs:
-        telemetria
-          .manualClickToTargetMs ??
-        null,
+        this.numeroSeguro(
+          telemetria
+            .manualClickToTargetMs
+        ),
 
       buyTargetMs:
-        telemetria
-          .buyTargetDeviationMs ??
-        null,
+        this.numeroSeguro(
+          telemetria
+            .buyTargetDeviationMs
+        ),
+
+      clickBuyMs:
+        this.numeroSeguro(
+          telemetria
+            .manualClickToBuyMs
+        ),
 
       profit:
-        telemetria.profit ??
-        null,
+        this.numeroSeguro(
+          telemetria.profit
+        ),
 
       contractId:
         telemetria.contractId ??
@@ -2092,15 +2159,18 @@ if (
     };
 
 
-    anterior
-      .ultimosResultados =
-      Array.isArray(
+    if (
+      !Array.isArray(
         anterior
           .ultimosResultados
       )
-        ? anterior
-            .ultimosResultados
-        : [];
+    ) {
+
+      anterior
+        .ultimosResultados =
+        [];
+
+    }
 
 
     anterior
@@ -2131,6 +2201,10 @@ if (
       Date.now();
 
 
+    /* ====================================
+       RECLASIFICAR PATRÓN
+       ==================================== */
+
     const nuevaClasificacion =
       this.clasificarPatronHistorico(
         anterior
@@ -2152,6 +2226,10 @@ if (
         .decision;
 
 
+    /* ====================================
+       GUARDAR MEMORIA
+       ==================================== */
+
     this.memoriaPatrones[
       key
     ] =
@@ -2160,6 +2238,13 @@ if (
 
     this.persistirMemoriaPatrones();
 
+
+    this.invalidarCacheAnalitica();
+
+
+    /* ====================================
+       EVENTO
+       ==================================== */
 
     const evento = {
 
@@ -2173,6 +2258,15 @@ if (
 
       direccion:
         anterior.direccion,
+
+      valorBucket:
+        anterior.valorBucket,
+
+      confianzaBucket:
+        anterior.confianzaBucket,
+
+      scoreBucket:
+        anterior.scoreBucket,
 
       total:
         anterior.total,
@@ -2197,7 +2291,15 @@ if (
 
       promedioTimingMs:
         anterior
-          .promedioTimingMs
+          .promedioTimingMs,
+
+      promedioManualClickTargetMs:
+        anterior
+          .promedioManualClickTargetMs,
+
+      promedioBuyTargetMs:
+        anterior
+          .promedioBuyTargetMs
 
     };
 
