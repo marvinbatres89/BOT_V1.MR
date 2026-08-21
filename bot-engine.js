@@ -883,7 +883,61 @@ class BotEngine {
 
   }
 
+  /* ========================================
+     FIX13.7.1
+     VALIDACIÓN NUMÉRICA SEGURA
 
+     Evita que:
+     Number(null) === 0
+
+     TARGET, tiempos y offsets inexistentes
+     deben mantenerse como NULL.
+     ======================================== */
+
+  numeroValido(
+    valor
+  ) {
+
+    if (
+      valor === null ||
+      valor === undefined ||
+      valor === ""
+    ) {
+
+      return false;
+
+    }
+
+
+    return Number.isFinite(
+      Number(
+        valor
+      )
+    );
+
+  }
+
+
+  numeroSeguro(
+    valor
+  ) {
+
+    if (
+      !this.numeroValido(
+        valor
+      )
+    ) {
+
+      return null;
+
+    }
+
+
+    return Number(
+      valor
+    );
+
+  }
   /* ========================================
      CACHÉ
      ======================================== */
