@@ -1,9 +1,9 @@
 /* ==========================================
    BOT V1 MR
    BOT-ENGINE.JS
-   FIX13.7 ESTABLE + RÁPIDA
+   FIX13.8 MEMORIA DE PATRONES
 
-   BASE: FIX13.6
+   BASE: FIX13.7
 
    CONSERVA:
    - AUTOMÁTICO
@@ -17,19 +17,29 @@
    - SCORE BRUTO
    - PERFILES
    - COMPARADORES
-
-   FIX13.7:
    - HISTORIAL EN MEMORIA
    - CACHÉ DE ESTADÍSTICAS
    - ESTADO RÁPIDO
-   - OBTENERESTADO YA NO RECALCULA TODO
    - MANUAL LISTO DESDE PREPARAR
    - TARGET ACTUALIZA REFERENCIA DESPUÉS
    - NUEVA OPERACIÓN MANUAL DESCARTA ANTIGUA
-   - MEDICIÓN PREPARAR -> BOTÓN LISTO
-   - MEDICIÓN TARGET -> BOTÓN LISTO
-   - CLIC -> BUY
-   - BUY -> CONFIRMACIÓN
+
+   FIX13.8 AGREGA:
+   - MEMORIA PERSISTENTE DE PATRONES
+   - AGRUPACIÓN POR:
+       MERCADO
+       ESTRATEGIA
+       DIRECCIÓN
+       VALOR DEL PATRÓN
+       CONFIANZA
+       SCORE BRUTO
+   - FAVORABLE / RIESGO / SIN EVIDENCIA
+   - MODO APRENDIZAJE
+   - FILTRO HISTÓRICO AUTOMÁTICO
+   - MANUAL NUNCA ES BLOQUEADO
+   - REGISTRO AUTOMÁTICO GANADA/PERDIDA
+   - TIMING REAL SE GUARDA EN PATRÓN
+   - BASE PARA TESTLOG DESCARGABLE
    ========================================== */
 
 import {
@@ -66,19 +76,25 @@ const CALIBRATION_KEY =
 const EXECUTION_MODE_KEY =
   "BOT_V1_MR_FIX13_6_EXECUTION_MODE";
 
+const PATTERN_MEMORY_KEY =
+  "BOT_V1_MR_FIX13_8_PATTERN_MEMORY";
+
 
 /* ==========================================
    VERSIONES
    ========================================== */
 
 const TELEMETRY_VERSION =
-  "FIX13.7";
+  "FIX13.8";
 
 const TIMING_BASE_VERSION =
-  "FIX13.7";
+  "FIX13.8";
 
 const SYNC_VERSION =
-  "FIX13.7";
+  "FIX13.8";
+
+const PATTERN_VERSION =
+  "FIX13.8-PATTERN-1";
 
 
 const TIMING_COMPATIBLE_VERSIONS = [
@@ -92,7 +108,8 @@ const TIMING_COMPATIBLE_VERSIONS = [
   "FIX13.4.2",
   "FIX13.5",
   "FIX13.6",
-  "FIX13.7"
+  "FIX13.7",
+  "FIX13.8"
 ];
 
 
@@ -106,16 +123,19 @@ const SIGNAL_PROFILE_VERSIONS = [
   "FIX13.4.2",
   "FIX13.5",
   "FIX13.6",
-  "FIX13.7"
+  "FIX13.7",
+  "FIX13.8"
 ];
 
 
 const MODOS_EJECUCION = {
+
   AUTOMATICO:
     "AUTOMATICO",
 
   MANUAL:
     "MANUAL_DIAGNOSTICO"
+
 };
 
 
@@ -124,20 +144,164 @@ const MODOS_EJECUCION = {
    ========================================== */
 
 const PROFILE_CONTROL = {
-  minimumPatternSamples: 4,
-  minimumStrongSamples: 8,
-  meaningfulGapPercent: 20,
-  strongGapPercent: 30,
-  maxHallazgos: 8
+
+  minimumPatternSamples:
+    4,
+
+  minimumStrongSamples:
+    8,
+
+  meaningfulGapPercent:
+    20,
+
+  strongGapPercent:
+    30,
+
+  maxHallazgos:
+    8
+
 };
 
 
 const TIMING_LIMITS = {
-  bridgeToProcessMaxMs: 1000,
-  proposalMaxMs: 2000,
-  buyConfirmationMaxMs: 2000,
-  targetDeviationMaxAbsMs: 750,
-  waitOvershootMaxMs: 500
+
+  bridgeToProcessMaxMs:
+    1000,
+
+  proposalMaxMs:
+    2000,
+
+  buyConfirmationMaxMs:
+    2000,
+
+  targetDeviationMaxAbsMs:
+    750,
+
+  waitOvershootMaxMs:
+    500
+
+};
+
+
+/* ==========================================
+   FIX13.8
+   CONTROL MEMORIA DE PATRONES
+   ========================================== */
+
+const PATTERN_CONTROL = {
+
+  /*
+    Con menos de 4 operaciones,
+    no se bloquea nada.
+  */
+
+  minimumDecisionSamples:
+    4,
+
+
+  /*
+    8 o más muestras convierten
+    el patrón en evidencia más fuerte.
+  */
+
+  strongEvidenceSamples:
+    8,
+
+
+  /*
+    Si alcanza 70% o más:
+    FAVORABLE.
+  */
+
+  favorableAccuracy:
+    70,
+
+
+  /*
+    Si cae a 35% o menos:
+    RIESGO.
+  */
+
+  riskAccuracy:
+    35,
+
+
+  /*
+    36% a 69%:
+    NEUTRO / SIN EVIDENCIA FUERTE.
+  */
+
+  confidenceBucketSize:
+    2,
+
+
+  /*
+    Score bruto se agrupa
+    de 5 en 5.
+  */
+
+  scoreBucketSize:
+    5,
+
+
+  /*
+    Valor especial de la predicción,
+    si existe, se agrupa de 5 en 5.
+
+    Ejemplos:
+    20.0
+    30.0
+    40.0
+  */
+
+  valueBucketSize:
+    5,
+
+
+  /*
+    Timing observado se agrupa
+    de 100 ms en 100 ms.
+  */
+
+  timingBucketSizeMs:
+    100,
+
+
+  /*
+    Número máximo de resultados
+    recientes guardados dentro
+    de cada patrón.
+  */
+
+  maxRecentResults:
+    20,
+
+
+  /*
+    Límite de patrones persistidos.
+  */
+
+  maxPatterns:
+    1500,
+
+
+  /*
+    El filtro se aplica únicamente
+    al AUTOMÁTICO.
+  */
+
+  blockRiskInAutomatic:
+    true,
+
+
+  /*
+    Los patrones desconocidos
+    se ejecutan en DEMO para aprender.
+  */
+
+  learningMode:
+    true
+
 };
 
 
@@ -198,19 +362,43 @@ const AJUSTES_PERMITIDOS_MS = [
 
 
 const CALIBRACION_INICIAL = {
-  R_10: 0,
-  R_25: 0,
-  R_50: 0,
-  R_75: 0,
-  R_100: 0,
 
-  "1HZ10V": 100,
-  "1HZ15V": 100,
-  "1HZ25V": 100,
-  "1HZ30V": 100,
-  "1HZ50V": 100,
-  "1HZ75V": 100,
-  "1HZ100V": 100
+  R_10:
+    0,
+
+  R_25:
+    0,
+
+  R_50:
+    0,
+
+  R_75:
+    0,
+
+  R_100:
+    0,
+
+  "1HZ10V":
+    100,
+
+  "1HZ15V":
+    100,
+
+  "1HZ25V":
+    100,
+
+  "1HZ30V":
+    100,
+
+  "1HZ50V":
+    100,
+
+  "1HZ75V":
+    100,
+
+  "1HZ100V":
+    100
+
 };
 
 
@@ -229,7 +417,7 @@ class BotEngine {
       false;
 
     this.modo =
-      "DERIV DEMO + FIX13.7 ESTABLE/RÁPIDA";
+      "DERIV DEMO + FIX13.8 MEMORIA DE PATRONES";
 
     this.modoEjecucion =
       this.cargarModoEjecucion();
@@ -261,23 +449,34 @@ class BotEngine {
     this.ultimaTelemetria =
       null;
 
+    this.ultimoAnalisisPatron =
+      null;
+
+
     this.configuracion = {
-      monto: 1,
-      moneda: "USD",
-      duracion: 1,
-      unidadDuracion: "t"
+
+      monto:
+        1,
+
+      moneda:
+        "USD",
+
+      duracion:
+        1,
+
+      unidadDuracion:
+        "t"
+
     };
+
 
     this.calibracion =
       this.cargarCalibracion();
 
 
     /*
-      FIX13.7
-
-      El historial se carga una sola vez.
-      Ya no hacemos JSON.parse del localStorage
-      cada vez que la interfaz pregunta algo.
+      Historial FIX13.7:
+      carga una sola vez.
     */
 
     this.historialTelemetria =
@@ -285,7 +484,16 @@ class BotEngine {
 
 
     /*
-      Caché de cálculos pesados.
+      FIX13.8:
+      memoria histórica consolidada.
+    */
+
+    this.memoriaPatrones =
+      this.cargarMemoriaPatrones();
+
+
+    /*
+      Caché de analítica pesada.
     */
 
     this.cacheAnalitica =
@@ -295,7 +503,10 @@ class BotEngine {
     this.timerLimpieza =
       setInterval(
         () => {
-          this.limpiarPreparacionesExpiradas();
+
+          this
+            .limpiarPreparacionesExpiradas();
+
         },
         5000
       );
@@ -310,32 +521,55 @@ class BotEngine {
   ahora() {
 
     if (
-      typeof performance !== "undefined" &&
-      typeof performance.now === "function"
+      typeof performance !==
+        "undefined" &&
+      typeof performance.now ===
+        "function"
     ) {
+
       return performance.now();
+
     }
+
 
     return Date.now();
 
   }
 
 
-  esperar(ms) {
+  esperar(
+    ms
+  ) {
 
     const tiempo =
-      Number(ms);
+      Number(
+        ms
+      );
+
 
     if (
-      !Number.isFinite(tiempo) ||
-      tiempo <= 0
+      !Number.isFinite(
+        tiempo
+      ) ||
+      tiempo <=
+        0
     ) {
+
       return Promise.resolve();
+
     }
 
+
     return new Promise(
-      (resolve) => {
-        setTimeout(resolve, tiempo);
+      (
+        resolve
+      ) => {
+
+        setTimeout(
+          resolve,
+          tiempo
+        );
+
       }
     );
 
@@ -353,14 +587,17 @@ class BotEngine {
         new CustomEvent(
           nombre,
           {
-            detail: detalle
+            detail:
+              detalle
           }
         )
       );
 
     }
 
-    catch (error) {
+    catch (
+      error
+    ) {
 
       console.warn(
         `No se pudo emitir ${nombre}:`,
@@ -372,165 +609,274 @@ class BotEngine {
   }
 
 
-  redondear(valor) {
+  redondear(
+    valor
+  ) {
 
     const numero =
-      Number(valor);
+      Number(
+        valor
+      );
+
 
     if (
-      !Number.isFinite(numero)
+      !Number.isFinite(
+        numero
+      )
     ) {
+
       return null;
+
     }
 
+
     return (
-      Math.round(numero * 100) /
+      Math.round(
+        numero *
+        100
+      ) /
       100
     );
 
   }
 
 
-  valoresValidos(valores) {
+  valoresValidos(
+    valores
+  ) {
 
     return valores
-      .map(Number)
-      .filter(Number.isFinite);
+      .map(
+        Number
+      )
+      .filter(
+        Number.isFinite
+      );
 
   }
 
 
-  promedio(valores) {
+  promedio(
+    valores
+  ) {
 
     const validos =
-      this.valoresValidos(valores);
+      this.valoresValidos(
+        valores
+      );
 
-    if (!validos.length) {
+
+    if (
+      !validos.length
+    ) {
+
       return null;
+
     }
+
 
     const total =
       validos.reduce(
-        (a, b) => a + b,
+        (
+          a,
+          b
+        ) =>
+          a +
+          b,
         0
       );
 
+
     return this.redondear(
-      total / validos.length
+      total /
+      validos.length
     );
 
   }
 
 
-  mediana(valores) {
+  mediana(
+    valores
+  ) {
 
     const validos =
       this
-        .valoresValidos(valores)
-        .sort((a, b) => a - b);
+        .valoresValidos(
+          valores
+        )
+        .sort(
+          (
+            a,
+            b
+          ) =>
+            a -
+            b
+        );
 
-    if (!validos.length) {
+
+    if (
+      !validos.length
+    ) {
+
       return null;
+
     }
+
 
     const mitad =
       Math.floor(
-        validos.length / 2
+        validos.length /
+        2
       );
 
+
     if (
-      validos.length % 2 === 0
+      validos.length %
+        2 ===
+      0
     ) {
 
       return this.redondear(
         (
-          validos[mitad - 1] +
-          validos[mitad]
-        ) / 2
+          validos[
+            mitad - 1
+          ] +
+          validos[
+            mitad
+          ]
+        ) /
+        2
       );
 
     }
 
+
     return this.redondear(
-      validos[mitad]
+      validos[
+        mitad
+      ]
     );
 
   }
 
 
-  minimo(valores) {
+  minimo(
+    valores
+  ) {
 
     const validos =
-      this.valoresValidos(valores);
+      this.valoresValidos(
+        valores
+      );
+
 
     return validos.length
       ? this.redondear(
-          Math.min(...validos)
+          Math.min(
+            ...validos
+          )
         )
       : null;
 
   }
 
 
-  maximo(valores) {
+  maximo(
+    valores
+  ) {
 
     const validos =
-      this.valoresValidos(valores);
+      this.valoresValidos(
+        valores
+      );
+
 
     return validos.length
       ? this.redondear(
-          Math.max(...validos)
+          Math.max(
+            ...validos
+          )
         )
       : null;
 
   }
 
 
-  diferencia(inicio, fin) {
+  diferencia(
+    inicio,
+    fin
+  ) {
 
     const a =
-      Number(inicio);
+      Number(
+        inicio
+      );
 
     const b =
-      Number(fin);
+      Number(
+        fin
+      );
+
 
     if (
-      !Number.isFinite(a) ||
-      !Number.isFinite(b)
+      !Number.isFinite(
+        a
+      ) ||
+      !Number.isFinite(
+        b
+      )
     ) {
+
       return null;
+
     }
 
+
     return this.redondear(
-      b - a
+      b -
+      a
     );
 
   }
 
 
-  normalizarTexto(valor) {
+  normalizarTexto(
+    valor
+  ) {
 
     if (
-      valor === undefined ||
-      valor === null
+      valor ===
+        undefined ||
+      valor ===
+        null
     ) {
+
       return null;
+
     }
 
+
     const texto =
-      String(valor)
+      String(
+        valor
+      )
         .trim()
         .toUpperCase();
 
-    return texto || null;
+
+    return texto ||
+      null;
 
   }
 
 
-  normalizarMercado(mercado) {
+  normalizarMercado(
+    mercado
+  ) {
 
     return String(
-      mercado || ""
+      mercado ||
+      ""
     )
       .trim()
       .toUpperCase();
@@ -539,7 +885,7 @@ class BotEngine {
 
 
   /* ========================================
-     CACHÉ FIX13.7
+     CACHÉ
      ======================================== */
 
   invalidarCacheAnalitica() {
@@ -551,7 +897,7 @@ class BotEngine {
 
 
   /* ========================================
-     HISTORIAL EN MEMORIA
+     HISTORIAL TELEMETRÍA
      ======================================== */
 
   cargarHistorialTelemetria() {
@@ -562,10 +908,14 @@ class BotEngine {
         JSON.parse(
           localStorage.getItem(
             TELEMETRY_KEY
-          ) || "[]"
+          ) ||
+          "[]"
         );
 
-      return Array.isArray(datos)
+
+      return Array.isArray(
+        datos
+      )
         ? datos
         : [];
 
@@ -598,20 +948,1435 @@ class BotEngine {
         )
       );
 
+
       return true;
 
     }
 
-    catch (error) {
+    catch (
+      error
+    ) {
 
       console.warn(
         "No se pudo persistir historial:",
         error
       );
 
+
       return false;
 
     }
+
+  }
+
+
+  /* ========================================
+     FIX13.8
+     MEMORIA DE PATRONES
+     ======================================== */
+
+  cargarMemoriaPatrones() {
+
+    try {
+
+      const datos =
+        JSON.parse(
+          localStorage.getItem(
+            PATTERN_MEMORY_KEY
+          ) ||
+          "{}"
+        );
+
+
+      if (
+        datos &&
+        typeof datos ===
+          "object" &&
+        !Array.isArray(
+          datos
+        )
+      ) {
+
+        return datos;
+
+      }
+
+    }
+
+    catch (
+      error
+    ) {
+
+      console.warn(
+        "No se pudo cargar memoria de patrones:",
+        error
+      );
+
+    }
+
+
+    return {};
+
+  }
+
+
+  persistirMemoriaPatrones() {
+
+    try {
+
+      const entradas =
+        Object.entries(
+          this.memoriaPatrones
+        );
+
+
+      /*
+        Evita crecimiento ilimitado.
+        Conserva los patrones más recientes.
+      */
+
+      if (
+        entradas.length >
+        PATTERN_CONTROL
+          .maxPatterns
+      ) {
+
+        entradas.sort(
+          (
+            a,
+            b
+          ) =>
+            Number(
+              b[1]
+                ?.updatedAt ??
+              0
+            ) -
+            Number(
+              a[1]
+                ?.updatedAt ??
+              0
+            )
+        );
+
+
+        const recortadas =
+          entradas.slice(
+            0,
+            PATTERN_CONTROL
+              .maxPatterns
+          );
+
+
+        this.memoriaPatrones =
+          Object.fromEntries(
+            recortadas
+          );
+
+      }
+
+
+      localStorage.setItem(
+        PATTERN_MEMORY_KEY,
+        JSON.stringify(
+          this.memoriaPatrones
+        )
+      );
+
+
+      return true;
+
+    }
+
+    catch (
+      error
+    ) {
+
+      console.warn(
+        "No se pudo guardar memoria de patrones:",
+        error
+      );
+
+
+      return false;
+
+    }
+
+  }
+
+
+  /* ========================================
+     BUCKETS / AGRUPACIÓN
+     ======================================== */
+
+  agruparNumero(
+    valor,
+    paso
+  ) {
+
+    const numero =
+      Number(
+        valor
+      );
+
+
+    const tamano =
+      Number(
+        paso
+      );
+
+
+    if (
+      !Number.isFinite(
+        numero
+      ) ||
+      !Number.isFinite(
+        tamano
+      ) ||
+      tamano <=
+        0
+    ) {
+
+      return null;
+
+    }
+
+
+    return (
+      Math.round(
+        numero /
+        tamano
+      ) *
+      tamano
+    );
+
+  }
+
+
+  extraerValorPatron(
+    senal
+  ) {
+
+    const candidatos = [
+
+      senal
+        ?.valorPatron,
+
+      senal
+        ?.predictionValue,
+
+      senal
+        ?.diferencia,
+
+      senal
+        ?.shortDiff,
+
+      senal
+        ?.valor,
+
+      senal
+        ?.metadata
+        ?.valorPatron,
+
+      senal
+        ?.metadata
+        ?.predictionValue,
+
+      senal
+        ?.metadata
+        ?.diferencia,
+
+      senal
+        ?.metadata
+        ?.shortDiff,
+
+      senal
+        ?.metadata
+        ?.engine1
+        ?.shortDiff,
+
+      senal
+        ?.metadata
+        ?.engine1
+        ?.difference
+
+    ];
+
+
+    for (
+      const candidato
+      of candidatos
+    ) {
+
+      const numero =
+        Number(
+          candidato
+        );
+
+
+      if (
+        Number.isFinite(
+          numero
+        )
+      ) {
+
+        return this.redondear(
+          numero
+        );
+
+      }
+
+    }
+
+
+    return null;
+
+  }
+
+
+  crearFirmaPatron(
+    senal
+  ) {
+
+    const mercado =
+      this.normalizarMercado(
+        senal?.mercado
+      );
+
+
+    const estrategia =
+      this.normalizarTexto(
+        senal?.estrategia
+      ) ||
+      "SIN_ESTRATEGIA";
+
+
+    const direccion =
+      this.normalizarTexto(
+        senal?.direccion
+      ) ||
+      "SIN_DIRECCION";
+
+
+    const confianza =
+      Number(
+        senal?.confianza
+      );
+
+
+    const scoreBruto =
+      this.extraerScoreBruto(
+        senal
+      );
+
+
+    const valorPatron =
+      this.extraerValorPatron(
+        senal
+      );
+
+
+    const confianzaBucket =
+      Number.isFinite(
+        confianza
+      )
+        ? this.agruparNumero(
+            confianza,
+            PATTERN_CONTROL
+              .confidenceBucketSize
+          )
+        : null;
+
+
+    const scoreBucket =
+      Number.isFinite(
+        Number(
+          scoreBruto
+        )
+      )
+        ? this.agruparNumero(
+            scoreBruto,
+            PATTERN_CONTROL
+              .scoreBucketSize
+          )
+        : null;
+
+
+    const valorBucket =
+      Number.isFinite(
+        Number(
+          valorPatron
+        )
+      )
+        ? this.agruparNumero(
+            valorPatron,
+            PATTERN_CONTROL
+              .valueBucketSize
+          )
+        : null;
+
+
+    const key = [
+
+      mercado ||
+        "SIN_MERCADO",
+
+      estrategia,
+
+      direccion,
+
+      `V${
+        valorBucket ??
+        "X"
+      }`,
+
+      `C${
+        confianzaBucket ??
+        "X"
+      }`,
+
+      `S${
+        scoreBucket ??
+        "X"
+      }`
+
+    ].join(
+      "|"
+    );
+
+
+    return {
+
+      key,
+
+      version:
+        PATTERN_VERSION,
+
+      mercado,
+
+      estrategia,
+
+      direccion,
+
+      confianza:
+        Number.isFinite(
+          confianza
+        )
+          ? this.redondear(
+              confianza
+            )
+          : null,
+
+      confianzaBucket,
+
+      scoreBruto,
+
+      scoreBucket,
+
+      valorPatron,
+
+      valorBucket
+
+    };
+
+  }
+
+
+  /* ========================================
+     CLASIFICAR PATRÓN
+     ======================================== */
+
+  clasificarPatronHistorico(
+    entrada
+  ) {
+
+    if (
+      !entrada ||
+      Number(
+        entrada.total ??
+        0
+      ) <
+        PATTERN_CONTROL
+          .minimumDecisionSamples
+    ) {
+
+      return {
+
+        clasificacion:
+          "SIN_EVIDENCIA",
+
+        fuerza:
+          "RECOPILANDO",
+
+        decision:
+          "APRENDER",
+
+        bloquear:
+          false
+
+      };
+
+    }
+
+
+    const total =
+      Number(
+        entrada.total ??
+        0
+      );
+
+
+    const ganadas =
+      Number(
+        entrada.ganadas ??
+        0
+      );
+
+
+    const accuracy =
+      total >
+        0
+        ? (
+            ganadas /
+            total
+          ) *
+          100
+        : 0;
+
+
+    const fuerte =
+      total >=
+      PATTERN_CONTROL
+        .strongEvidenceSamples;
+
+
+    if (
+      accuracy >=
+      PATTERN_CONTROL
+        .favorableAccuracy
+    ) {
+
+      return {
+
+        clasificacion:
+          "FAVORABLE",
+
+        fuerza:
+          fuerte
+            ? "FUERTE"
+            : "PRELIMINAR",
+
+        decision:
+          "PERMITIR",
+
+        bloquear:
+          false
+
+      };
+
+    }
+
+
+    if (
+      accuracy <=
+      PATTERN_CONTROL
+        .riskAccuracy
+    ) {
+
+      return {
+
+        clasificacion:
+          "RIESGO",
+
+        fuerza:
+          fuerte
+            ? "FUERTE"
+            : "PRELIMINAR",
+
+        decision:
+          "NO_OPERAR",
+
+        bloquear:
+          true
+
+      };
+
+    }
+
+
+    return {
+
+      clasificacion:
+        "NEUTRO",
+
+      fuerza:
+        fuerte
+          ? "FUERTE"
+          : "PRELIMINAR",
+
+      decision:
+        "APRENDER",
+
+      bloquear:
+        false
+
+    };
+
+  }
+
+
+  analizarPatron(
+    senal
+  ) {
+
+    const firma =
+      this.crearFirmaPatron(
+        senal
+      );
+
+
+    const entrada =
+      this.memoriaPatrones[
+        firma.key
+      ] ||
+      null;
+
+
+    const clasificacion =
+      this.clasificarPatronHistorico(
+        entrada
+      );
+
+
+    const total =
+      Number(
+        entrada?.total ??
+        0
+      );
+
+
+    const ganadas =
+      Number(
+        entrada?.ganadas ??
+        0
+      );
+
+
+    const perdidas =
+      Number(
+        entrada?.perdidas ??
+        0
+      );
+
+
+    const accuracy =
+      total >
+        0
+        ? this.redondear(
+            (
+              ganadas /
+              total
+            ) *
+              100
+          )
+        : null;
+
+
+    const resultado = {
+
+      ...firma,
+
+      total,
+
+      muestras:
+        total,
+
+      ganadas,
+
+      perdidas,
+
+      accuracy,
+
+      clasificacion:
+        clasificacion
+          .clasificacion,
+
+      fuerza:
+        clasificacion
+          .fuerza,
+
+      decision:
+        clasificacion
+          .decision,
+
+      bloquear:
+        clasificacion
+          .bloquear,
+
+      promedioTimingMs:
+        entrada
+          ?.promedioTimingMs ??
+        null,
+
+      promedioManualClickTargetMs:
+        entrada
+          ?.promedioManualClickTargetMs ??
+        null,
+
+      promedioBuyTargetMs:
+        entrada
+          ?.promedioBuyTargetMs ??
+        null,
+
+      ultimosResultados:
+        Array.isArray(
+          entrada
+            ?.ultimosResultados
+        )
+          ? [
+              ...entrada
+                .ultimosResultados
+            ]
+          : []
+
+    };
+
+
+    this.ultimoAnalisisPatron =
+      {
+        ...resultado
+      };
+
+
+    this.emitirEvento(
+      "bot:pattern-evaluated",
+      resultado
+    );
+
+
+    return resultado;
+
+  }
+
+
+  /* ========================================
+     REGISTRAR RESULTADO EN MEMORIA
+     ======================================== */
+
+  registrarResultadoPatron(
+    telemetria
+  ) {
+
+    if (
+      !telemetria ||
+      !(
+        telemetria.resultado ===
+          "GANADA" ||
+        telemetria.resultado ===
+          "PERDIDA"
+      )
+    ) {
+
+      return null;
+
+    }
+
+
+    const firma =
+      telemetria
+        .patronFirma ||
+      null;
+
+
+    const key =
+      telemetria
+        .patronKey ||
+      firma?.key ||
+      null;
+
+
+    if (
+      !key
+    ) {
+
+      return null;
+
+    }
+
+
+    const anterior =
+      this.memoriaPatrones[
+        key
+      ] ||
+      {
+
+        key,
+
+        version:
+          PATTERN_VERSION,
+
+        mercado:
+          firma?.mercado ??
+          telemetria.mercado ??
+          null,
+
+        estrategia:
+          firma?.estrategia ??
+          telemetria.estrategia ??
+          null,
+
+        direccion:
+          firma?.direccion ??
+          telemetria.direccion ??
+          null,
+
+        valorBucket:
+          firma?.valorBucket ??
+          null,
+
+        confianzaBucket:
+          firma?.confianzaBucket ??
+          null,
+
+        scoreBucket:
+          firma?.scoreBucket ??
+          null,
+
+        total:
+          0,
+
+        ganadas:
+          0,
+
+        perdidas:
+          0,
+
+        sumaTimingMs:
+          0,
+
+        muestrasTiming:
+          0,
+
+        sumaManualClickTargetMs:
+          0,
+
+        muestrasManualClickTarget:
+          0,
+
+        sumaBuyTargetMs:
+          0,
+
+        muestrasBuyTarget:
+          0,
+
+        promedioTimingMs:
+          null,
+
+        promedioManualClickTargetMs:
+          null,
+
+        promedioBuyTargetMs:
+          null,
+
+        ultimosResultados:
+          [],
+
+        createdAt:
+          Date.now(),
+
+        updatedAt:
+          Date.now()
+
+      };
+
+
+    anterior.total =
+      Number(
+        anterior.total ??
+        0
+      ) +
+      1;
+
+
+    if (
+      telemetria.resultado ===
+      "GANADA"
+    ) {
+
+      anterior.ganadas =
+        Number(
+          anterior.ganadas ??
+          0
+        ) +
+        1;
+
+    }
+
+
+    if (
+      telemetria.resultado ===
+      "PERDIDA"
+    ) {
+
+      anterior.perdidas =
+        Number(
+          anterior.perdidas ??
+          0
+        ) +
+        1;
+
+    }
+
+
+    /*
+      Timing real disponible.
+    */
+
+    const timingPrincipal =
+      Number.isFinite(
+        Number(
+          telemetria
+            .manualClickToTargetMs
+        )
+      )
+        ? Number(
+            telemetria
+              .manualClickToTargetMs
+          )
+        : Number.isFinite(
+            Number(
+              telemetria
+                .buyTargetDeviationMs
+            )
+          )
+          ? Number(
+              telemetria
+                .buyTargetDeviationMs
+            )
+          : null;
+
+
+    if (
+      Number.isFinite(
+        timingPrincipal
+      )
+    ) {
+
+      anterior.sumaTimingMs =
+        Number(
+          anterior.sumaTimingMs ??
+          0
+        ) +
+        timingPrincipal;
+
+
+      anterior.muestrasTiming =
+        Number(
+          anterior.muestrasTiming ??
+          0
+        ) +
+        1;
+
+
+      anterior.promedioTimingMs =
+        this.redondear(
+          anterior
+            .sumaTimingMs /
+          anterior
+            .muestrasTiming
+        );
+
+    }
+
+
+    const manualClick =
+      Number(
+        telemetria
+          .manualClickToTargetMs
+      );
+
+
+    if (
+      Number.isFinite(
+        manualClick
+      )
+    ) {
+
+      anterior
+        .sumaManualClickTargetMs =
+        Number(
+          anterior
+            .sumaManualClickTargetMs ??
+          0
+        ) +
+        manualClick;
+
+
+      anterior
+        .muestrasManualClickTarget =
+        Number(
+          anterior
+            .muestrasManualClickTarget ??
+          0
+        ) +
+        1;
+
+
+      anterior
+        .promedioManualClickTargetMs =
+        this.redondear(
+          anterior
+            .sumaManualClickTargetMs /
+          anterior
+            .muestrasManualClickTarget
+        );
+
+    }
+
+
+    const buyTarget =
+      Number(
+        telemetria
+          .buyTargetDeviationMs
+      );
+
+
+    if (
+      Number.isFinite(
+        buyTarget
+      )
+    ) {
+
+      anterior
+        .sumaBuyTargetMs =
+        Number(
+          anterior
+            .sumaBuyTargetMs ??
+          0
+        ) +
+        buyTarget;
+
+
+      anterior
+        .muestrasBuyTarget =
+        Number(
+          anterior
+            .muestrasBuyTarget ??
+          0
+        ) +
+        1;
+
+
+      anterior
+        .promedioBuyTargetMs =
+        this.redondear(
+          anterior
+            .sumaBuyTargetMs /
+          anterior
+            .muestrasBuyTarget
+        );
+
+    }
+
+
+    const accuracy =
+      anterior.total >
+        0
+        ? this.redondear(
+            (
+              anterior.ganadas /
+              anterior.total
+            ) *
+              100
+          )
+        : null;
+
+
+    anterior.accuracy =
+      accuracy;
+
+
+    const resumenResultado = {
+
+      resultado:
+        telemetria.resultado,
+
+      fecha:
+        Date.now(),
+
+      confianza:
+        telemetria.confianza ??
+        null,
+
+      scoreBruto:
+        telemetria.scoreBruto ??
+        null,
+
+      valorPatron:
+        telemetria.valorPatron ??
+        null,
+
+      modo:
+        telemetria.modoEjecucion ??
+        null,
+
+      clickTargetMs:
+        telemetria
+          .manualClickToTargetMs ??
+        null,
+
+      buyTargetMs:
+        telemetria
+          .buyTargetDeviationMs ??
+        null,
+
+      profit:
+        telemetria.profit ??
+        null,
+
+      contractId:
+        telemetria.contractId ??
+        null
+
+    };
+
+
+    anterior
+      .ultimosResultados =
+      Array.isArray(
+        anterior
+          .ultimosResultados
+      )
+        ? anterior
+            .ultimosResultados
+        : [];
+
+
+    anterior
+      .ultimosResultados
+      .unshift(
+        resumenResultado
+      );
+
+
+    if (
+      anterior
+        .ultimosResultados
+        .length >
+      PATTERN_CONTROL
+        .maxRecentResults
+    ) {
+
+      anterior
+        .ultimosResultados
+        .length =
+        PATTERN_CONTROL
+          .maxRecentResults;
+
+    }
+
+
+    anterior.updatedAt =
+      Date.now();
+
+
+    const nuevaClasificacion =
+      this.clasificarPatronHistorico(
+        anterior
+      );
+
+
+    anterior.clasificacion =
+      nuevaClasificacion
+        .clasificacion;
+
+
+    anterior.fuerza =
+      nuevaClasificacion
+        .fuerza;
+
+
+    anterior.decision =
+      nuevaClasificacion
+        .decision;
+
+
+    this.memoriaPatrones[
+      key
+    ] =
+      anterior;
+
+
+    this.persistirMemoriaPatrones();
+
+
+    const evento = {
+
+      key,
+
+      mercado:
+        anterior.mercado,
+
+      estrategia:
+        anterior.estrategia,
+
+      direccion:
+        anterior.direccion,
+
+      total:
+        anterior.total,
+
+      ganadas:
+        anterior.ganadas,
+
+      perdidas:
+        anterior.perdidas,
+
+      accuracy:
+        anterior.accuracy,
+
+      clasificacion:
+        anterior.clasificacion,
+
+      fuerza:
+        anterior.fuerza,
+
+      decision:
+        anterior.decision,
+
+      promedioTimingMs:
+        anterior
+          .promedioTimingMs
+
+    };
+
+
+    this.emitirEvento(
+      "bot:pattern-updated",
+      evento
+    );
+
+
+    return evento;
+
+  }
+
+
+  /* ========================================
+     RESUMEN MEMORIA
+     ======================================== */
+
+  obtenerResumenMemoriaPatrones() {
+
+    const patrones =
+      Object.values(
+        this.memoriaPatrones
+      );
+
+
+    const favorables =
+      patrones.filter(
+        (
+          item
+        ) =>
+          item?.clasificacion ===
+          "FAVORABLE"
+      );
+
+
+    const riesgos =
+      patrones.filter(
+        (
+          item
+        ) =>
+          item?.clasificacion ===
+          "RIESGO"
+      );
+
+
+    const neutros =
+      patrones.filter(
+        (
+          item
+        ) =>
+          item?.clasificacion ===
+            "NEUTRO" ||
+          item?.clasificacion ===
+            "SIN_EVIDENCIA" ||
+          !item?.clasificacion
+      );
+
+
+    const operaciones =
+      patrones.reduce(
+        (
+          total,
+          item
+        ) =>
+          total +
+          Number(
+            item?.total ??
+            0
+          ),
+        0
+      );
+
+
+    return {
+
+      version:
+        PATTERN_VERSION,
+
+      patrones:
+        patrones.length,
+
+      operaciones,
+
+      favorables:
+        favorables.length,
+
+      riesgos:
+        riesgos.length,
+
+      sinEvidencia:
+        neutros.length,
+
+      minimumDecisionSamples:
+        PATTERN_CONTROL
+          .minimumDecisionSamples,
+
+      favorableAccuracy:
+        PATTERN_CONTROL
+          .favorableAccuracy,
+
+      riskAccuracy:
+        PATTERN_CONTROL
+          .riskAccuracy,
+
+      learningMode:
+        PATTERN_CONTROL
+          .learningMode,
+
+      filtroAutomatico:
+        PATTERN_CONTROL
+          .blockRiskInAutomatic
+
+    };
+
+  }
+
+
+  obtenerPatronesOrdenados() {
+
+    return Object
+      .values(
+        this.memoriaPatrones
+      )
+      .slice()
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          Number(
+            b?.total ??
+            0
+          ) -
+          Number(
+            a?.total ??
+            0
+          )
+      );
+
+  }
+
+
+  restablecerMemoriaPatrones() {
+
+    this.memoriaPatrones =
+      {};
+
+
+    this.persistirMemoriaPatrones();
+
+
+    this.ultimoAnalisisPatron =
+      null;
+
+
+    this.emitirEvento(
+      "bot:pattern-memory-reset",
+      {
+        ok:
+          true
+      }
+    );
+
+
+    return {
+
+      ok:
+        true,
+
+      mensaje:
+        "Memoria de patrones restablecida."
+
+    };
+
+  }
+
+
+  /* ========================================
+     TESTLOG BASE
+     ======================================== */
+
+  obtenerTestLog() {
+
+    return {
+
+      generadoEn:
+        new Date()
+          .toISOString(),
+
+      versionBot:
+        TELEMETRY_VERSION,
+
+      versionPatrones:
+        PATTERN_VERSION,
+
+      configuracion: {
+
+        modoEjecucion:
+          this.modoEjecucion,
+
+        monto:
+          this.configuracion
+            .monto,
+
+        calibracion:
+          {
+            ...this.calibracion
+          },
+
+        patternControl:
+          {
+            ...PATTERN_CONTROL
+          }
+
+      },
+
+      resumenMemoria:
+        this
+          .obtenerResumenMemoriaPatrones(),
+
+      patrones:
+        this
+          .obtenerPatronesOrdenados(),
+
+      telemetria:
+        this.historialTelemetria
+          .slice()
+
+    };
 
   }
 
@@ -628,25 +2393,33 @@ class BotEngine {
         String(
           localStorage.getItem(
             EXECUTION_MODE_KEY
-          ) || ""
+          ) ||
+          ""
         )
           .trim()
           .toUpperCase();
+
 
       if (
         guardado ===
         MODOS_EJECUCION.MANUAL
       ) {
+
         return MODOS_EJECUCION.MANUAL;
+
       }
 
     }
 
     catch {
+
       // sin almacenamiento
+
     }
 
-    return MODOS_EJECUCION.AUTOMATICO;
+
+    return MODOS_EJECUCION
+      .AUTOMATICO;
 
   }
 
@@ -659,6 +2432,7 @@ class BotEngine {
         EXECUTION_MODE_KEY,
         this.modoEjecucion
       );
+
 
       return true;
 
@@ -673,24 +2447,36 @@ class BotEngine {
   }
 
 
-  establecerModoEjecucion(modo) {
+  establecerModoEjecucion(
+    modo
+  ) {
 
     const normalizado =
-      String(modo || "")
+      String(
+        modo ||
+        ""
+      )
         .trim()
         .toUpperCase();
 
+
     if (
       normalizado !==
-        MODOS_EJECUCION.AUTOMATICO &&
+        MODOS_EJECUCION
+          .AUTOMATICO &&
       normalizado !==
-        MODOS_EJECUCION.MANUAL
+        MODOS_EJECUCION
+          .MANUAL
     ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
+
         mensaje:
           "Modo de ejecución no válido."
+
       };
 
     }
@@ -701,7 +2487,8 @@ class BotEngine {
       this.modoEjecucion
     ) {
 
-      this.preparaciones.clear();
+      this.preparaciones
+        .clear();
 
     }
 
@@ -709,27 +2496,35 @@ class BotEngine {
     this.modoEjecucion =
       normalizado;
 
+
     this.guardarModoEjecucion();
 
 
     this.emitirEvento(
       "bot:execution-mode",
       {
+
         modo:
           this.modoEjecucion
+
       }
     );
 
 
     return {
-      ok: true,
+
+      ok:
+        true,
+
       modo:
         this.modoEjecucion,
+
       mensaje:
         this.modoEjecucion ===
-        MODOS_EJECUCION.MANUAL
+          MODOS_EJECUCION.MANUAL
           ? "Modo MANUAL DIAGNÓSTICO activo."
           : "Modo AUTOMÁTICO activo."
+
     };
 
   }
@@ -756,29 +2551,46 @@ class BotEngine {
      MERCADO
      ======================================== */
 
-  obtenerFamiliaMercado(mercado) {
+  obtenerFamiliaMercado(
+    mercado
+  ) {
 
     const symbol =
-      this.normalizarMercado(mercado);
+      this.normalizarMercado(
+        mercado
+      );
+
 
     if (
-      symbol.startsWith("1HZ")
+      symbol.startsWith(
+        "1HZ"
+      )
     ) {
+
       return "1S";
+
     }
 
+
     if (
-      symbol.startsWith("R_")
+      symbol.startsWith(
+        "R_"
+      )
     ) {
+
       return "STANDARD";
+
     }
+
 
     return "OTHER";
 
   }
 
 
-  mercadoControlado(mercado) {
+  mercadoControlado(
+    mercado
+  ) {
 
     return MERCADOS_CONTROLADOS
       .includes(
@@ -790,20 +2602,35 @@ class BotEngine {
   }
 
 
-  obtenerRetrasoReferencia(mercado) {
+  obtenerRetrasoReferencia(
+    mercado
+  ) {
 
     const familia =
       this.obtenerFamiliaMercado(
         mercado
       );
 
-    if (familia === "1S") {
+
+    if (
+      familia ===
+      "1S"
+    ) {
+
       return 100;
+
     }
 
-    if (familia === "STANDARD") {
+
+    if (
+      familia ===
+      "STANDARD"
+    ) {
+
       return 0;
+
     }
+
 
     return null;
 
@@ -822,12 +2649,15 @@ class BotEngine {
         JSON.parse(
           localStorage.getItem(
             CALIBRATION_KEY
-          ) || "{}"
+          ) ||
+          "{}"
         );
+
 
       const resultado = {
         ...CALIBRACION_INICIAL
       };
+
 
       for (
         const mercado
@@ -836,20 +2666,28 @@ class BotEngine {
 
         const valor =
           Number(
-            guardada[mercado]
+            guardada[
+              mercado
+            ]
           );
+
 
         if (
           AJUSTES_PERMITIDOS_MS
-            .includes(valor)
+            .includes(
+              valor
+            )
         ) {
 
-          resultado[mercado] =
+          resultado[
+            mercado
+          ] =
             valor;
 
         }
 
       }
+
 
       return resultado;
 
@@ -877,6 +2715,7 @@ class BotEngine {
         )
       );
 
+
       return true;
 
     }
@@ -890,29 +2729,41 @@ class BotEngine {
   }
 
 
-  obtenerAjusteMercado(mercado) {
+  obtenerAjusteMercado(
+    mercado
+  ) {
 
     const symbol =
       this.normalizarMercado(
         mercado
       );
 
+
     const valor =
       Number(
-        this.calibracion[symbol]
+        this.calibracion[
+          symbol
+        ]
       );
+
 
     if (
       AJUSTES_PERMITIDOS_MS
-        .includes(valor)
+        .includes(
+          valor
+        )
     ) {
+
       return valor;
+
     }
+
 
     return (
       this.obtenerFamiliaMercado(
         symbol
-      ) === "1S"
+      ) ===
+      "1S"
         ? 100
         : 0
     );
@@ -930,8 +2781,12 @@ class BotEngine {
         mercado
       );
 
+
     const valor =
-      Number(ajusteMs);
+      Number(
+        ajusteMs
+      );
+
 
     if (
       !this.mercadoControlado(
@@ -940,45 +2795,73 @@ class BotEngine {
     ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
+
         mensaje:
           "Mercado no controlado."
+
       };
 
     }
+
 
     if (
       !AJUSTES_PERMITIDOS_MS
-        .includes(valor)
+        .includes(
+          valor
+        )
     ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
+
         mensaje:
           "Ajuste no permitido."
+
       };
 
     }
 
 
-    this.calibracion[symbol] =
+    this.calibracion[
+      symbol
+    ] =
       valor;
 
+
     this.guardarCalibracion();
+
 
     this.invalidarCacheAnalitica();
 
 
     return {
-      ok: true,
-      mercado: symbol,
-      ajusteMs: valor,
+
+      ok:
+        true,
+
+      mercado:
+        symbol,
+
+      ajusteMs:
+        valor,
+
       ajusteSeg:
-        valor / 1000,
+        valor /
+        1000,
+
       mensaje:
         `Calibración ${symbol}: ${
-          valor > 0 ? "+" : ""
+          valor >
+            0
+            ? "+"
+            : ""
         }${valor} ms`
+
     };
 
   }
@@ -986,19 +2869,26 @@ class BotEngine {
 
   restablecerCalibracion() {
 
-    this.calibracion = {
-      ...CALIBRACION_INICIAL
-    };
+    this.calibracion =
+      {
+        ...CALIBRACION_INICIAL
+      };
+
 
     this.guardarCalibracion();
+
 
     this.invalidarCacheAnalitica();
 
 
     return {
-      ok: true,
+
+      ok:
+        true,
+
       mensaje:
         "Calibración restablecida: STANDARD 0 ms / 1S +100 ms."
+
     };
 
   }
@@ -1008,16 +2898,28 @@ class BotEngine {
      TARGET
      ======================================== */
 
-  obtenerTargetExecutionAt(senal) {
+  obtenerTargetExecutionAt(
+    senal
+  ) {
 
     const candidatos = [
-      senal?.targetExecutionAt,
-      senal?.targetVisualAt,
-      senal?.metadata
+
+      senal
         ?.targetExecutionAt,
-      senal?.metadata
+
+      senal
+        ?.targetVisualAt,
+
+      senal
+        ?.metadata
+        ?.targetExecutionAt,
+
+      senal
+        ?.metadata
         ?.targetVisualAt
+
     ];
+
 
     for (
       const candidato
@@ -1025,33 +2927,46 @@ class BotEngine {
     ) {
 
       const valor =
-        Number(candidato);
+        Number(
+          candidato
+        );
+
 
       if (
-        Number.isFinite(valor) &&
-        valor > 0
+        Number.isFinite(
+          valor
+        ) &&
+        valor >
+          0
       ) {
+
         return valor;
+
       }
 
     }
+
 
     return null;
 
   }
 
 
-  calcularProgramacion(senal) {
+  calcularProgramacion(
+    senal
+  ) {
 
     const mercado =
       this.normalizarMercado(
         senal?.mercado
       );
 
+
     const ajusteMs =
       this.obtenerAjusteMercado(
         mercado
       );
+
 
     const targetExecutionAt =
       this.obtenerTargetExecutionAt(
@@ -1060,21 +2975,38 @@ class BotEngine {
 
 
     if (
-      targetExecutionAt === null
+      targetExecutionAt ===
+        null
     ) {
 
       return {
-        disponible: false,
+
+        disponible:
+          false,
+
         mercado,
+
         ajusteMs,
+
         ajusteSeg:
-          ajusteMs / 1000,
-        targetExecutionAt: null,
-        programmedAt: null,
-        esperaMs: 0,
-        puedeAnticipar: false,
+          ajusteMs /
+          1000,
+
+        targetExecutionAt:
+          null,
+
+        programmedAt:
+          null,
+
+        esperaMs:
+          0,
+
+        puedeAnticipar:
+          false,
+
         motivo:
           "La señal no incluye TARGET."
+
       };
 
     }
@@ -1084,32 +3016,45 @@ class BotEngine {
       targetExecutionAt +
       ajusteMs;
 
+
     const ahoraEpoch =
       Date.now();
 
 
     return {
-      disponible: true,
+
+      disponible:
+        true,
+
       mercado,
+
       ajusteMs,
+
       ajusteSeg:
-        ajusteMs / 1000,
+        ajusteMs /
+        1000,
+
       targetExecutionAt,
+
       programmedAt,
+
       esperaMs:
         Math.max(
           0,
           programmedAt -
           ahoraEpoch
         ),
+
       puedeAnticipar:
         programmedAt >
         ahoraEpoch,
+
       motivo:
         programmedAt >
           ahoraEpoch
           ? "Programación válida."
           : "El instante programado ya ocurrió."
+
     };
 
   }
@@ -1121,13 +3066,22 @@ class BotEngine {
 
   iniciar() {
 
-    this.activo = true;
-    this.pausado = false;
+    this.activo =
+      true;
+
+
+    this.pausado =
+      false;
+
 
     return {
-      ok: true,
+
+      ok:
+        true,
+
       mensaje:
-        "Bot iniciado FIX13.7."
+        "Bot iniciado FIX13.8."
+
     };
 
   }
@@ -1135,12 +3089,18 @@ class BotEngine {
 
   pausar() {
 
-    this.pausado = true;
+    this.pausado =
+      true;
+
 
     return {
-      ok: true,
+
+      ok:
+        true,
+
       mensaje:
         "Bot pausado."
+
     };
 
   }
@@ -1148,12 +3108,18 @@ class BotEngine {
 
   reanudar() {
 
-    this.pausado = false;
+    this.pausado =
+      false;
+
 
     return {
-      ok: true,
+
+      ok:
+        true,
+
       mensaje:
         "Bot reanudado."
+
     };
 
   }
@@ -1161,15 +3127,26 @@ class BotEngine {
 
   detener() {
 
-    this.activo = false;
-    this.pausado = false;
+    this.activo =
+      false;
 
-    this.preparaciones.clear();
+
+    this.pausado =
+      false;
+
+
+    this.preparaciones
+      .clear();
+
 
     return {
-      ok: true,
+
+      ok:
+        true,
+
       mensaje:
         "Bot detenido."
+
     };
 
   }
@@ -1177,42 +3154,61 @@ class BotEngine {
 
   activarEjecucionDemo() {
 
-    return derivTrade.activar();
+    return derivTrade
+      .activar();
 
   }
 
 
   desactivarEjecucionDemo() {
 
-    return derivTrade.desactivar();
+    return derivTrade
+      .desactivar();
 
   }
 
 
   puedeProcesar() {
 
-    if (!this.activo) {
+    if (
+      !this.activo
+    ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
+
         motivo:
           "El bot está apagado."
+
       };
 
     }
 
-    if (this.pausado) {
+
+    if (
+      this.pausado
+    ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
+
         motivo:
           "El bot está pausado."
+
       };
 
     }
 
+
     return {
-      ok: true
+
+      ok:
+        true
+
     };
 
   }
@@ -1222,23 +3218,33 @@ class BotEngine {
      OPERACIÓN / FASE
      ======================================== */
 
-  obtenerOperacionId(senal) {
+  obtenerOperacionId(
+    senal
+  ) {
 
     return String(
-      senal?.operacionId ??
-      senal?.metadata
+      senal
+        ?.operacionId ??
+      senal
+        ?.metadata
         ?.operacionId ??
       ""
-    ).trim();
+    )
+      .trim();
 
   }
 
 
-  obtenerFase(senal) {
+  obtenerFase(
+    senal
+  ) {
 
     return String(
-      senal?.fase ??
-      senal?.metadata?.fase ??
+      senal
+        ?.fase ??
+      senal
+        ?.metadata
+        ?.fase ??
       "LEGACY"
     )
       .trim()
@@ -1268,25 +3274,31 @@ class BotEngine {
       if (
         ahora -
           Number(
-            preparacion?.preparedAt ??
+            preparacion
+              ?.preparedAt ??
             0
           ) >
         PREPARATION_TTL_MS
       ) {
 
-        this.preparaciones.delete(
-          operacionId
-        );
+        this.preparaciones
+          .delete(
+            operacionId
+          );
+
 
         this.emitirEvento(
           "bot:preparation-expired",
           {
+
             operacionId,
+
             mercado:
               preparacion
                 ?.senalPreparacion
                 ?.mercado ??
               null
+
           }
         );
 
@@ -1297,11 +3309,6 @@ class BotEngine {
   }
 
 
-  /* ========================================
-     FIX13.7
-     LIMPIAR MANUAL ANTIGUA
-     ======================================== */
-
   limpiarManualPendienteAnterior(
     nuevaOperacionId
   ) {
@@ -1309,7 +3316,9 @@ class BotEngine {
     if (
       !this.esModoManual()
     ) {
+
       return;
+
     }
 
 
@@ -1325,25 +3334,35 @@ class BotEngine {
         operacionId ===
         nuevaOperacionId
       ) {
+
         continue;
+
       }
 
 
       if (
-        item?.modoPreparacion ===
+        item
+          ?.modoPreparacion ===
           MODOS_EJECUCION.MANUAL &&
-        item?.ejecutando !== true
+        item
+          ?.ejecutando !==
+          true
       ) {
 
-        this.preparaciones.delete(
-          operacionId
-        );
+        this.preparaciones
+          .delete(
+            operacionId
+          );
+
 
         this.emitirEvento(
           "bot:manual-replaced",
           {
+
             operacionId,
+
             nuevaOperacionId
+
           }
         );
 
@@ -1362,83 +3381,114 @@ class BotEngine {
 
     const candidatas =
       [
-        ...this.preparaciones.values()
+        ...this
+          .preparaciones
+          .values()
       ]
         .filter(
-          (item) =>
-            item?.manualReady ===
-            true &&
-            item?.ejecutando !==
-            true
+          (
+            item
+          ) =>
+            item
+              ?.manualReady ===
+              true &&
+            item
+              ?.ejecutando !==
+              true
         )
         .sort(
-          (a, b) =>
+          (
+            a,
+            b
+          ) =>
             Number(
-              b?.manualReadyAt ??
-              b?.preparedAt ??
+              b
+                ?.manualReadyAt ??
+              b
+                ?.preparedAt ??
               0
             ) -
             Number(
-              a?.manualReadyAt ??
-              a?.preparedAt ??
+              a
+                ?.manualReadyAt ??
+              a
+                ?.preparedAt ??
               0
             )
         );
 
 
-    if (!candidatas.length) {
+    if (
+      !candidatas.length
+    ) {
+
       return null;
+
     }
 
 
     const item =
-      candidatas[0];
+      candidatas[
+        0
+      ];
 
 
     return {
+
       operacionId:
         item.operacionId,
 
       mercado:
-        item.senalEjecucion
+        item
+          .senalEjecucion
           ?.mercado ??
-        item.senalPreparacion
+        item
+          .senalPreparacion
           ?.mercado ??
         null,
 
       estrategia:
-        item.senalEjecucion
+        item
+          .senalEjecucion
           ?.estrategia ??
-        item.senalPreparacion
+        item
+          .senalPreparacion
           ?.estrategia ??
         null,
 
       direccion:
-        item.senalEjecucion
+        item
+          .senalEjecucion
           ?.direccion ??
-        item.senalPreparacion
+        item
+          .senalPreparacion
           ?.direccion ??
         null,
 
       confianza:
-        item.senalEjecucion
+        item
+          .senalEjecucion
           ?.confianza ??
-        item.senalPreparacion
+        item
+          .senalPreparacion
           ?.confianza ??
         null,
 
       targetExecutionAt:
-        item.telemetria
+        item
+          .telemetria
           ?.targetExecutionAt ??
         null,
 
       programmedExecutionAt:
-        item.telemetria
+        item
+          .telemetria
           ?.programmedExecutionAt ??
         null,
 
       calibracionMs:
-        item.telemetria
+        item
+          .telemetria
           ?.calibracionMs ??
         null,
 
@@ -1454,10 +3504,17 @@ class BotEngine {
       targetDisponible:
         Number.isFinite(
           Number(
-            item.telemetria
+            item
+              .telemetria
               ?.targetExecutionAt
           )
-        )
+        ),
+
+      patron:
+        item
+          .analisisPatron ??
+        null
+
     };
 
   }
@@ -1467,110 +3524,246 @@ class BotEngine {
      PERFIL
      ======================================== */
 
-  clasificarConfianza(confianza) {
+  clasificarConfianza(
+    confianza
+  ) {
 
     const valor =
-      Number(confianza);
+      Number(
+        confianza
+      );
 
-    if (!Number.isFinite(valor)) {
+
+    if (
+      !Number.isFinite(
+        valor
+      )
+    ) {
+
       return "SIN_DATO";
+
     }
 
-    if (valor < 75) return "<75";
-    if (valor < 80) return "75-79";
-    if (valor < 85) return "80-84";
-    if (valor < 90) return "85-89";
+
+    if (
+      valor <
+      75
+    ) {
+
+      return "<75";
+
+    }
+
+
+    if (
+      valor <
+      80
+    ) {
+
+      return "75-79";
+
+    }
+
+
+    if (
+      valor <
+      85
+    ) {
+
+      return "80-84";
+
+    }
+
+
+    if (
+      valor <
+      90
+    ) {
+
+      return "85-89";
+
+    }
+
 
     return "90-100";
 
   }
 
 
-  clasificarRsi(rsi) {
+  clasificarRsi(
+    rsi
+  ) {
 
     const valor =
-      Number(rsi);
+      Number(
+        rsi
+      );
 
-    if (!Number.isFinite(valor)) {
+
+    if (
+      !Number.isFinite(
+        valor
+      )
+    ) {
+
       return "SIN_DATO";
+
     }
 
-    if (valor <= 30) return "0-30";
-    if (valor <= 44) return "31-44";
-    if (valor <= 55) return "45-55";
-    if (valor <= 69) return "56-69";
+
+    if (
+      valor <=
+      30
+    ) {
+
+      return "0-30";
+
+    }
+
+
+    if (
+      valor <=
+      44
+    ) {
+
+      return "31-44";
+
+    }
+
+
+    if (
+      valor <=
+      55
+    ) {
+
+      return "45-55";
+
+    }
+
+
+    if (
+      valor <=
+      69
+    ) {
+
+      return "56-69";
+
+    }
+
 
     return "70-100";
 
   }
 
 
-  clasificarDigito(digito) {
+  clasificarDigito(
+    digito
+  ) {
 
     const valor =
-      Number(digito);
+      Number(
+        digito
+      );
+
 
     if (
-      !Number.isInteger(valor) ||
-      valor < 0 ||
-      valor > 9
+      !Number.isInteger(
+        valor
+      ) ||
+      valor <
+        0 ||
+      valor >
+        9
     ) {
+
       return "SIN_DATO";
+
     }
 
-    if (valor <= 2) return "0-2";
-    if (valor <= 5) return "3-5";
+
+    if (
+      valor <=
+      2
+    ) {
+
+      return "0-2";
+
+    }
+
+
+    if (
+      valor <=
+      5
+    ) {
+
+      return "3-5";
+
+    }
+
 
     return "6-9";
 
   }
 
 
-  crearPerfilSenal(senal) {
+  crearPerfilSenal(
+    senal
+  ) {
 
     const confianza =
       Number(
         senal?.confianza
       );
 
+
     const rsi =
       Number(
         senal?.rsi
       );
+
 
     const ultimoDigito =
       Number(
         senal?.ultimoDigito
       );
 
+
     const tendencia =
       this.normalizarTexto(
         senal?.tendencia
       );
+
 
     const momentum =
       this.normalizarTexto(
         senal?.momentum
       );
 
+
     const direccion =
       this.normalizarTexto(
         senal?.direccion
       );
 
+
     const ultimoDigitoValido =
       Number.isInteger(
         ultimoDigito
       ) &&
-      ultimoDigito >= 0 &&
-      ultimoDigito <= 9;
+      ultimoDigito >=
+        0 &&
+      ultimoDigito <=
+        9;
 
 
     return {
+
       direccion,
 
       confianza:
-        Number.isFinite(confianza)
+        Number.isFinite(
+          confianza
+        )
           ? confianza
           : null,
 
@@ -1582,19 +3775,24 @@ class BotEngine {
       tendencia,
 
       rsi:
-        Number.isFinite(rsi)
+        Number.isFinite(
+          rsi
+        )
           ? rsi
           : null,
 
       zonaRsi:
-        this.clasificarRsi(rsi),
+        this.clasificarRsi(
+          rsi
+        ),
 
       momentum,
 
       tendenciaMomentum:
         tendencia &&
         momentum
-          ? tendencia === momentum
+          ? tendencia ===
+              momentum
             ? "ALINEADOS"
             : "NO_ALINEADOS"
           : "SIN_DATO",
@@ -1616,12 +3814,16 @@ class BotEngine {
 
       ultimoDigitoPar:
         ultimoDigitoValido
-          ? ultimoDigito % 2 === 0
+          ? ultimoDigito %
+              2 ===
+            0
           : null,
 
       paridadUltimoDigito:
         ultimoDigitoValido
-          ? ultimoDigito % 2 === 0
+          ? ultimoDigito %
+                2 ===
+              0
             ? "PAR"
             : "IMPAR"
           : "SIN_DATO",
@@ -1633,20 +3835,35 @@ class BotEngine {
       origen:
         senal?.origen ??
         null
+
     };
 
   }
 
 
-  extraerScoreBruto(senal) {
+  extraerScoreBruto(
+    senal
+  ) {
 
     const candidatos = [
+
       senal?.rawScore,
+
       senal?.scoreBruto,
-      senal?.metadata?.rawScore,
-      senal?.metadata?.scoreBruto,
-      senal?.metadata?.engine1
+
+      senal
+        ?.metadata
+        ?.rawScore,
+
+      senal
+        ?.metadata
+        ?.scoreBruto,
+
+      senal
+        ?.metadata
+        ?.engine1
         ?.rawScore
+
     ];
 
 
@@ -1656,17 +3873,25 @@ class BotEngine {
     ) {
 
       const numero =
-        Number(candidato);
+        Number(
+          candidato
+        );
+
 
       if (
-        Number.isFinite(numero)
+        Number.isFinite(
+          numero
+        )
       ) {
+
         return this.redondear(
           numero
         );
+
       }
 
     }
+
 
     return null;
 
@@ -1677,40 +3902,57 @@ class BotEngine {
      TELEMETRÍA
      ======================================== */
 
-  crearTelemetria(senal) {
+  crearTelemetria(
+    senal
+  ) {
 
     const ahoraPerf =
       this.ahora();
 
+
     const ahoraEpoch =
       Date.now();
+
 
     const mercado =
       this.normalizarMercado(
         senal?.mercado
       );
 
+
     const perfil =
       this.crearPerfilSenal(
         senal
       );
+
 
     const programacion =
       this.calcularProgramacion(
         senal
       );
 
+
     const bridgeReceivedEpoch =
       Number(
-        senal?.bridgeReceivedEpoch ??
-        senal?.timestamp
+        senal
+          ?.bridgeReceivedEpoch ??
+        senal
+          ?.timestamp
+      );
+
+
+    const firmaPatron =
+      this.crearFirmaPatron(
+        senal
       );
 
 
     return {
+
       id:
         `${Date.now()}-${Math.floor(
-          Math.random() * 100000
+          Math.random() *
+          100000
         )}`,
 
       version:
@@ -1726,12 +3968,14 @@ class BotEngine {
         this.modoEjecucion,
 
       signalId:
-        senal?.id ?? null,
+        senal?.id ??
+        null,
 
       operacionId:
         this.obtenerOperacionId(
           senal
-        ) || null,
+        ) ||
+        null,
 
       faseInicial:
         this.obtenerFase(
@@ -1764,6 +4008,42 @@ class BotEngine {
         this.extraerScoreBruto(
           senal
         ),
+
+      valorPatron:
+        firmaPatron
+          .valorPatron,
+
+      patronKey:
+        firmaPatron.key,
+
+      patronFirma:
+        {
+          ...firmaPatron
+        },
+
+      patronClasificacion:
+        null,
+
+      patronFuerza:
+        null,
+
+      patronDecision:
+        null,
+
+      patronMuestrasPrevias:
+        0,
+
+      patronGanadasPrevias:
+        0,
+
+      patronPerdidasPrevias:
+        0,
+
+      patronAccuracyPrevio:
+        null,
+
+      patronBloqueado:
+        false,
 
       zonaConfianza:
         perfil.zonaConfianza,
@@ -1798,9 +4078,10 @@ class BotEngine {
       paridadUltimoDigito:
         perfil.paridadUltimoDigito,
 
-      perfilSenal: {
-        ...perfil
-      },
+      perfilSenal:
+        {
+          ...perfil
+        },
 
       puntoEntrada:
         senal?.segundosEntrada ??
@@ -1814,10 +4095,12 @@ class BotEngine {
       retrasoReferenciaSeg:
         this.obtenerRetrasoReferencia(
           mercado
-        ) !== null
+        ) !==
+          null
           ? this.obtenerRetrasoReferencia(
               mercado
-            ) / 1000
+            ) /
+            1000
           : null,
 
 
@@ -1839,7 +4122,7 @@ class BotEngine {
         null,
 
 
-      /* FIX13.7 BOTÓN LISTO */
+      /* BOTÓN LISTO */
 
       manualReadyEpoch:
         null,
@@ -1857,25 +4140,32 @@ class BotEngine {
         null,
 
       targetExecutionAt:
-        programacion.targetExecutionAt,
+        programacion
+          .targetExecutionAt,
 
       programmedExecutionAt:
-        programacion.programmedAt,
+        programacion
+          .programmedAt,
 
       calibracionMs:
-        programacion.ajusteMs,
+        programacion
+          .ajusteMs,
 
       calibracionSeg:
-        programacion.ajusteSeg,
+        programacion
+          .ajusteSeg,
 
       programacionDisponible:
-        programacion.disponible,
+        programacion
+          .disponible,
 
       puedeAnticipar:
-        programacion.puedeAnticipar,
+        programacion
+          .puedeAnticipar,
 
       programacionMotivo:
-        programacion.motivo,
+        programacion
+          .motivo,
 
 
       /* MANUAL */
@@ -1911,10 +4201,12 @@ class BotEngine {
         null,
 
       esperaProgramadaInicialMs:
-        programacion.esperaMs,
+        programacion
+          .esperaMs,
 
       esperaProgramadaMs:
-        programacion.esperaMs,
+        programacion
+          .esperaMs,
 
 
       /* BUY */
@@ -2066,12 +4358,15 @@ class BotEngine {
 
       createdAt:
         Date.now()
+
     };
 
   }
 
 
-  calcularTelemetria(t) {
+  calcularTelemetria(
+    t
+  ) {
 
     t.signalToProposalRequestMs =
       this.diferencia(
@@ -2079,17 +4374,20 @@ class BotEngine {
         t.proposalRequestedPerf
       );
 
+
     t.signalToProposalReceivedMs =
       this.diferencia(
         t.signalReceivedPerf,
         t.proposalReceivedPerf
       );
 
+
     t.processToProposalRequestMs =
       this.diferencia(
         t.processStartedPerf,
         t.proposalRequestedPerf
       );
+
 
     t.proposalLatencyMs =
       this.diferencia(
@@ -2292,11 +4590,13 @@ class BotEngine {
         t.buyRequestedPerf
       );
 
+
     t.processToBuyMs =
       this.diferencia(
         t.processStartedPerf,
         t.buyRequestedPerf
       );
+
 
     t.signalToBuyMs =
       this.diferencia(
@@ -2304,17 +4604,20 @@ class BotEngine {
         t.buyRequestedPerf
       );
 
+
     t.buyLatencyMs =
       this.diferencia(
         t.buyRequestedPerf,
         t.buyConfirmedPerf
       );
 
+
     t.signalToBuyConfirmMs =
       this.diferencia(
         t.signalReceivedPerf,
         t.buyConfirmedPerf
       );
+
 
     t.totalUntilResultMs =
       this.diferencia(
@@ -2483,13 +4786,17 @@ class BotEngine {
     }
 
 
-    this.clasificarTiming(t);
+    this.clasificarTiming(
+      t
+    );
 
 
     t.usableForSignalProfile =
       (
-        t.resultado === "GANADA" ||
-        t.resultado === "PERDIDA"
+        t.resultado ===
+          "GANADA" ||
+        t.resultado ===
+          "PERDIDA"
       );
 
 
@@ -2498,7 +4805,9 @@ class BotEngine {
   }
 
 
-  clasificarTiming(t) {
+  clasificarTiming(
+    t
+  ) {
 
     const anomalias =
       [];
@@ -2507,22 +4816,29 @@ class BotEngine {
     if (
       !TIMING_COMPATIBLE_VERSIONS
         .includes(
-          String(t.version)
+          String(
+            t.version
+          )
         )
     ) {
 
       t.timingValido =
         false;
 
+
       t.timingClasificacion =
         "LEGACY";
 
-      t.timingAnomalias = [
-        "Registro legacy."
-      ];
+
+      t.timingAnomalias =
+        [
+          "Registro legacy."
+        ];
+
 
       t.usableForTimingComparator =
         false;
+
 
       return t;
 
@@ -2551,7 +4867,8 @@ class BotEngine {
         t.bridgeToProcessMs
       ) &&
       (
-        t.bridgeToProcessMs < 0 ||
+        t.bridgeToProcessMs <
+          0 ||
         t.bridgeToProcessMs >
           TIMING_LIMITS
             .bridgeToProcessMaxMs
@@ -2559,7 +4876,9 @@ class BotEngine {
     ) {
 
       anomalias.push(
-        `Bridge→Proceso alto: ${t.bridgeToProcessMs} ms`
+        `Bridge→Proceso alto: ${
+          t.bridgeToProcessMs
+        } ms`
       );
 
     }
@@ -2570,7 +4889,8 @@ class BotEngine {
         t.proposalLatencyMs
       ) &&
       (
-        t.proposalLatencyMs < 0 ||
+        t.proposalLatencyMs <
+          0 ||
         t.proposalLatencyMs >
           TIMING_LIMITS
             .proposalMaxMs
@@ -2578,7 +4898,9 @@ class BotEngine {
     ) {
 
       anomalias.push(
-        `Cotización anómala: ${t.proposalLatencyMs} ms`
+        `Cotización anómala: ${
+          t.proposalLatencyMs
+        } ms`
       );
 
     }
@@ -2589,7 +4911,8 @@ class BotEngine {
         t.buyLatencyMs
       ) &&
       (
-        t.buyLatencyMs < 0 ||
+        t.buyLatencyMs <
+          0 ||
         t.buyLatencyMs >
           TIMING_LIMITS
             .buyConfirmationMaxMs
@@ -2597,7 +4920,9 @@ class BotEngine {
     ) {
 
       anomalias.push(
-        `BUY→confirmación anómalo: ${t.buyLatencyMs} ms`
+        `BUY→confirmación anómalo: ${
+          t.buyLatencyMs
+        } ms`
       );
 
     }
@@ -2617,7 +4942,9 @@ class BotEngine {
     ) {
 
       anomalias.push(
-        `Desviación target alta: ${t.buyTargetDeviationMs} ms`
+        `Desviación target alta: ${
+          t.buyTargetDeviationMs
+        } ms`
       );
 
     }
@@ -2637,7 +4964,9 @@ class BotEngine {
     ) {
 
       anomalias.push(
-        `Espera excedida: ${t.calibrationWaitOvershootMs} ms`
+        `Espera excedida: ${
+          t.calibrationWaitOvershootMs
+        } ms`
       );
 
     }
@@ -2672,8 +5001,10 @@ class BotEngine {
     t.timingAnomalias =
       anomalias;
 
+
     t.timingValido =
-      anomalias.length === 0;
+      anomalias.length ===
+      0;
 
 
     if (
@@ -2686,8 +5017,10 @@ class BotEngine {
           ? "MANUAL_VALIDO"
           : "MANUAL_ANOMALO";
 
+
       t.usableForTimingComparator =
         false;
+
 
       return t;
 
@@ -2703,8 +5036,10 @@ class BotEngine {
     t.usableForTimingComparator =
       t.timingValido &&
       (
-        t.resultado === "GANADA" ||
-        t.resultado === "PERDIDA"
+        t.resultado ===
+          "GANADA" ||
+        t.resultado ===
+          "PERDIDA"
       );
 
 
@@ -2713,37 +5048,44 @@ class BotEngine {
   }
 
 
-  guardarTelemetria(telemetria) {
+  guardarTelemetria(
+    telemetria
+  ) {
 
     this.calcularTelemetria(
       telemetria
     );
 
 
-    this.ultimaTelemetria = {
-      ...telemetria
-    };
-
-
-    this.historialTelemetria.unshift(
+    this.ultimaTelemetria =
       {
         ...telemetria
-      }
-    );
+      };
+
+
+    this.historialTelemetria
+      .unshift(
+        {
+          ...telemetria
+        }
+      );
 
 
     if (
-      this.historialTelemetria.length >
+      this.historialTelemetria
+        .length >
       2000
     ) {
 
-      this.historialTelemetria.length =
+      this.historialTelemetria
+        .length =
         2000;
 
     }
 
 
     this.persistirHistorialTelemetria();
+
 
     this.invalidarCacheAnalitica();
 
@@ -2766,12 +5108,16 @@ class BotEngine {
         mercado
       );
 
+
     return this.historialTelemetria
       .filter(
-        (item) =>
+        (
+          item
+        ) =>
           this.normalizarMercado(
             item?.mercado
-          ) === buscado
+          ) ===
+          buscado
       );
 
   }
@@ -2782,17 +5128,25 @@ class BotEngine {
   ) {
 
     const buscada =
-      String(familia || "")
+      String(
+        familia ||
+        ""
+      )
         .trim()
         .toUpperCase();
 
+
     return this.historialTelemetria
       .filter(
-        (item) =>
+        (
+          item
+        ) =>
           String(
-            item?.familiaMercado ||
+            item
+              ?.familiaMercado ||
             ""
-          ).toUpperCase() ===
+          )
+            .toUpperCase() ===
           buscada
       );
 
@@ -2805,48 +5159,66 @@ class BotEngine {
   ) {
 
     const ajuste =
-      Number(ajusteMs);
+      Number(
+        ajusteMs
+      );
+
 
     return this
       .obtenerTelemetriaPorMercado(
         mercado
       )
       .filter(
-        (item) =>
+        (
+          item
+        ) =>
           Number(
-            item?.calibracionMs ??
+            item
+              ?.calibracionMs ??
             0
-          ) === ajuste
+          ) ===
+          ajuste
       );
 
   }
 
 
-  filtrarTimingValido(datos) {
+  filtrarTimingValido(
+    datos
+  ) {
 
     return datos.filter(
-      (item) =>
+      (
+        item
+      ) =>
         TIMING_COMPATIBLE_VERSIONS
           .includes(
             String(
               item?.version
             )
           ) &&
-        item?.timingValido === true &&
+        item
+          ?.timingValido ===
+          true &&
         item
           ?.usableForTimingComparator ===
           true &&
-        item?.modoEjecucion !==
+        item
+          ?.modoEjecucion !==
           MODOS_EJECUCION.MANUAL
     );
 
   }
 
 
-  filtrarPerfilFix13(datos) {
+  filtrarPerfilFix13(
+    datos
+  ) {
 
     return datos.filter(
-      (item) =>
+      (
+        item
+      ) =>
         SIGNAL_PROFILE_VERSIONS
           .includes(
             String(
@@ -2854,9 +5226,11 @@ class BotEngine {
             )
           ) &&
         (
-          item?.resultado ===
+          item
+            ?.resultado ===
             "GANADA" ||
-          item?.resultado ===
+          item
+            ?.resultado ===
             "PERDIDA"
         )
     );
@@ -2868,17 +5242,26 @@ class BotEngine {
      MÉTRICAS
      ======================================== */
 
-  construirMetricasGrupo(datos) {
+  construirMetricasGrupo(
+    datos
+  ) {
 
     const extraer =
-      (campo) =>
+      (
+        campo
+      ) =>
         datos.map(
-          (item) =>
-            item?.[campo]
+          (
+            item
+          ) =>
+            item?.[
+              campo
+            ]
         );
 
 
     return {
+
       cantidad:
         datos.length,
 
@@ -2979,45 +5362,59 @@ class BotEngine {
             "buyTargetDeviationMs"
           )
         )
+
     };
 
   }
 
 
-  construirComparadorTiming(datos) {
+  construirComparadorTiming(
+    datos
+  ) {
 
     const finalizadas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
             "GANADA" ||
           item.resultado ===
             "PERDIDA"
       );
 
+
     const timingValido =
       this.filtrarTimingValido(
         finalizadas
       );
 
+
     const ganadas =
       timingValido.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "GANADA"
       );
 
+
     const perdidas =
       timingValido.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "PERDIDA"
       );
+
 
     const metricasGanadas =
       this.construirMetricasGrupo(
         ganadas
       );
+
 
     const metricasPerdidas =
       this.construirMetricasGrupo(
@@ -3028,8 +5425,10 @@ class BotEngine {
     let diferenciaPromedioMs =
       null;
 
+
     let diferenciaMedianaMs =
       null;
+
 
     let diferenciaTargetMedianaMs =
       null;
@@ -3100,8 +5499,10 @@ class BotEngine {
 
 
     if (
-      ganadas.length >= 3 &&
-      perdidas.length >= 3 &&
+      ganadas.length >=
+        3 &&
+      perdidas.length >=
+        3 &&
       diferenciaTargetMedianaMs !==
         null
     ) {
@@ -3110,27 +5511,34 @@ class BotEngine {
         diferenciaTargetMedianaMs >
         40
       ) {
+
         lectura =
           "GANADAS MÁS TEMPRANO";
+
       }
 
       else if (
         diferenciaTargetMedianaMs <
         -40
       ) {
+
         lectura =
           "GANADAS MÁS TARDE";
+
       }
 
       else {
+
         lectura =
           "TARGET MUY SIMILAR";
+
       }
 
     }
 
 
     return {
+
       totalHistorico:
         finalizadas.length,
 
@@ -3154,6 +5562,7 @@ class BotEngine {
       diferenciaTargetMedianaMs,
 
       lectura
+
     };
 
   }
@@ -3166,59 +5575,86 @@ class BotEngine {
 
     const ganadas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "GANADA"
       );
 
+
     const perdidas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "PERDIDA"
       );
 
 
     return {
+
       promedioTotal:
         this.promedio(
           datos.map(
-            (item) =>
-              item?.[campo]
+            (
+              item
+            ) =>
+              item?.[
+                campo
+              ]
           )
         ),
 
       promedioGanadas:
         this.promedio(
           ganadas.map(
-            (item) =>
-              item?.[campo]
+            (
+              item
+            ) =>
+              item?.[
+                campo
+              ]
           )
         ),
 
       promedioPerdidas:
         this.promedio(
           perdidas.map(
-            (item) =>
-              item?.[campo]
+            (
+              item
+            ) =>
+              item?.[
+                campo
+              ]
           )
         ),
 
       medianaGanadas:
         this.mediana(
           ganadas.map(
-            (item) =>
-              item?.[campo]
+            (
+              item
+            ) =>
+              item?.[
+                campo
+              ]
           )
         ),
 
       medianaPerdidas:
         this.mediana(
           perdidas.map(
-            (item) =>
-              item?.[campo]
+            (
+              item
+            ) =>
+              item?.[
+                campo
+              ]
           )
         )
+
     };
 
   }
@@ -3229,7 +5665,8 @@ class BotEngine {
     campo
   ) {
 
-    const resultado = {};
+    const resultado =
+      {};
 
 
     for (
@@ -3239,26 +5676,44 @@ class BotEngine {
 
       const valor =
         this.normalizarTexto(
-          item?.[campo]
+          item?.[
+            campo
+          ]
         ) ??
         "SIN_DATO";
 
 
       if (
-        !resultado[valor]
+        !resultado[
+          valor
+        ]
       ) {
 
-        resultado[valor] = {
-          total: 0,
-          ganadas: 0,
-          perdidas: 0,
-          accuracy: null
+        resultado[
+          valor
+        ] = {
+
+          total:
+            0,
+
+          ganadas:
+            0,
+
+          perdidas:
+            0,
+
+          accuracy:
+            null
+
         };
 
       }
 
 
-      resultado[valor].total += 1;
+      resultado[
+        valor
+      ].total +=
+        1;
 
 
       if (
@@ -3266,8 +5721,10 @@ class BotEngine {
         "GANADA"
       ) {
 
-        resultado[valor]
-          .ganadas += 1;
+        resultado[
+          valor
+        ].ganadas +=
+          1;
 
       }
 
@@ -3277,8 +5734,10 @@ class BotEngine {
         "PERDIDA"
       ) {
 
-        resultado[valor]
-          .perdidas += 1;
+        resultado[
+          valor
+        ].perdidas +=
+          1;
 
       }
 
@@ -3287,19 +5746,26 @@ class BotEngine {
 
     for (
       const clave
-      of Object.keys(resultado)
+      of Object.keys(
+        resultado
+      )
     ) {
 
       const fila =
-        resultado[clave];
+        resultado[
+          clave
+        ];
+
 
       fila.accuracy =
-        fila.total > 0
+        fila.total >
+          0
           ? this.redondear(
               (
                 fila.ganadas /
                 fila.total
-              ) * 100
+              ) *
+                100
             )
           : null;
 
@@ -3316,7 +5782,8 @@ class BotEngine {
     accuracyGeneral
   ) {
 
-    const candidatos = [];
+    const candidatos =
+      [];
 
 
     const agregar =
@@ -3331,17 +5798,23 @@ class BotEngine {
             fila
           ]
           of Object.entries(
-            filas || {}
+            filas ||
+            {}
           )
         ) {
 
           if (
-            valor === "SIN_DATO" ||
-            Number(fila.total) <
+            valor ===
+              "SIN_DATO" ||
+            Number(
+              fila.total
+            ) <
               PROFILE_CONTROL
                 .minimumPatternSamples
           ) {
+
             continue;
+
           }
 
 
@@ -3361,7 +5834,9 @@ class BotEngine {
               )
             )
           ) {
+
             continue;
+
           }
 
 
@@ -3380,8 +5855,8 @@ class BotEngine {
 
           if (
             diferencia >=
-            PROFILE_CONTROL
-              .meaningfulGapPercent
+              PROFILE_CONTROL
+                .meaningfulGapPercent
           ) {
 
             clasificacion =
@@ -3391,8 +5866,8 @@ class BotEngine {
 
           else if (
             diferencia <=
-            -PROFILE_CONTROL
-              .meaningfulGapPercent
+              -PROFILE_CONTROL
+                .meaningfulGapPercent
           ) {
 
             clasificacion =
@@ -3405,12 +5880,16 @@ class BotEngine {
             clasificacion ===
             "NEUTRO"
           ) {
+
             continue;
+
           }
 
 
           candidatos.push({
+
             grupo,
+
             valor,
 
             muestras:
@@ -3442,6 +5921,7 @@ class BotEngine {
                   .strongGapPercent
                 ? "MAS_FUERTE"
                 : "PRELIMINAR"
+
           });
 
         }
@@ -3454,30 +5934,36 @@ class BotEngine {
       distribuciones.direccion
     );
 
+
     agregar(
       "CONFIANZA",
       distribuciones.zonaConfianza
     );
+
 
     agregar(
       "RSI",
       distribuciones.zonaRsi
     );
 
+
     agregar(
       "TENDENCIA",
       distribuciones.tendencia
     );
+
 
     agregar(
       "MOMENTUM",
       distribuciones.momentum
     );
 
+
     agregar(
       "VOLATILIDAD",
       distribuciones.volatilidad
     );
+
 
     agregar(
       "PARIDAD_DIGITO",
@@ -3487,7 +5973,10 @@ class BotEngine {
 
 
     candidatos.sort(
-      (a, b) =>
+      (
+        a,
+        b
+      ) =>
         Math.abs(
           b.diferenciaVsGeneral
         ) -
@@ -3499,7 +5988,8 @@ class BotEngine {
 
     return candidatos.slice(
       0,
-      PROFILE_CONTROL.maxHallazgos
+      PROFILE_CONTROL
+        .maxHallazgos
     );
 
   }
@@ -3514,6 +6004,7 @@ class BotEngine {
         mercado
       );
 
+
     const datos =
       this.filtrarPerfilFix13(
         this.obtenerTelemetriaPorMercado(
@@ -3521,42 +6012,55 @@ class BotEngine {
         )
       );
 
+
     const ganadas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "GANADA"
       );
 
+
     const perdidas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "PERDIDA"
       );
 
+
     const total =
       datos.length;
 
+
     const accuracy =
-      total > 0
+      total >
+        0
         ? this.redondear(
             (
               ganadas.length /
               total
-            ) * 100
+            ) *
+              100
           )
         : null;
 
 
     const normalizados =
       datos.map(
-        (item) => {
+        (
+          item
+        ) => {
 
           const tendencia =
             this.normalizarTexto(
               item?.tendencia
             );
+
 
           const momentum =
             this.normalizarTexto(
@@ -3565,6 +6069,7 @@ class BotEngine {
 
 
           return {
+
             ...item,
 
             zonaConfianza:
@@ -3602,11 +6107,14 @@ class BotEngine {
                 )
                   ? Number(
                       item.ultimoDigito
-                    ) % 2 === 0
+                    ) %
+                      2 ===
+                    0
                     ? "PAR"
                     : "IMPAR"
                   : "SIN_DATO"
               )
+
           };
 
         }
@@ -3614,6 +6122,7 @@ class BotEngine {
 
 
     const distribuciones = {
+
       direccion:
         this.contarCategorias(
           normalizados,
@@ -3655,6 +6164,7 @@ class BotEngine {
           normalizados,
           "paridadUltimoDigito"
         )
+
     };
 
 
@@ -3666,6 +6176,7 @@ class BotEngine {
 
 
     return {
+
       mercado:
         symbol,
 
@@ -3673,7 +6184,8 @@ class BotEngine {
         TELEMETRY_VERSION,
 
       filtroAutomaticoActivo:
-        false,
+        PATTERN_CONTROL
+          .blockRiskInAutomatic,
 
       muestras:
         total,
@@ -3687,11 +6199,14 @@ class BotEngine {
       accuracy,
 
       estadoAnalisis:
-        total >= 20
+        total >=
+          20
           ? "ANALISIS_ACTIVO"
-          : total >= 10
+          : total >=
+              10
             ? "ANALISIS_PRELIMINAR"
-            : total > 0
+            : total >
+                0
               ? "RECOPILANDO"
               : "SIN_MUESTRAS",
 
@@ -3719,79 +6234,119 @@ class BotEngine {
 
       favorables:
         hallazgos.filter(
-          (item) =>
+          (
+            item
+          ) =>
             item.clasificacion ===
             "FAVORABLE"
         ),
 
       riesgos:
         hallazgos.filter(
-          (item) =>
+          (
+            item
+          ) =>
             item.clasificacion ===
             "RIESGO"
         )
+
     };
 
   }
 
 
-  obtenerResumenMercado(mercado) {
+  obtenerResumenMercado(
+    mercado
+  ) {
 
     const symbol =
       this.normalizarMercado(
         mercado
       );
 
+
     const datos =
       this.obtenerTelemetriaPorMercado(
         symbol
       );
 
+
     const finalizadas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
             "GANADA" ||
           item.resultado ===
             "PERDIDA"
       );
 
+
     const timingValido =
       this.filtrarTimingValido(
         finalizadas
       );
 
+
     const ganadas =
       finalizadas.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "GANADA"
       ).length;
 
+
     const perdidas =
       finalizadas.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "PERDIDA"
       ).length;
 
+
     const pruebas =
       finalizadas.length;
+
 
     const perfil =
       this.obtenerResumenPerfilSenal(
         symbol
       );
 
+
     const manuales =
       finalizadas.filter(
-        (item) =>
-          item?.modoEjecucion ===
+        (
+          item
+        ) =>
+          item
+            ?.modoEjecucion ===
           MODOS_EJECUCION.MANUAL
       );
 
 
+    const patronesMercado =
+      Object.values(
+        this.memoriaPatrones
+      )
+        .filter(
+          (
+            item
+          ) =>
+            this.normalizarMercado(
+              item?.mercado
+            ) ===
+            symbol
+        );
+
+
     return {
+
       mercado:
         symbol,
 
@@ -3813,21 +6368,53 @@ class BotEngine {
       calibracionActualSeg:
         this.obtenerAjusteMercado(
           symbol
-        ) / 1000,
+        ) /
+        1000,
 
       pruebas,
+
       ganadas,
+
       perdidas,
 
       accuracy:
-        pruebas > 0
+        pruebas >
+          0
           ? this.redondear(
               (
                 ganadas /
                 pruebas
-              ) * 100
+              ) *
+                100
             )
           : null,
+
+      patrones:
+        patronesMercado.length,
+
+      patronesFavorables:
+        patronesMercado
+          .filter(
+            (
+              item
+            ) =>
+              item
+                ?.clasificacion ===
+              "FAVORABLE"
+          )
+          .length,
+
+      patronesRiesgo:
+        patronesMercado
+          .filter(
+            (
+              item
+            ) =>
+              item
+                ?.clasificacion ===
+              "RIESGO"
+          )
+          .length,
 
       muestrasManual:
         manuales.length,
@@ -3835,24 +6422,33 @@ class BotEngine {
       promedioManualClickTargetMs:
         this.promedio(
           manuales.map(
-            (item) =>
-              item.manualClickToTargetMs
+            (
+              item
+            ) =>
+              item
+                .manualClickToTargetMs
           )
         ),
 
       promedioManualClickBuyMs:
         this.promedio(
           manuales.map(
-            (item) =>
-              item.manualClickToBuyMs
+            (
+              item
+            ) =>
+              item
+                .manualClickToBuyMs
           )
         ),
 
       promedioPrepareManualReadyMs:
         this.promedio(
           manuales.map(
-            (item) =>
-              item.prepareToManualReadyMs
+            (
+              item
+            ) =>
+              item
+                .prepareToManualReadyMs
           )
         ),
 
@@ -3866,7 +6462,9 @@ class BotEngine {
       promedioSignalToBuyMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.signalToBuyMs
           )
         ),
@@ -3874,7 +6472,9 @@ class BotEngine {
       medianaSignalToBuyMs:
         this.mediana(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.signalToBuyMs
           )
         ),
@@ -3882,7 +6482,9 @@ class BotEngine {
       promedioProposalMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.proposalLatencyMs
           )
         ),
@@ -3890,7 +6492,9 @@ class BotEngine {
       promedioTargetToPullRequestMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.targetToPullRequestMs
           )
         ),
@@ -3898,7 +6502,9 @@ class BotEngine {
       medianaTargetToPullRequestMs:
         this.mediana(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.targetToPullRequestMs
           )
         ),
@@ -3906,7 +6512,9 @@ class BotEngine {
       promedioTargetToPullReceivedMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.targetToPullReceivedMs
           )
         ),
@@ -3914,7 +6522,9 @@ class BotEngine {
       medianaTargetToPullReceivedMs:
         this.mediana(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.targetToPullReceivedMs
           )
         ),
@@ -3922,7 +6532,9 @@ class BotEngine {
       promedioProgrammedToBuyMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.programmedToBuyMs
           )
         ),
@@ -3930,7 +6542,9 @@ class BotEngine {
       promedioBuyMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.buyLatencyMs
           )
         ),
@@ -3938,7 +6552,9 @@ class BotEngine {
       promedioDesviacionTargetMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.buyTargetDeviationMs
           )
         ),
@@ -3946,7 +6562,9 @@ class BotEngine {
       medianaDesviacionTargetMs:
         this.mediana(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.buyTargetDeviationMs
           )
         ),
@@ -3966,6 +6584,7 @@ class BotEngine {
 
       analisisPerfilFix13_2:
         perfil
+
     };
 
   }
@@ -3973,60 +6592,78 @@ class BotEngine {
 
   obtenerResumenMercados() {
 
-    const resultado = {};
+    const resultado =
+      {};
+
 
     for (
       const mercado
       of MERCADOS_CONTROLADOS
     ) {
 
-      resultado[mercado] =
+      resultado[
+        mercado
+      ] =
         this.obtenerResumenMercado(
           mercado
         );
 
     }
 
+
     return resultado;
 
   }
 
 
-  obtenerResumenFamilia(familia) {
+  obtenerResumenFamilia(
+    familia
+  ) {
 
     const datos =
       this.obtenerTelemetriaPorFamilia(
         familia
       );
 
+
     const finalizadas =
       datos.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
             "GANADA" ||
           item.resultado ===
             "PERDIDA"
       );
 
+
     const timingValido =
       this.filtrarTimingValido(
         finalizadas
       );
 
+
     const ganadas =
       finalizadas.filter(
-        (item) =>
+        (
+          item
+        ) =>
           item.resultado ===
           "GANADA"
       ).length;
+
 
     const pruebas =
       finalizadas.length;
 
 
     return {
+
       familia:
-        String(familia)
+        String(
+          familia
+        )
           .toUpperCase(),
 
       pruebas,
@@ -4034,15 +6671,18 @@ class BotEngine {
       ganadas,
 
       perdidas:
-        pruebas - ganadas,
+        pruebas -
+        ganadas,
 
       accuracy:
-        pruebas > 0
+        pruebas >
+          0
           ? this.redondear(
               (
                 ganadas /
                 pruebas
-              ) * 100
+              ) *
+                100
             )
           : null,
 
@@ -4052,7 +6692,9 @@ class BotEngine {
       promedioSignalToBuyMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.signalToBuyMs
           )
         ),
@@ -4060,7 +6702,9 @@ class BotEngine {
       medianaSignalToBuyMs:
         this.mediana(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.signalToBuyMs
           )
         ),
@@ -4068,10 +6712,13 @@ class BotEngine {
       promedioDesviacionTargetMs:
         this.promedio(
           timingValido.map(
-            (item) =>
+            (
+              item
+            ) =>
               item.buyTargetDeviationMs
           )
         )
+
     };
 
   }
@@ -4088,6 +6735,7 @@ class BotEngine {
 
 
     return {
+
       mercado:
         resumen.mercado,
 
@@ -4101,10 +6749,12 @@ class BotEngine {
         resumen.accuracy,
 
       calibracionActualMs:
-        resumen.calibracionActualMs,
+        resumen
+          .calibracionActualMs,
 
       muestrasTimingFix12:
-        resumen.muestrasTimingFix12,
+        resumen
+          .muestrasTimingFix12,
 
       muestrasTimingDescartadas:
         resumen
@@ -4147,6 +6797,7 @@ class BotEngine {
       analisisPerfilFix13_2:
         resumen
           .analisisPerfilFix13_2
+
     };
 
   }
@@ -4161,7 +6812,9 @@ class BotEngine {
         mercado
       );
 
-    const ajustes = {};
+
+    const ajustes =
+      {};
 
 
     for (
@@ -4176,32 +6829,43 @@ class BotEngine {
             ajuste
           )
           .filter(
-            (item) =>
+            (
+              item
+            ) =>
               (
                 item.resultado ===
                   "GANADA" ||
                 item.resultado ===
                   "PERDIDA"
               ) &&
-              item?.modoEjecucion !==
+              item
+                ?.modoEjecucion !==
                 MODOS_EJECUCION.MANUAL
           );
 
 
       const ganadas =
         datos.filter(
-          (item) =>
+          (
+            item
+          ) =>
             item.resultado ===
             "GANADA"
         ).length;
 
 
-      ajustes[String(ajuste)] = {
+      ajustes[
+        String(
+          ajuste
+        )
+      ] = {
+
         ajusteMs:
           ajuste,
 
         ajusteSeg:
-          ajuste / 1000,
+          ajuste /
+          1000,
 
         pruebas:
           datos.length,
@@ -4213,20 +6877,24 @@ class BotEngine {
           ganadas,
 
         accuracy:
-          datos.length > 0
+          datos.length >
+            0
             ? this.redondear(
                 (
                   ganadas /
                   datos.length
-                ) * 100
+                ) *
+                  100
               )
             : null
+
       };
 
     }
 
 
     return {
+
       mercado:
         symbol,
 
@@ -4236,6 +6904,7 @@ class BotEngine {
         ),
 
       ajustes
+
     };
 
   }
@@ -4251,19 +6920,27 @@ class BotEngine {
   ) {
 
     const contrato =
-      contractMapper.mapear(
-        senal
-      );
+      contractMapper
+        .mapear(
+          senal
+        );
 
 
-    if (!contrato.ok) {
+    if (
+      !contrato.ok
+    ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
+
         etapa:
           "CONTRACT_MAPPER",
+
         error:
           contrato.error
+
       };
 
     }
@@ -4278,21 +6955,27 @@ class BotEngine {
         .crearPropuesta(
           contrato,
           {
+
             monto:
-              this.configuracion
+              this
+                .configuracion
                 .monto,
 
             moneda:
-              this.configuracion
+              this
+                .configuracion
                 .moneda,
 
             duracion:
-              this.configuracion
+              this
+                .configuracion
                 .duracion,
 
             unidadDuracion:
-              this.configuracion
+              this
+                .configuracion
                 .unidadDuracion
+
           }
         );
 
@@ -4302,11 +6985,16 @@ class BotEngine {
     ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
+
         etapa:
           "PROPOSAL_SIMULATOR",
+
         error:
           propuestaSimulada.error
+
       };
 
     }
@@ -4320,6 +7008,7 @@ class BotEngine {
       .proposalRequestedEpoch =
       Date.now();
 
+
     telemetria
       .proposalRequestedPerf =
       this.ahora();
@@ -4329,12 +7018,16 @@ class BotEngine {
 
       executionRecorder
         .recordProposalRequested(
-          String(senal.id)
+          String(
+            senal.id
+          )
         );
 
     }
 
-    catch (error) {
+    catch (
+      error
+    ) {
 
       console.warn(
         "EXECUTION RECORDER proposal:",
@@ -4349,21 +7042,27 @@ class BotEngine {
         .solicitar(
           contrato,
           {
+
             monto:
-              this.configuracion
+              this
+                .configuracion
                 .monto,
 
             moneda:
-              this.configuracion
+              this
+                .configuracion
                 .moneda,
 
             duracion:
-              this.configuracion
+              this
+                .configuracion
                 .duracion,
 
             unidadDuracion:
-              this.configuracion
+              this
+                .configuracion
                 .unidadDuracion
+
           }
         );
 
@@ -4371,6 +7070,7 @@ class BotEngine {
     telemetria
       .proposalReceivedEpoch =
       Date.now();
+
 
     telemetria
       .proposalReceivedPerf =
@@ -4381,17 +7081,23 @@ class BotEngine {
 
       executionRecorder
         .recordProposalReceived(
-          String(senal.id),
+          String(
+            senal.id
+          ),
           {
+
             receivedAt:
               telemetria
                 .proposalReceivedEpoch
+
           }
         );
 
     }
 
-    catch (error) {
+    catch (
+      error
+    ) {
 
       console.warn(
         "EXECUTION RECORDER response:",
@@ -4406,14 +7112,22 @@ class BotEngine {
     ) {
 
       return {
-        ok: false,
+
+        ok:
+          false,
+
         etapa:
           "DERIV_PROPOSAL",
+
         error:
           propuestaDeriv.error,
+
         contrato,
+
         propuestaSimulada,
+
         propuestaDeriv
+
       };
 
     }
@@ -4422,19 +7136,27 @@ class BotEngine {
     this.ultimaPropuestaDeriv =
       propuestaDeriv;
 
+
     telemetria
       .proposalPreparedEpoch =
       Date.now();
+
 
     telemetria.resultado =
       "PROPUESTA_PREPARADA";
 
 
     return {
-      ok: true,
+
+      ok:
+        true,
+
       contrato,
+
       propuestaSimulada,
+
       propuestaDeriv
+
     };
 
   }
@@ -4444,7 +7166,9 @@ class BotEngine {
      PREPARAR
      ======================================== */
 
-  async procesarPreparacion(senal) {
+  async procesarPreparacion(
+    senal
+  ) {
 
     const operacionId =
       this.obtenerOperacionId(
@@ -4452,64 +7176,137 @@ class BotEngine {
       );
 
 
-    if (!operacionId) {
+    if (
+      !operacionId
+    ) {
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         etapa:
           "PREPARAR",
+
         motivo:
           "PREPARAR no incluye operacionId."
+
       };
 
     }
 
 
     if (
-      this.preparaciones.has(
-        operacionId
-      )
+      this.preparaciones
+        .has(
+          operacionId
+        )
     ) {
 
       const existente =
-        this.preparaciones.get(
-          operacionId
-        );
+        this.preparaciones
+          .get(
+            operacionId
+          );
+
 
       return {
-        aceptada: true,
+
+        aceptada:
+          true,
+
         fase:
           "PREPARAR",
+
         estado:
           "YA_PREPARADA",
+
         operacionId,
+
         contrato:
           existente.contrato,
+
         propuestaDeriv:
           existente.propuestaDeriv,
-        telemetria: {
-          ...existente.telemetria
-        }
+
+        analisisPatron:
+          existente
+            .analisisPatron ??
+          null,
+
+        telemetria:
+          {
+            ...existente.telemetria
+          }
+
       };
 
     }
 
-
-    /*
-      FIX13.7:
-      si estamos en manual, una nueva
-      preparación sustituye manuales viejas.
-    */
 
     this.limpiarManualPendienteAnterior(
       operacionId
     );
 
 
+    /*
+      FIX13.8:
+      Antes de comprar nada,
+      consultamos memoria histórica.
+    */
+
+    const analisisPatron =
+      this.analizarPatron(
+        senal
+      );
+
+
     const telemetria =
       this.crearTelemetria(
         senal
       );
+
+
+    telemetria
+      .patronClasificacion =
+      analisisPatron
+        .clasificacion;
+
+
+    telemetria
+      .patronFuerza =
+      analisisPatron
+        .fuerza;
+
+
+    telemetria
+      .patronDecision =
+      analisisPatron
+        .decision;
+
+
+    telemetria
+      .patronMuestrasPrevias =
+      analisisPatron
+        .muestras;
+
+
+    telemetria
+      .patronGanadasPrevias =
+      analisisPatron
+        .ganadas;
+
+
+    telemetria
+      .patronPerdidasPrevias =
+      analisisPatron
+        .perdidas;
+
+
+    telemetria
+      .patronAccuracyPrevio =
+      analisisPatron
+        .accuracy;
 
 
     const preparacion =
@@ -4519,7 +7316,9 @@ class BotEngine {
       );
 
 
-    if (!preparacion.ok) {
+    if (
+      !preparacion.ok
+    ) {
 
       telemetria.resultado =
         preparacion.etapa ===
@@ -4534,14 +7333,23 @@ class BotEngine {
 
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         fase:
           "PREPARAR",
+
         etapa:
           preparacion.etapa,
+
         motivo:
           preparacion.error,
+
+        analisisPatron,
+
         telemetria
+
       };
 
     }
@@ -4551,29 +7359,23 @@ class BotEngine {
       Date.now();
 
 
-    /*
-      FIX13.7 MANUAL:
-
-      Desde este instante ya tenemos
-      contrato + propuesta preparada.
-
-      El botón manual puede estar listo
-      aunque TARGET todavía no haya llegado.
-    */
-
     const manualReady =
       this.esModoManual();
 
 
-    if (manualReady) {
+    if (
+      manualReady
+    ) {
 
       telemetria
         .modoEjecucion =
         MODOS_EJECUCION.MANUAL;
 
+
       telemetria
         .manualReadyEpoch =
         ahora;
+
 
       telemetria
         .prepareToManualReadyMs =
@@ -4583,6 +7385,7 @@ class BotEngine {
             .prepareReceivedEpoch
         );
 
+
       telemetria.resultado =
         "MANUAL_LISTO_SIN_TARGET";
 
@@ -4590,11 +7393,13 @@ class BotEngine {
 
 
     const registro = {
+
       operacionId,
 
-      senalPreparacion: {
-        ...senal
-      },
+      senalPreparacion:
+        {
+          ...senal
+        },
 
       senalEjecucion:
         null,
@@ -4603,12 +7408,16 @@ class BotEngine {
         preparacion.contrato,
 
       propuesta:
-        preparacion.propuestaSimulada,
+        preparacion
+          .propuestaSimulada,
 
       propuestaDeriv:
-        preparacion.propuestaDeriv,
+        preparacion
+          .propuestaDeriv,
 
       telemetria,
+
+      analisisPatron,
 
       preparedAt:
         ahora,
@@ -4628,60 +7437,78 @@ class BotEngine {
 
       ejecutando:
         false
+
     };
 
 
-    this.preparaciones.set(
-      operacionId,
-      registro
-    );
+    this.preparaciones
+      .set(
+        operacionId,
+        registro
+      );
 
 
-    this.ultimaTelemetria = {
-      ...telemetria
-    };
+    this.ultimaTelemetria =
+      {
+        ...telemetria
+      };
 
 
     this.emitirEvento(
       "bot:prepared",
       {
-        ok: true,
+
+        ok:
+          true,
+
         operacionId,
+
         mercado:
           senal.mercado,
+
         direccion:
           senal.direccion,
+
         proposalId:
           preparacion
             .propuestaDeriv
             ?.id ??
           null,
+
         preparedAt:
           ahora,
+
         modoEjecucion:
-          this.modoEjecucion
+          this.modoEjecucion,
+
+        analisisPatron
+
       }
     );
 
 
-    /*
-      FIX13.7:
-      notificamos botón manual inmediatamente.
-    */
-
-    if (manualReady) {
+    if (
+      manualReady
+    ) {
 
       this.emitirEvento(
         "bot:manual-ready",
         {
-          ok: true,
+
+          ok:
+            true,
+
           operacionId,
+
           mercado:
             senal.mercado,
+
           estrategia:
             senal.estrategia,
+
           direccion:
             senal.direccion,
+
           confianza:
             senal.confianza,
 
@@ -4707,7 +7534,10 @@ class BotEngine {
             false,
 
           estado:
-            "LISTO_SIN_TARGET"
+            "LISTO_SIN_TARGET",
+
+          analisisPatron
+
         }
       );
 
@@ -4715,7 +7545,10 @@ class BotEngine {
 
 
     return {
-      aceptada: true,
+
+      aceptada:
+        true,
+
       fase:
         "PREPARAR",
 
@@ -4738,14 +7571,18 @@ class BotEngine {
       confianza:
         senal.confianza,
 
+      analisisPatron,
+
       contrato:
         preparacion.contrato,
 
       propuesta:
-        preparacion.propuestaSimulada,
+        preparacion
+          .propuestaSimulada,
 
       propuestaDeriv:
-        preparacion.propuestaDeriv,
+        preparacion
+          .propuestaDeriv,
 
       compraDemo:
         null,
@@ -4753,9 +7590,10 @@ class BotEngine {
       resultadoDemo:
         null,
 
-      telemetria: {
-        ...telemetria
-      },
+      telemetria:
+        {
+          ...telemetria
+        },
 
       preparacionLista:
         true,
@@ -4770,6 +7608,7 @@ class BotEngine {
         derivTrade
           .obtenerEstado()
           .ejecucionActiva
+
     };
 
   }
@@ -4787,6 +7626,7 @@ class BotEngine {
     const telemetria =
       preparada.telemetria;
 
+
     telemetria
       .targetReceivedEpoch =
       Date.now();
@@ -4798,39 +7638,56 @@ class BotEngine {
       );
 
 
-    telemetria.targetExecutionAt =
+    telemetria
+      .targetExecutionAt =
       programacion
         .targetExecutionAt;
 
-    telemetria.programmedExecutionAt =
+
+    telemetria
+      .programmedExecutionAt =
       programacion
         .programmedAt;
 
-    telemetria.calibracionMs =
+
+    telemetria
+      .calibracionMs =
       programacion
         .ajusteMs;
 
-    telemetria.calibracionSeg =
+
+    telemetria
+      .calibracionSeg =
       programacion
         .ajusteSeg;
 
-    telemetria.programacionDisponible =
+
+    telemetria
+      .programacionDisponible =
       programacion
         .disponible;
 
-    telemetria.puedeAnticipar =
+
+    telemetria
+      .puedeAnticipar =
       programacion
         .puedeAnticipar;
 
-    telemetria.programacionMotivo =
+
+    telemetria
+      .programacionMotivo =
       programacion
         .motivo;
 
-    telemetria.esperaProgramadaInicialMs =
+
+    telemetria
+      .esperaProgramadaInicialMs =
       programacion
         .esperaMs;
 
-    telemetria.esperaProgramadaMs =
+
+    telemetria
+      .esperaProgramadaMs =
       programacion
         .esperaMs;
 
@@ -4861,8 +7718,11 @@ class BotEngine {
 
 
     return {
+
       telemetria,
+
       programacion
+
     };
 
   }
@@ -4876,8 +7736,11 @@ class BotEngine {
     preparada,
     senal,
     {
-      onOperacionUpdate = null,
-      origen = "AUTOMATICO"
+      onOperacionUpdate =
+        null,
+
+      origen =
+        "AUTOMATICO"
     } = {}
   ) {
 
@@ -4886,11 +7749,16 @@ class BotEngine {
     ) {
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         fase:
           "EJECUTAR",
+
         motivo:
           "Esta operación ya se está ejecutando."
+
       };
 
     }
@@ -4902,6 +7770,7 @@ class BotEngine {
 
     const operacionId =
       preparada.operacionId;
+
 
     const telemetria =
       preparada.telemetria;
@@ -4938,35 +7807,57 @@ class BotEngine {
       telemetria.resultado =
         "SOLO_COTIZACION";
 
+
       this.guardarTelemetria(
         telemetria
       );
 
-      this.preparaciones.delete(
-        operacionId
-      );
+
+      this.preparaciones
+        .delete(
+          operacionId
+        );
 
 
       return {
-        aceptada: true,
+
+        aceptada:
+          true,
+
         fase:
           "EJECUTAR",
+
         estado:
           "SOLO_COTIZACION",
+
         operacionId,
+
+        analisisPatron:
+          preparada
+            .analisisPatron ??
+          null,
+
         contrato:
           preparada.contrato,
+
         propuestaDeriv:
-          preparada.propuestaDeriv,
+          preparada
+            .propuestaDeriv,
+
         compraDemo:
           null,
+
         resultadoDemo:
           null,
-        telemetria: {
-          ...telemetria
-        },
+
+        telemetria:
+          {
+            ...telemetria
+          },
+
         ejecucionDemoActiva:
           false
+
       };
 
     }
@@ -4976,10 +7867,13 @@ class BotEngine {
       Date.now();
 
 
-    telemetria.buyRequestedEpoch =
+    telemetria
+      .buyRequestedEpoch =
       buyRequestedAt;
 
-    telemetria.buyRequestedPerf =
+
+    telemetria
+      .buyRequestedPerf =
       this.ahora();
 
 
@@ -5000,7 +7894,8 @@ class BotEngine {
 
 
     if (
-      origen === "MANUAL" &&
+      origen ===
+        "MANUAL" &&
       Number.isFinite(
         Number(
           telemetria
@@ -5025,58 +7920,81 @@ class BotEngine {
     this.emitirEvento(
       "bot:buy-requested",
       {
+
         operacionId,
+
         mercado:
           senal.mercado,
+
         direccion:
           senal.direccion,
+
         targetExecutionAt:
           Number.isFinite(
             targetExecutionAt
           )
             ? targetExecutionAt
             : null,
+
         programmedExecutionAt:
           Number.isFinite(
             programmedAt
           )
             ? programmedAt
             : null,
+
         calibracionMs,
+
         buyRequestedAt,
+
         buyTargetDeviationMs:
           telemetria
             .buyTargetDeviationMs,
+
         modoEjecucion:
           telemetria
             .modoEjecucion,
+
         manualClickEpoch:
           telemetria
             .manualClickEpoch,
+
         manualClickToTargetMs:
           telemetria
             .manualClickToTargetMs,
+
         manualClickToBuyMs:
           telemetria
-            .manualClickToBuyMs
+            .manualClickToBuyMs,
+
+        analisisPatron:
+          preparada
+            .analisisPatron ??
+          null
+
       }
     );
 
 
     const compraDemo =
-      await derivTrade.comprar(
-        preparada.propuestaDeriv
-      );
+      await derivTrade
+        .comprar(
+          preparada
+            .propuestaDeriv
+        );
 
 
     const buyConfirmedAt =
       Date.now();
 
 
-    telemetria.buyConfirmedEpoch =
+    telemetria
+      .buyConfirmedEpoch =
       buyConfirmedAt;
 
-    telemetria.buyConfirmedPerf =
+
+    telemetria
+      .buyConfirmedPerf =
       this.ahora();
 
 
@@ -5096,7 +8014,9 @@ class BotEngine {
     }
 
 
-    if (!compraDemo.ok) {
+    if (
+      !compraDemo.ok
+    ) {
 
       telemetria.resultado =
         "BUY_RECHAZADO";
@@ -5105,25 +8025,35 @@ class BotEngine {
       this.emitirEvento(
         "bot:buy-confirmed",
         {
-          ok: false,
+
+          ok:
+            false,
+
           operacionId,
+
           mercado:
             senal.mercado,
+
           direccion:
             senal.direccion,
+
           error:
             compraDemo.error ??
             compraDemo.mensaje ??
             "BUY rechazado.",
+
           buyTargetDeviationMs:
             telemetria
               .buyTargetDeviationMs,
+
           buyConfirmTargetDeviationMs:
             telemetria
               .buyConfirmTargetDeviationMs,
+
           modoEjecucion:
             telemetria
               .modoEjecucion
+
         }
       );
 
@@ -5132,30 +8062,51 @@ class BotEngine {
         telemetria
       );
 
-      this.preparaciones.delete(
-        operacionId
-      );
+
+      this.preparaciones
+        .delete(
+          operacionId
+        );
 
 
       return {
-        aceptada: true,
+
+        aceptada:
+          true,
+
         fase:
           "EJECUTAR",
+
         estado:
           "BUY_RECHAZADO",
+
         operacionId,
+
+        analisisPatron:
+          preparada
+            .analisisPatron ??
+          null,
+
         contrato:
           preparada.contrato,
+
         propuesta:
           preparada.propuesta,
+
         propuestaDeriv:
-          preparada.propuestaDeriv,
+          preparada
+            .propuestaDeriv,
+
         compraDemo,
+
         resultadoDemo:
           null,
-        telemetria: {
-          ...telemetria
-        }
+
+        telemetria:
+          {
+            ...telemetria
+          }
+
       };
 
     }
@@ -5163,6 +8114,7 @@ class BotEngine {
 
     this.ultimaCompraDemo =
       compraDemo.compra;
+
 
     telemetria.contractId =
       compraDemo
@@ -5173,45 +8125,61 @@ class BotEngine {
     this.emitirEvento(
       "bot:buy-confirmed",
       {
-        ok: true,
+
+        ok:
+          true,
+
         operacionId,
+
         mercado:
           senal.mercado,
+
         direccion:
           senal.direccion,
+
         compra:
           compraDemo.compra,
+
         targetExecutionAt:
           Number.isFinite(
             targetExecutionAt
           )
             ? targetExecutionAt
             : null,
+
         programmedExecutionAt:
           Number.isFinite(
             programmedAt
           )
             ? programmedAt
             : null,
+
         calibracionMs,
+
         buyTargetDeviationMs:
           telemetria
             .buyTargetDeviationMs,
+
         buyConfirmTargetDeviationMs:
           telemetria
             .buyConfirmTargetDeviationMs,
+
         modoEjecucion:
           telemetria
             .modoEjecucion,
+
         manualClickEpoch:
           telemetria
             .manualClickEpoch,
+
         manualClickToTargetMs:
           telemetria
             .manualClickToTargetMs,
+
         manualClickToBuyMs:
           telemetria
             .manualClickToBuyMs
+
       }
     );
 
@@ -5223,16 +8191,21 @@ class BotEngine {
             .compra
             .contractId,
           {
+
             onUpdate:
               onOperacionUpdate
+
           }
         );
 
 
-    telemetria.resultReceivedEpoch =
+    telemetria
+      .resultReceivedEpoch =
       Date.now();
 
-    telemetria.resultReceivedPerf =
+
+    telemetria
+      .resultReceivedPerf =
       this.ahora();
 
 
@@ -5240,10 +8213,13 @@ class BotEngine {
       null;
 
 
-    if (seguimiento.ok) {
+    if (
+      seguimiento.ok
+    ) {
 
       resultadoDemo =
         seguimiento.resultado;
+
 
       this.ultimoResultadoDemo =
         resultadoDemo;
@@ -5258,12 +8234,15 @@ class BotEngine {
 
 
       telemetria.resultado =
-        profit > 0
+        profit >
+          0
           ? "GANADA"
           : "PERDIDA";
 
+
       telemetria.profit =
         profit;
+
 
       telemetria.source =
         resultadoDemo
@@ -5274,24 +8253,35 @@ class BotEngine {
       this.emitirEvento(
         "bot:result",
         {
+
           operacionId,
+
           mercado:
             senal.mercado,
+
           direccion:
             senal.direccion,
+
           resultado:
-            telemetria.resultado,
+            telemetria
+              .resultado,
+
           profit,
+
           resultadoDemo,
+
           modoEjecucion:
             telemetria
               .modoEjecucion,
+
           manualClickToTargetMs:
             telemetria
               .manualClickToTargetMs,
+
           manualClickToBuyMs:
             telemetria
               .manualClickToBuyMs
+
         }
       );
 
@@ -5302,8 +8292,10 @@ class BotEngine {
       resultadoDemo =
         seguimiento;
 
+
       telemetria.resultado =
         "SIN_CONFIRMAR";
+
 
       telemetria.profit =
         null;
@@ -5312,19 +8304,27 @@ class BotEngine {
       this.emitirEvento(
         "bot:result",
         {
+
           operacionId,
+
           mercado:
             senal.mercado,
+
           direccion:
             senal.direccion,
+
           resultado:
             "SIN_CONFIRMAR",
+
           profit:
             null,
+
           resultadoDemo,
+
           modoEjecucion:
             telemetria
               .modoEjecucion
+
         }
       );
 
@@ -5340,9 +8340,22 @@ class BotEngine {
     );
 
 
-    this.preparaciones.delete(
-      operacionId
-    );
+    /*
+      FIX13.8:
+      Solo GANADA/PERDIDA alimenta
+      la memoria del patrón.
+    */
+
+    const patronActualizado =
+      this.registrarResultadoPatron(
+        telemetria
+      );
+
+
+    this.preparaciones
+      .delete(
+        operacionId
+      );
 
 
     const perfilSenal =
@@ -5352,108 +8365,168 @@ class BotEngine {
 
 
     return {
-      aceptada: true,
+
+      aceptada:
+        true,
+
       fase:
         "EJECUTAR",
+
       estado:
         telemetria.resultado,
+
       modo:
         this.modo,
+
       modoEjecucion:
-        telemetria.modoEjecucion,
+        telemetria
+          .modoEjecucion,
+
       operacionId,
+
       mercado:
         senal.mercado,
+
       familia:
         telemetria
           .familiaMercado,
+
       estrategia:
         senal.estrategia,
+
       direccion:
         senal.direccion,
+
       confianza:
         senal.confianza,
+
       scoreBruto:
         telemetria
           .scoreBruto,
+
+      valorPatron:
+        telemetria
+          .valorPatron,
+
+      analisisPatron:
+        preparada
+          .analisisPatron ??
+        null,
+
+      patronActualizado,
+
       segundoEntrada:
         senal.segundosEntrada,
+
       calibracionMs:
         telemetria
           .calibracionMs,
+
       calibracionSeg:
         telemetria
           .calibracionSeg,
+
       programacionDisponible:
         telemetria
           .programacionDisponible,
+
       targetExecutionAt:
         telemetria
           .targetExecutionAt,
+
       programmedExecutionAt:
         telemetria
           .programmedExecutionAt,
+
       manualClickEpoch:
         telemetria
           .manualClickEpoch,
+
       manualClickToTargetMs:
         telemetria
           .manualClickToTargetMs,
+
       manualClickToProgrammedMs:
         telemetria
           .manualClickToProgrammedMs,
+
       manualClickToBuyMs:
         telemetria
           .manualClickToBuyMs,
+
       manualBuyToTargetMs:
         telemetria
           .manualBuyToTargetMs,
+
       buyTargetDeviationMs:
         telemetria
           .buyTargetDeviationMs,
+
       timingValido:
         telemetria
           .timingValido,
+
       timingClasificacion:
         telemetria
           .timingClasificacion,
-      timingAnomalias: [
-        ...(
-          telemetria
-            .timingAnomalias ||
-          []
-        )
-      ],
+
+      timingAnomalias:
+        [
+          ...(
+            telemetria
+              .timingAnomalias ||
+            []
+          )
+        ],
+
       contrato:
         preparada.contrato,
+
       propuesta:
         preparada.propuesta,
+
       propuestaDeriv:
-        preparada.propuestaDeriv,
+        preparada
+          .propuestaDeriv,
+
       compraDemo,
+
       resultadoDemo,
-      telemetria: {
-        ...telemetria
-      },
+
+      telemetria:
+        {
+          ...telemetria
+        },
+
       resumenMercado:
         this.obtenerResumenMercado(
           telemetria.mercado
         ),
+
       comparacionMercado:
         this.obtenerComparacionMercado(
           telemetria.mercado
         ),
+
       resumenCalibracion:
         this.obtenerResumenCalibracion(
           telemetria.mercado
         ),
+
       perfilSenal,
+
       analisisPerfil:
         perfilSenal,
+
+      resumenMemoria:
+        this
+          .obtenerResumenMemoriaPatrones(),
+
       ejecucionDemoActiva:
         derivTrade
           .obtenerEstado()
           .ejecucionActiva
+
     };
 
   }
@@ -5466,7 +8539,8 @@ class BotEngine {
   async procesarEjecucion(
     senal,
     {
-      onOperacionUpdate = null
+      onOperacionUpdate =
+        null
     } = {}
   ) {
 
@@ -5476,43 +8550,61 @@ class BotEngine {
       );
 
 
-    if (!operacionId) {
+    if (
+      !operacionId
+    ) {
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         fase:
           "EJECUTAR",
+
         motivo:
           "EJECUTAR no incluye operacionId."
+
       };
 
     }
 
 
     const preparada =
-      this.preparaciones.get(
-        operacionId
-      );
+      this.preparaciones
+        .get(
+          operacionId
+        );
 
 
-    if (!preparada) {
+    if (
+      !preparada
+    ) {
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         fase:
           "EJECUTAR",
+
         etapa:
           "PREPARACION_NO_ENCONTRADA",
+
         motivo:
           "No existe una cotización PREPARAR para esta operación."
+
       };
 
     }
 
 
-    preparada.senalEjecucion = {
-      ...senal
-    };
+    preparada.senalEjecucion =
+      {
+        ...senal
+      };
+
 
     preparada.targetReceivedAt =
       Date.now();
@@ -5528,51 +8620,66 @@ class BotEngine {
       );
 
 
-    if (!programacion.disponible) {
+    if (
+      !programacion.disponible
+    ) {
 
       telemetria.resultado =
         "TARGET_INVALIDO";
+
 
       this.guardarTelemetria(
         telemetria
       );
 
-      this.preparaciones.delete(
-        operacionId
-      );
+
+      this.preparaciones
+        .delete(
+          operacionId
+        );
 
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         fase:
           "EJECUTAR",
+
         motivo:
           "TARGET no disponible.",
+
         telemetria
+
       };
 
     }
 
 
     /* ====================================
-       MANUAL FIX13.7
-       YA ESTABA LISTO DESDE PREPARAR
+       MANUAL
        ==================================== */
 
     if (
-      preparada.modoPreparacion ===
+      preparada
+        .modoPreparacion ===
         MODOS_EJECUCION.MANUAL ||
       this.esModoManual()
     ) {
 
-      telemetria.modoEjecucion =
+      telemetria
+        .modoEjecucion =
         MODOS_EJECUCION.MANUAL;
+
 
       telemetria.resultado =
         "MANUAL_ESPERANDO_CLICK";
 
+
       preparada.manualReady =
         true;
+
 
       preparada.ejecutando =
         false;
@@ -5590,6 +8697,7 @@ class BotEngine {
         telemetria
           .manualReadyEpoch =
           Date.now();
+
 
         preparada.manualReadyAt =
           telemetria
@@ -5612,99 +8720,149 @@ class BotEngine {
         );
 
 
-      this.ultimaTelemetria = {
-        ...telemetria
-      };
+      this.ultimaTelemetria =
+        {
+          ...telemetria
+        };
 
-
-      /*
-        Actualizamos panel manual
-        sin volver a bloquear botón.
-      */
 
       this.emitirEvento(
         "bot:manual-ready",
         {
-          ok: true,
+
+          ok:
+            true,
+
           operacionId,
+
           mercado:
             senal.mercado,
+
           estrategia:
             senal.estrategia,
+
           direccion:
             senal.direccion,
+
           confianza:
             senal.confianza,
+
           targetExecutionAt:
             programacion
               .targetExecutionAt,
+
           programmedExecutionAt:
             programacion
               .programmedAt,
+
           calibracionMs:
             programacion
               .ajusteMs,
+
           readyAt:
             telemetria
               .manualReadyEpoch,
+
           prepareToReadyMs:
             telemetria
               .prepareToManualReadyMs,
+
           targetToReadyMs:
             telemetria
               .targetToManualReadyMs,
+
           targetDisponible:
             true,
+
           estado:
-            "LISTO_CON_TARGET"
+            "LISTO_CON_TARGET",
+
+          analisisPatron:
+            preparada
+              .analisisPatron ??
+            null
+
         }
       );
 
 
       return {
-        aceptada: true,
+
+        aceptada:
+          true,
+
         fase:
           "EJECUTAR",
+
         estado:
           "MANUAL_ESPERANDO_CLICK",
+
         operacionId,
+
         mercado:
           senal.mercado,
+
         estrategia:
           senal.estrategia,
+
         direccion:
           senal.direccion,
+
         confianza:
           senal.confianza,
+
         scoreBruto:
           telemetria
             .scoreBruto,
+
+        valorPatron:
+          telemetria
+            .valorPatron,
+
+        analisisPatron:
+          preparada
+            .analisisPatron ??
+          null,
+
         targetExecutionAt:
           programacion
             .targetExecutionAt,
+
         programmedExecutionAt:
           programacion
             .programmedAt,
+
         calibracionMs:
           programacion
             .ajusteMs,
+
         contrato:
           preparada.contrato,
+
         propuesta:
           preparada.propuesta,
+
         propuestaDeriv:
-          preparada.propuestaDeriv,
+          preparada
+            .propuestaDeriv,
+
         compraDemo:
           null,
+
         resultadoDemo:
           null,
-        telemetria: {
-          ...telemetria
-        },
+
+        telemetria:
+          {
+            ...telemetria
+          },
+
         modoEjecucion:
           MODOS_EJECUCION.MANUAL,
+
         ejecucionManualLista:
           true
+
       };
 
     }
@@ -5712,25 +8870,183 @@ class BotEngine {
 
     /* ====================================
        AUTOMÁTICO
+       FILTRO HISTÓRICO FIX13.8
        ==================================== */
 
-    telemetria.modoEjecucion =
+    telemetria
+      .modoEjecucion =
       MODOS_EJECUCION.AUTOMATICO;
+
+
+    const analisisPatron =
+      preparada
+        .analisisPatron ||
+      this.analizarPatron(
+        senal
+      );
+
+
+    /*
+      Solo se bloquea si:
+      - automático
+      - filtro activado
+      - patrón RIESGO
+      - ya alcanzó mínimo de muestras
+    */
+
+    const bloquearPorPatron =
+      PATTERN_CONTROL
+        .blockRiskInAutomatic &&
+      analisisPatron
+        ?.bloquear ===
+        true &&
+      Number(
+        analisisPatron
+          ?.muestras ??
+        0
+      ) >=
+        PATTERN_CONTROL
+          .minimumDecisionSamples;
+
+
+    if (
+      bloquearPorPatron
+    ) {
+
+      telemetria
+        .patronBloqueado =
+        true;
+
+
+      telemetria.resultado =
+        "NO_OPERAR_PATRON_RIESGO";
+
+
+      /*
+        Importante:
+        NO contamos esto como pérdida
+        ni como ganada porque no hubo BUY.
+      */
+
+      this.guardarTelemetria(
+        telemetria
+      );
+
+
+      this.emitirEvento(
+        "bot:pattern-blocked",
+        {
+
+          operacionId,
+
+          mercado:
+            senal.mercado,
+
+          estrategia:
+            senal.estrategia,
+
+          direccion:
+            senal.direccion,
+
+          confianza:
+            senal.confianza,
+
+          scoreBruto:
+            telemetria
+              .scoreBruto,
+
+          valorPatron:
+            telemetria
+              .valorPatron,
+
+          analisisPatron,
+
+          motivo:
+            "Patrón histórico de riesgo. BUY automático bloqueado."
+
+        }
+      );
+
+
+      this.preparaciones
+        .delete(
+          operacionId
+        );
+
+
+      return {
+
+        aceptada:
+          true,
+
+        fase:
+          "EJECUTAR",
+
+        estado:
+          "NO_OPERAR_PATRON_RIESGO",
+
+        bloqueada:
+          true,
+
+        motivo:
+          "Patrón histórico de riesgo. No se ejecutó BUY.",
+
+        operacionId,
+
+        mercado:
+          senal.mercado,
+
+        estrategia:
+          senal.estrategia,
+
+        direccion:
+          senal.direccion,
+
+        confianza:
+          senal.confianza,
+
+        scoreBruto:
+          telemetria
+            .scoreBruto,
+
+        valorPatron:
+          telemetria
+            .valorPatron,
+
+        analisisPatron,
+
+        telemetria:
+          {
+            ...telemetria
+          },
+
+        compraDemo:
+          null,
+
+        resultadoDemo:
+          null
+
+      };
+
+    }
 
 
     if (
       programacion.programmedAt <
-      Date.now() - 100
+      Date.now() -
+        100
     ) {
 
       telemetria.resultado =
         "TARGET_PERDIDO";
 
+
       telemetria
         .buyTargetDeviationMs =
         this.redondear(
           Date.now() -
-          programacion.programmedAt
+          programacion
+            .programmedAt
         );
 
 
@@ -5738,18 +9054,28 @@ class BotEngine {
         telemetria
       );
 
-      this.preparaciones.delete(
-        operacionId
-      );
+
+      this.preparaciones
+        .delete(
+          operacionId
+        );
 
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         fase:
           "EJECUTAR",
+
         motivo:
           "El instante programado ya pasó.",
+
+        analisisPatron,
+
         telemetria
+
       };
 
     }
@@ -5758,24 +9084,33 @@ class BotEngine {
     const restanteMs =
       Math.max(
         0,
-        programacion.programmedAt -
+        programacion
+          .programmedAt -
         Date.now()
       );
 
 
-    telemetria.esperaProgramadaMs =
+    telemetria
+      .esperaProgramadaMs =
       this.redondear(
         restanteMs
       );
 
-    telemetria.waitStartedEpoch =
+
+    telemetria
+      .waitStartedEpoch =
       Date.now();
 
-    telemetria.calibrationWaitStartedPerf =
+
+    telemetria
+      .calibrationWaitStartedPerf =
       this.ahora();
 
 
-    if (restanteMs > 0) {
+    if (
+      restanteMs >
+      0
+    ) {
 
       await this.esperar(
         restanteMs
@@ -5784,10 +9119,13 @@ class BotEngine {
     }
 
 
-    telemetria.waitEndedEpoch =
+    telemetria
+      .waitEndedEpoch =
       Date.now();
 
-    telemetria.calibrationWaitEndedPerf =
+
+    telemetria
+      .calibrationWaitEndedPerf =
       this.ahora();
 
 
@@ -5796,9 +9134,12 @@ class BotEngine {
         preparada,
         senal,
         {
+
           onOperacionUpdate,
+
           origen:
             "AUTOMATICO"
+
         }
       );
 
@@ -5812,7 +9153,8 @@ class BotEngine {
   async ejecutarManual(
     operacionId = null,
     {
-      onOperacionUpdate = null
+      onOperacionUpdate =
+        null
     } = {}
   ) {
 
@@ -5820,14 +9162,21 @@ class BotEngine {
       this.puedeProcesar();
 
 
-    if (!estado.ok) {
+    if (
+      !estado.ok
+    ) {
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         fase:
           "MANUAL",
+
         motivo:
           estado.motivo
+
       };
 
     }
@@ -5838,11 +9187,16 @@ class BotEngine {
     ) {
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         fase:
           "MANUAL",
+
         motivo:
           "El BOT no está en modo MANUAL DIAGNÓSTICO."
+
       };
 
     }
@@ -5852,12 +9206,18 @@ class BotEngine {
       null;
 
 
-    if (operacionId) {
+    if (
+      operacionId
+    ) {
 
       preparada =
-        this.preparaciones.get(
-          String(operacionId)
-        ) ?? null;
+        this.preparaciones
+          .get(
+            String(
+              operacionId
+            )
+          ) ??
+        null;
 
     }
 
@@ -5865,44 +9225,67 @@ class BotEngine {
 
       const pendientes =
         [
-          ...this.preparaciones.values()
+          ...this
+            .preparaciones
+            .values()
         ]
           .filter(
-            (item) =>
-              item?.manualReady ===
+            (
+              item
+            ) =>
+              item
+                ?.manualReady ===
                 true &&
-              item?.ejecutando !==
+              item
+                ?.ejecutando !==
                 true
           )
           .sort(
-            (a, b) =>
+            (
+              a,
+              b
+            ) =>
               Number(
-                b?.manualReadyAt ??
-                b?.preparedAt ??
+                b
+                  ?.manualReadyAt ??
+                b
+                  ?.preparedAt ??
                 0
               ) -
               Number(
-                a?.manualReadyAt ??
-                a?.preparedAt ??
+                a
+                  ?.manualReadyAt ??
+                a
+                  ?.preparedAt ??
                 0
               )
           );
 
+
       preparada =
-        pendientes[0] ??
+        pendientes[
+          0
+        ] ??
         null;
 
     }
 
 
-    if (!preparada) {
+    if (
+      !preparada
+    ) {
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         fase:
           "MANUAL",
+
         motivo:
           "No hay una operación manual lista para ejecutar."
+
       };
 
     }
@@ -5913,11 +9296,16 @@ class BotEngine {
     ) {
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         fase:
           "MANUAL",
+
         motivo:
           "La propuesta todavía no está lista."
+
       };
 
     }
@@ -5928,41 +9316,50 @@ class BotEngine {
     ) {
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         fase:
           "MANUAL",
+
         motivo:
           "La operación ya se está ejecutando."
+
       };
 
     }
 
 
     const senal =
-      preparada.senalEjecucion ??
-      preparada.senalPreparacion;
+      preparada
+        .senalEjecucion ??
+      preparada
+        .senalPreparacion;
+
 
     const telemetria =
       preparada.telemetria;
+
 
     const clickEpoch =
       Date.now();
 
 
-    telemetria.modoEjecucion =
+    telemetria
+      .modoEjecucion =
       MODOS_EJECUCION.MANUAL;
 
-    telemetria.manualClickEpoch =
+
+    telemetria
+      .manualClickEpoch =
       clickEpoch;
 
-    telemetria.manualClickPerf =
+
+    telemetria
+      .manualClickPerf =
       this.ahora();
 
-
-    /*
-      TARGET puede no haber llegado todavía.
-      El BUY manual sigue siendo permitido.
-    */
 
     if (
       Number.isFinite(
@@ -6008,40 +9405,64 @@ class BotEngine {
     }
 
 
+    /*
+      MANUAL:
+      el patrón se muestra pero
+      NUNCA bloquea el botón.
+    */
+
     this.emitirEvento(
       "bot:manual-click",
       {
+
         operacionId:
-          preparada.operacionId,
+          preparada
+            .operacionId,
+
         mercado:
           senal?.mercado,
+
         estrategia:
           senal?.estrategia,
+
         direccion:
           senal?.direccion,
+
         confianza:
           senal?.confianza,
+
         targetExecutionAt:
           telemetria
             .targetExecutionAt,
+
         programmedExecutionAt:
           telemetria
             .programmedExecutionAt,
+
         clickAt:
           clickEpoch,
+
         clickToTargetMs:
           telemetria
             .manualClickToTargetMs,
+
         clickToProgrammedMs:
           telemetria
             .manualClickToProgrammedMs,
+
         targetDisponible:
           Number.isFinite(
             Number(
               telemetria
                 .targetExecutionAt
             )
-          )
+          ),
+
+        analisisPatron:
+          preparada
+            .analisisPatron ??
+          null
+
       }
     );
 
@@ -6051,9 +9472,12 @@ class BotEngine {
         preparada,
         senal,
         {
+
           onOperacionUpdate,
+
           origen:
             "MANUAL"
+
         }
       );
 
@@ -6067,8 +9491,11 @@ class BotEngine {
   async procesarSenal(
     senal,
     {
-      onOperacionUpdate = null,
-      senalRecibidaPerf = null
+      onOperacionUpdate =
+        null,
+
+      senalRecibidaPerf =
+        null
     } = {}
   ) {
 
@@ -6079,12 +9506,18 @@ class BotEngine {
       this.puedeProcesar();
 
 
-    if (!estado.ok) {
+    if (
+      !estado.ok
+    ) {
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         motivo:
           estado.motivo
+
       };
 
     }
@@ -6092,13 +9525,18 @@ class BotEngine {
 
     if (
       !senal ||
-      typeof senal !== "object"
+      typeof senal !==
+        "object"
     ) {
 
       return {
-        aceptada: false,
+
+        aceptada:
+          false,
+
         motivo:
           "Señal inválida."
+
       };
 
     }
@@ -6111,7 +9549,8 @@ class BotEngine {
 
 
     if (
-      fase === "PREPARAR"
+      fase ===
+      "PREPARAR"
     ) {
 
       return this
@@ -6123,14 +9562,17 @@ class BotEngine {
 
 
     if (
-      fase === "EJECUTAR"
+      fase ===
+      "EJECUTAR"
     ) {
 
       return this
         .procesarEjecucion(
           senal,
           {
+
             onOperacionUpdate
+
           }
         );
 
@@ -6138,33 +9580,45 @@ class BotEngine {
 
 
     return {
-      aceptada: false,
+
+      aceptada:
+        false,
+
       fase,
+
       motivo:
-        "Señal sin protocolo PREPARAR/EJECUTAR. FIX13.7 requiere las dos fases."
+        "Señal sin protocolo PREPARAR/EJECUTAR. FIX13.8 requiere las dos fases."
+
     };
 
   }
 
 
   /* ========================================
-     FIX13.7
      ANALÍTICA EN CACHÉ
      ======================================== */
 
   construirAnaliticaCompleta() {
 
-    const comparaciones = {};
-    const calibraciones = {};
-    const perfilesSenal = {};
-    const analisisPerfiles = {};
-    const resumenMercados = {};
+    const comparaciones =
+      {};
 
 
-    /*
-      Primero calculamos cada mercado
-      una sola vez.
-    */
+    const calibraciones =
+      {};
+
+
+    const perfilesSenal =
+      {};
+
+
+    const analisisPerfiles =
+      {};
+
+
+    const resumenMercados =
+      {};
+
 
     for (
       const mercado
@@ -6176,10 +9630,17 @@ class BotEngine {
           mercado
         );
 
-      resumenMercados[mercado] =
+
+      resumenMercados[
+        mercado
+      ] =
         resumen;
 
-      comparaciones[mercado] = {
+
+      comparaciones[
+        mercado
+      ] = {
+
         mercado:
           resumen.mercado,
 
@@ -6241,26 +9702,36 @@ class BotEngine {
         analisisPerfilFix13_2:
           resumen
             .analisisPerfilFix13_2
+
       };
 
 
-      calibraciones[mercado] =
+      calibraciones[
+        mercado
+      ] =
         this.obtenerResumenCalibracion(
           mercado
         );
 
 
-      perfilesSenal[mercado] =
-        resumen.perfilSenalFix13;
+      perfilesSenal[
+        mercado
+      ] =
+        resumen
+          .perfilSenalFix13;
 
 
-      analisisPerfiles[mercado] =
-        resumen.perfilSenalFix13;
+      analisisPerfiles[
+        mercado
+      ] =
+        resumen
+          .perfilSenalFix13;
 
     }
 
 
     return {
+
       resumenStandard:
         this.obtenerResumenFamilia(
           "STANDARD"
@@ -6280,6 +9751,7 @@ class BotEngine {
       perfilesSenal,
 
       analisisPerfiles
+
     };
 
   }
@@ -6306,13 +9778,13 @@ class BotEngine {
 
 
   /* ========================================
-     FIX13.7
      ESTADO RÁPIDO
      ======================================== */
 
   obtenerEstadoRapido() {
 
     return {
+
       activo:
         this.activo,
 
@@ -6326,7 +9798,8 @@ class BotEngine {
         this.modoEjecucion,
 
       manualPendiente:
-        this.obtenerPreparacionManualPendiente(),
+        this
+          .obtenerPreparacionManualPendiente(),
 
       preparacionesActivas:
         this.preparaciones.size,
@@ -6339,6 +9812,9 @@ class BotEngine {
 
       sincronizacionVisual:
         SYNC_VERSION,
+
+      versionPatrones:
+        PATTERN_VERSION,
 
       protocolo:
         "PREPARAR_EJECUTAR",
@@ -6367,21 +9843,32 @@ class BotEngine {
       ultimaTelemetria:
         this.ultimaTelemetria,
 
-      calibracionActual: {
-        ...this.calibracion
-      },
+      ultimoAnalisisPatron:
+        this.ultimoAnalisisPatron,
 
-      ajustesPermitidosMs: [
-        ...AJUSTES_PERMITIDOS_MS
-      ],
+      resumenMemoriaPatrones:
+        this
+          .obtenerResumenMemoriaPatrones(),
+
+      calibracionActual:
+        {
+          ...this.calibracion
+        },
+
+      ajustesPermitidosMs:
+        [
+          ...AJUSTES_PERMITIDOS_MS
+        ],
 
       trade:
         derivTrade
           .obtenerEstado(),
 
-      configuracion: {
-        ...this.configuracion
-      }
+      configuracion:
+        {
+          ...this.configuracion
+        }
+
     };
 
   }
@@ -6389,7 +9876,6 @@ class BotEngine {
 
   /* ========================================
      ESTADO COMPLETO
-     COMPATIBLE CON BOT.JS ANTIGUO
      ======================================== */
 
   obtenerEstado() {
@@ -6397,52 +9883,67 @@ class BotEngine {
     const rapido =
       this.obtenerEstadoRapido();
 
+
     const analitica =
       this.obtenerAnaliticaCache();
 
 
     return {
+
       ...rapido,
 
-      modosEjecucion: {
-        ...MODOS_EJECUCION
-      },
+      modosEjecucion:
+        {
+          ...MODOS_EJECUCION
+        },
 
       filtroAutomaticoActivo:
-        false,
+        PATTERN_CONTROL
+          .blockRiskInAutomatic,
 
-      versionesTimingCompatibles: [
-        ...TIMING_COMPATIBLE_VERSIONS
-      ],
+      modoAprendizajeActivo:
+        PATTERN_CONTROL
+          .learningMode,
 
-      versionesPerfilCompatibles: [
-        ...SIGNAL_PROFILE_VERSIONS
-      ],
+      controlPatrones:
+        {
+          ...PATTERN_CONTROL
+        },
 
-      limitesTiming: {
-        ...TIMING_LIMITS
-      },
+      versionesTimingCompatibles:
+        [
+          ...TIMING_COMPATIBLE_VERSIONS
+        ],
 
-      controlPerfil: {
-        ...PROFILE_CONTROL
-      },
+      versionesPerfilCompatibles:
+        [
+          ...SIGNAL_PROFILE_VERSIONS
+        ],
 
-      mercadosStandard: [
-        ...MERCADOS_STANDARD
-      ],
+      limitesTiming:
+        {
+          ...TIMING_LIMITS
+        },
 
-      mercados1S: [
-        ...MERCADOS_1S
-      ],
+      controlPerfil:
+        {
+          ...PROFILE_CONTROL
+        },
 
-      mercadosControlados: [
-        ...MERCADOS_CONTROLADOS
-      ],
+      mercadosStandard:
+        [
+          ...MERCADOS_STANDARD
+        ],
 
-      /*
-        Esta parte viene del caché.
-        No vuelve a recalcularse en cada llamada.
-      */
+      mercados1S:
+        [
+          ...MERCADOS_1S
+        ],
+
+      mercadosControlados:
+        [
+          ...MERCADOS_CONTROLADOS
+        ],
 
       resumenStandard:
         analitica
@@ -6471,6 +9972,7 @@ class BotEngine {
       analisisPerfiles:
         analitica
           .analisisPerfiles
+
     };
 
   }
@@ -6488,5 +9990,5 @@ export const botEngine =
 
 /* ==========================================
    FIN BOT-ENGINE.JS
-   FIX13.7 ESTABLE + RÁPIDA
+   FIX13.8 MEMORIA DE PATRONES
    ========================================== */
