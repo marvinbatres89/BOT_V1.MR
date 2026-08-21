@@ -1,21 +1,24 @@
 /* ==========================================
    BOT V1 MR
    BOT.JS
-   FIX13.7 ESTABLE + RÁPIDA
+   FIX13.7.1 ESTABLE + RÁPIDA
 
-   BASE: FIX13.6
+   BASE: FIX13.7
 
    CORRIGE:
-   - USA obtenerEstadoRapido() EN INTERFAZ
-   - REDUCE CÁLCULOS PESADOS
+   - NULL YA NO SE INTERPRETA COMO 0
+   - SIN TARGET NO MUESTRA 0.00 ms
+   - SIN TARGET NO CALCULA DESVIACIÓN FALSA
+   - VALIDACIÓN SEGURA DE MILISEGUNDOS
+   - MANUAL PUEDE OPERAR ANTES DEL TARGET
+
+   CONSERVA:
+   - obtenerEstadoRapido()
    - MANUAL LISTO DESDE PREPARAR
    - TARGET ACTUALIZA REFERENCIA
    - BOTÓN DISPONIBLE MÁS RÁPIDO
-   - GANADA / PERDIDA NO DESAPARECE
-   - ESTADÍSTICAS SE ACTUALIZAN EN BLOQUE
-   - COMPATIBLE CON BOT-ENGINE FIX13.7
-
-   CONSERVA:
+   - GANADA / PERDIDA PERMANECE VISIBLE
+   - ESTADÍSTICAS EN BLOQUE
    - DERIV DEMO
    - AUTOMÁTICO
    - MANUAL DIAGNÓSTICO
@@ -48,11 +51,11 @@ import {
    ========================================== */
 
 const BOT_VERSION =
-  "FIX13.7";
+  "FIX13.7.1";
 
 
 const BOT_BUILD =
-  "ESTABLE-RAPIDA-1";
+  "ESTABLE-RAPIDA-NULLSAFE-1";
 
 
 const MODO_AUTOMATICO =
@@ -74,6 +77,63 @@ const $ =
 
 let ultimoEstadoManualFinal =
   null;
+
+
+/* ==========================================
+   VALIDACIÓN NUMÉRICA FIX13.7.1
+
+   IMPORTANTE:
+   Number(null) === 0
+
+   Por eso NO utilizaremos Number()
+   directamente para decidir si existe
+   TARGET, offset o medición.
+   ========================================== */
+
+function numeroValido(
+  valor
+) {
+
+  if (
+    valor === null ||
+    valor === undefined ||
+    valor === ""
+  ) {
+
+    return false;
+
+  }
+
+
+  return Number.isFinite(
+    Number(
+      valor
+    )
+  );
+
+}
+
+
+function numeroSeguro(
+  valor
+) {
+
+  if (
+    !numeroValido(
+      valor
+    )
+  ) {
+
+    return null;
+
+  }
+
+
+  return Number(
+    valor
+  );
+
+}
 
 
 /* ==========================================
@@ -548,7 +608,7 @@ function obtenerHora() {
 
 
 /* ==========================================
-   FORMATOS
+   FORMATOS FIX13.7.1
    ========================================== */
 
 function formatoMs(
@@ -556,11 +616,13 @@ function formatoMs(
 ) {
 
   const numero =
-    Number(valor);
+    numeroSeguro(
+      valor
+    );
 
 
   if (
-    !Number.isFinite(numero)
+    numero === null
   ) {
 
     return "--";
@@ -578,11 +640,13 @@ function formatoOffsetMs(
 ) {
 
   const numero =
-    Number(valor);
+    numeroSeguro(
+      valor
+    );
 
 
   if (
-    !Number.isFinite(numero)
+    numero === null
   ) {
 
     return "--";
@@ -604,11 +668,13 @@ function formatoSegundosDesdeMs(
 ) {
 
   const numero =
-    Number(valor);
+    numeroSeguro(
+      valor
+    );
 
 
   if (
-    !Number.isFinite(numero)
+    numero === null
   ) {
 
     return "--";
@@ -634,11 +700,13 @@ function formatoPorcentaje(
 ) {
 
   const numero =
-    Number(valor);
+    numeroSeguro(
+      valor
+    );
 
 
   if (
-    !Number.isFinite(numero)
+    numero === null
   ) {
 
     return "--";
@@ -670,7 +738,9 @@ function registrarActividad(
 
 
   const linea =
-    document.createElement("p");
+    document.createElement(
+      "p"
+    );
 
 
   linea.textContent =
@@ -678,7 +748,8 @@ function registrarActividad(
 
 
   if (
-    tipo === "correcto"
+    tipo ===
+    "correcto"
   ) {
 
     linea.style.color =
@@ -688,7 +759,8 @@ function registrarActividad(
 
 
   if (
-    tipo === "aviso"
+    tipo ===
+    "aviso"
   ) {
 
     linea.style.color =
@@ -698,7 +770,8 @@ function registrarActividad(
 
 
   if (
-    tipo === "error"
+    tipo ===
+    "error"
   ) {
 
     linea.style.color =
@@ -711,12 +784,6 @@ function registrarActividad(
     linea
   );
 
-
-  /*
-    FIX13.7:
-    evita miles de nodos visibles
-    dentro del registro.
-  */
 
   while (
     UI.registroBot.children.length >
@@ -748,7 +815,7 @@ function obtenerModoActual() {
 
 
 /* ==========================================
-   RENDER MANUAL LIGERO
+   RENDER MANUAL
    ========================================== */
 
 function renderModoEjecucion() {
@@ -789,7 +856,8 @@ function renderModoEjecucion() {
   ) {
 
     UI.manualPanel.hidden =
-      modo !== MODO_MANUAL;
+      modo !==
+      MODO_MANUAL;
 
   }
 
@@ -866,10 +934,6 @@ function renderModoEjecucion() {
     }
 
 
-    /*
-      No borrar GANADA/PERDIDA.
-    */
-
     if (
       UI.manualEstado
     ) {
@@ -904,12 +968,18 @@ function renderModoEjecucion() {
     null;
 
 
+  const tieneTarget =
+    numeroValido(
+      pendiente.targetExecutionAt
+    );
+
+
   if (
     UI.manualEstado
   ) {
 
     UI.manualEstado.textContent =
-      pendiente.targetDisponible
+      tieneTarget
         ? "LISTO PARA EJECUTAR"
         : "LISTO · ESPERANDO TARGET";
 
@@ -954,8 +1024,11 @@ function renderModoEjecucion() {
   ) {
 
     UI.manualTarget.textContent =
-      pendiente.targetExecutionAt ??
-      "ESPERANDO";
+      tieneTarget
+        ? String(
+            pendiente.targetExecutionAt
+          )
+        : "ESPERANDO";
 
   }
 
@@ -965,8 +1038,13 @@ function renderModoEjecucion() {
   ) {
 
     UI.manualProgramado.textContent =
-      pendiente.programmedExecutionAt ??
-      "ESPERANDO";
+      numeroValido(
+        pendiente.programmedExecutionAt
+      )
+        ? String(
+            pendiente.programmedExecutionAt
+          )
+        : "ESPERANDO";
 
   }
 
@@ -1174,7 +1252,7 @@ window.addEventListener(
 
 
 /* ==========================================
-   MANUAL LISTO FIX13.7
+   MANUAL LISTO FIX13.7.1
    ========================================== */
 
 window.addEventListener(
@@ -1192,12 +1270,20 @@ window.addEventListener(
       null;
 
 
+    const targetDisponible =
+      datos.targetDisponible ===
+        true &&
+      numeroValido(
+        datos.targetExecutionAt
+      );
+
+
     if (
       UI.manualEstado
     ) {
 
       UI.manualEstado.textContent =
-        datos.targetDisponible
+        targetDisponible
           ? "LISTO PARA EJECUTAR"
           : "LISTO · ESPERANDO TARGET";
 
@@ -1242,8 +1328,11 @@ window.addEventListener(
     ) {
 
       UI.manualTarget.textContent =
-        datos.targetExecutionAt ??
-        "ESPERANDO";
+        targetDisponible
+          ? String(
+              datos.targetExecutionAt
+            )
+          : "ESPERANDO";
 
     }
 
@@ -1253,8 +1342,13 @@ window.addEventListener(
     ) {
 
       UI.manualProgramado.textContent =
-        datos.programmedExecutionAt ??
-        "ESPERANDO";
+        numeroValido(
+          datos.programmedExecutionAt
+        )
+          ? String(
+              datos.programmedExecutionAt
+            )
+          : "ESPERANDO";
 
     }
 
@@ -1298,11 +1392,21 @@ window.addEventListener(
         <br>
 
         <strong>TARGET:</strong>
-        ${datos.targetExecutionAt ?? "ESPERANDO"}
+        ${
+          targetDisponible
+            ? datos.targetExecutionAt
+            : "ESPERANDO"
+        }
         <br>
 
         <strong>Referencia programada:</strong>
-        ${datos.programmedExecutionAt ?? "ESPERANDO"}
+        ${
+          numeroValido(
+            datos.programmedExecutionAt
+          )
+            ? datos.programmedExecutionAt
+            : "ESPERANDO"
+        }
         <br>
 
         <strong>PREPARAR → botón listo:</strong>
@@ -1312,9 +1416,13 @@ window.addEventListener(
         <br>
 
         <strong>TARGET → botón listo:</strong>
-        ${formatoOffsetMs(
-          datos.targetToReadyMs
-        )}
+        ${
+          targetDisponible
+            ? formatoOffsetMs(
+                datos.targetToReadyMs
+              )
+            : "--"
+        }
         <br><br>
 
         ⚡ EJECUTAR AHORA disponible.
@@ -1336,7 +1444,7 @@ window.addEventListener(
           datos.prepareToReadyMs
         )
       } · TARGET ${
-        datos.targetDisponible
+        targetDisponible
           ? "RECIBIDO"
           : "PENDIENTE"
       }.`,
@@ -1365,6 +1473,14 @@ window.addEventListener(
       {};
 
 
+    const targetDisponible =
+      datos.targetDisponible ===
+        true &&
+      numeroValido(
+        datos.targetExecutionAt
+      );
+
+
     if (
       UI.manualEstado
     ) {
@@ -1380,7 +1496,7 @@ window.addEventListener(
     ) {
 
       UI.manualClickOffset.textContent =
-        datos.targetDisponible
+        targetDisponible
           ? formatoOffsetMs(
               datos.clickToTargetMs
             )
@@ -1404,7 +1520,7 @@ window.addEventListener(
         datos.mercado ||
         "--"
       } · ${
-        datos.targetDisponible
+        targetDisponible
           ? `TARGET ${
               formatoOffsetMs(
                 datos.clickToTargetMs
@@ -1435,8 +1551,14 @@ window.addEventListener(
 
 
     const desviacion =
-      Number(
+      numeroSeguro(
         datos.buyTargetDeviationMs
+      );
+
+
+    const tieneTarget =
+      numeroValido(
+        datos.targetExecutionAt
       );
 
 
@@ -1465,11 +1587,21 @@ window.addEventListener(
         <br>
 
         <strong>TARGET:</strong>
-        ${datos.targetExecutionAt ?? "SIN TARGET"}
+        ${
+          tieneTarget
+            ? datos.targetExecutionAt
+            : "SIN TARGET"
+        }
         <br>
 
         <strong>Programado:</strong>
-        ${datos.programmedExecutionAt ?? "--"}
+        ${
+          numeroValido(
+            datos.programmedExecutionAt
+          )
+            ? datos.programmedExecutionAt
+            : "--"
+        }
         <br>
 
         <strong>Calibración:</strong>
@@ -1483,9 +1615,13 @@ window.addEventListener(
         <br>
 
         <strong>Desviación programada:</strong>
-        ${formatoOffsetMs(
-          desviacion
-        )}
+        ${
+          desviacion !== null
+            ? formatoOffsetMs(
+                desviacion
+              )
+            : "--"
+        }
         <br>
 
         <strong>Clic → BUY:</strong>
@@ -1503,9 +1639,7 @@ window.addEventListener(
     ) {
 
       UI.manualBuyOffset.textContent =
-        Number.isFinite(
-          desviacion
-        )
+        desviacion !== null
           ? formatoOffsetMs(
               desviacion
             )
@@ -1519,9 +1653,7 @@ window.addEventListener(
     ) {
 
       UI.calibradorSignalBuy.textContent =
-        Number.isFinite(
-          desviacion
-        )
+        desviacion !== null
           ? `TARGET ${formatoOffsetMs(
               desviacion
             )}`
@@ -1565,9 +1697,16 @@ window.addEventListener(
       evento.detail ||
       {};
 
+
     const compra =
       datos.compra ||
       {};
+
+
+    const tieneTarget =
+      numeroValido(
+        datos.targetExecutionAt
+      );
 
 
     if (
@@ -1607,19 +1746,35 @@ window.addEventListener(
           <br>
 
           <strong>TARGET:</strong>
-          ${datos.targetExecutionAt ?? "SIN TARGET"}
+          ${
+            tieneTarget
+              ? datos.targetExecutionAt
+              : "SIN TARGET"
+          }
           <br>
 
           <strong>Desviación envío:</strong>
-          ${formatoOffsetMs(
-            datos.buyTargetDeviationMs
-          )}
+          ${
+            numeroValido(
+              datos.buyTargetDeviationMs
+            )
+              ? formatoOffsetMs(
+                  datos.buyTargetDeviationMs
+                )
+              : "--"
+          }
           <br>
 
           <strong>Desviación confirmación:</strong>
-          ${formatoOffsetMs(
-            datos.buyConfirmTargetDeviationMs
-          )}
+          ${
+            numeroValido(
+              datos.buyConfirmTargetDeviationMs
+            )
+              ? formatoOffsetMs(
+                  datos.buyConfirmTargetDeviationMs
+                )
+              : "--"
+          }
 
         `;
 
@@ -1687,7 +1842,8 @@ window.addEventListener(
         datos.modoEjecucion ||
         "--"
       }.`,
-      datos.resultado === "GANADA"
+      datos.resultado ===
+        "GANADA"
         ? "correcto"
         : datos.resultado ===
             "PERDIDA"
@@ -1727,12 +1883,6 @@ window.addEventListener(
       }
 
     }
-
-
-    /*
-      NO llamamos aquí a renderModoEjecucion()
-      para evitar borrar GANADA/PERDIDA.
-    */
 
   }
 );
@@ -1775,7 +1925,7 @@ window.addEventListener(
 
 
 /* ==========================================
-   CALIBRACIÓN LIGERA
+   CALIBRACIÓN
    ========================================== */
 
 function obtenerMercadoSeleccionado() {
@@ -1800,12 +1950,11 @@ function actualizarPanelCalibracion() {
 
 
   const ajuste =
-    Number(
+    numeroSeguro(
       estado
         ?.calibracionActual
-        ?.[mercado] ??
-      0
-    );
+        ?.[mercado]
+    ) ?? 0;
 
 
   if (
@@ -1835,7 +1984,9 @@ function actualizarPanelCalibracion() {
   ) {
 
     UI.calibracionAjusteSelect.value =
-      String(ajuste);
+      String(
+        ajuste
+      );
 
   }
 
@@ -1859,11 +2010,10 @@ UI.botonGuardarCalibracion
 
 
       const ajuste =
-        Number(
+        numeroSeguro(
           UI.calibracionAjusteSelect
-            ?.value ??
-          0
-        );
+            ?.value
+        ) ?? 0;
 
 
       const resultado =
@@ -1958,10 +2108,8 @@ function mostrarSenal(
   ) {
 
     UI.confianza.textContent =
-      Number.isFinite(
-        Number(
-          senal.confianza
-        )
+      numeroValido(
+        senal.confianza
       )
         ? `${Number(
             senal.confianza
@@ -1976,9 +2124,12 @@ function mostrarSenal(
   ) {
 
     UI.entrada.textContent =
-      senal.segundosEntrada !=
-        null
-        ? `${senal.segundosEntrada} s`
+      numeroValido(
+        senal.segundosEntrada
+      )
+        ? `${Number(
+            senal.segundosEntrada
+          )} s`
         : "--";
 
   }
@@ -1989,8 +2140,9 @@ function mostrarSenal(
   ) {
 
     UI.precio.textContent =
-      senal.precio !=
-        null
+      numeroValido(
+        senal.precio
+      )
         ? String(
             senal.precio
           )
@@ -2008,12 +2160,46 @@ function mostrarSenal(
       .toUpperCase();
 
 
-  const target =
-    senal.targetExecutionAt ??
-    senal.targetVisualAt ??
+  const candidatosTarget = [
+
+    senal.targetExecutionAt,
+
+    senal.targetVisualAt,
+
     senal.metadata
-      ?.targetExecutionAt ??
+      ?.targetExecutionAt,
+
+    senal.metadata
+      ?.targetVisualAt
+
+  ];
+
+
+  let target =
     null;
+
+
+  for (
+    const candidato
+    of candidatosTarget
+  ) {
+
+    if (
+      numeroValido(
+        candidato
+      )
+    ) {
+
+      target =
+        Number(
+          candidato
+        );
+
+      break;
+
+    }
+
+  }
 
 
   const rawScore =
@@ -2104,13 +2290,21 @@ function mostrarEstadoTarget(
   }
 
 
+  const targetReal =
+    telemetria
+      .programacionDisponible ===
+      true &&
+    numeroValido(
+      telemetria.targetExecutionAt
+    );
+
+
   if (
     UI.calibracionTargetDisponible
   ) {
 
     UI.calibracionTargetDisponible.textContent =
-      telemetria
-        .programacionDisponible
+      targetReal
         ? "SÍ"
         : "NO";
 
@@ -2122,8 +2316,7 @@ function mostrarEstadoTarget(
   ) {
 
     if (
-      telemetria
-        .programacionDisponible
+      targetReal
     ) {
 
       UI.calibracionProgramacion.textContent =
@@ -2416,10 +2609,9 @@ function pintarResultadoFinal(
 
 
   const profit =
-    Number(
-      dato.profit ??
-      0
-    );
+    numeroSeguro(
+      dato.profit
+    ) ?? 0;
 
 
   const ganada =
@@ -2511,6 +2703,7 @@ function mostrarResultadoDemo(
     pintarResultadoFinal(
       resultado.resultado
     );
+
 
     return;
 
@@ -2612,8 +2805,9 @@ function mostrarTelemetria(
   ) {
 
     UI.calibradorReferencia.textContent =
-      telemetria.retrasoReferenciaSeg !=
-        null
+      numeroValido(
+        telemetria.retrasoReferenciaSeg
+      )
         ? `${telemetria.retrasoReferenciaSeg} s`
         : "--";
 
@@ -2648,17 +2842,33 @@ function mostrarTelemetria(
     UI.calibradorSignalBuy
   ) {
 
-    UI.calibradorSignalBuy.textContent =
+    if (
       telemetria.modoEjecucion ===
-        MODO_MANUAL
-        ? `CLIC ${formatoOffsetMs(
-            telemetria
-              .manualClickToTargetMs
-          )}`
-        : formatoMs(
-            telemetria
-              .signalToBuyMs
-          );
+      MODO_MANUAL
+    ) {
+
+      UI.calibradorSignalBuy.textContent =
+        numeroValido(
+          telemetria
+            .manualClickToTargetMs
+        )
+          ? `CLIC ${formatoOffsetMs(
+              telemetria
+                .manualClickToTargetMs
+            )}`
+          : "CLIC · SIN TARGET";
+
+    }
+
+    else {
+
+      UI.calibradorSignalBuy.textContent =
+        formatoMs(
+          telemetria
+            .signalToBuyMs
+        );
+
+    }
 
   }
 
@@ -2716,11 +2926,9 @@ function mostrarTelemetria(
   ) {
 
     UI.manualClickOffset.textContent =
-      Number.isFinite(
-        Number(
-          telemetria
-            .manualClickToTargetMs
-        )
+      numeroValido(
+        telemetria
+          .manualClickToTargetMs
       )
         ? formatoOffsetMs(
             telemetria
@@ -2736,11 +2944,9 @@ function mostrarTelemetria(
   ) {
 
     UI.manualBuyOffset.textContent =
-      Number.isFinite(
-        Number(
-          telemetria
-            .manualBuyToTargetMs
-        )
+      numeroValido(
+        telemetria
+          .manualBuyToTargetMs
       )
         ? formatoOffsetMs(
             telemetria
@@ -2812,10 +3018,15 @@ function registrarDiagnosticoTiming(
             .manualClickToBuyMs
         )
       } · BUY/TARGET ${
-        formatoOffsetMs(
+        numeroValido(
           telemetria
             .manualBuyToTargetMs
         )
+          ? formatoOffsetMs(
+              telemetria
+                .manualBuyToTargetMs
+            )
+          : "--"
       }.`
     );
 
@@ -2916,7 +3127,8 @@ function renderFilaMercado(
   ) {
 
     fila.pruebas.textContent =
-      resumen.pruebas ?? 0;
+      resumen.pruebas ??
+      0;
 
   }
 
@@ -2926,7 +3138,8 @@ function renderFilaMercado(
   ) {
 
     fila.ganadas.textContent =
-      resumen.ganadas ?? 0;
+      resumen.ganadas ??
+      0;
 
   }
 
@@ -2936,7 +3149,8 @@ function renderFilaMercado(
   ) {
 
     fila.perdidas.textContent =
-      resumen.perdidas ?? 0;
+      resumen.perdidas ??
+      0;
 
   }
 
@@ -2959,7 +3173,8 @@ function renderFilaMercado(
 
     fila.latencia.textContent =
       formatoMs(
-        resumen.promedioSignalToBuyMs
+        resumen
+          .promedioSignalToBuyMs
       );
 
   }
@@ -3007,7 +3222,8 @@ function renderComparador(
   ) {
 
     ui.ganadasCantidad.textContent =
-      ganadas.cantidad ?? 0;
+      ganadas.cantidad ??
+      0;
 
   }
 
@@ -3018,7 +3234,8 @@ function renderComparador(
 
     ui.ganadasSignalBuy.textContent =
       formatoMs(
-        ganadas.promedioSignalToBuyMs
+        ganadas
+          .promedioSignalToBuyMs
       );
 
   }
@@ -3030,7 +3247,8 @@ function renderComparador(
 
     ui.ganadasMin.textContent =
       formatoMs(
-        ganadas.minimoSignalToBuyMs
+        ganadas
+          .minimoSignalToBuyMs
       );
 
   }
@@ -3042,7 +3260,8 @@ function renderComparador(
 
     ui.ganadasMax.textContent =
       formatoMs(
-        ganadas.maximoSignalToBuyMs
+        ganadas
+          .maximoSignalToBuyMs
       );
 
   }
@@ -3080,7 +3299,8 @@ function renderComparador(
   ) {
 
     ui.perdidasCantidad.textContent =
-      perdidas.cantidad ?? 0;
+      perdidas.cantidad ??
+      0;
 
   }
 
@@ -3091,7 +3311,8 @@ function renderComparador(
 
     ui.perdidasSignalBuy.textContent =
       formatoMs(
-        perdidas.promedioSignalToBuyMs
+        perdidas
+          .promedioSignalToBuyMs
       );
 
   }
@@ -3103,7 +3324,8 @@ function renderComparador(
 
     ui.perdidasMin.textContent =
       formatoMs(
-        perdidas.minimoSignalToBuyMs
+        perdidas
+          .minimoSignalToBuyMs
       );
 
   }
@@ -3115,7 +3337,8 @@ function renderComparador(
 
     ui.perdidasMax.textContent =
       formatoMs(
-        perdidas.maximoSignalToBuyMs
+        perdidas
+          .maximoSignalToBuyMs
       );
 
   }
@@ -3154,7 +3377,8 @@ function renderComparador(
 
     ui.diferencia.textContent =
       formatoMs(
-        comparacion.diferenciaMedianaMs
+        comparacion
+          .diferenciaMedianaMs
       );
 
   }
@@ -3174,8 +3398,7 @@ function renderComparador(
 
 
 /* ==========================================
-   FIX13.7
-   ESTADÍSTICAS EN UNA SOLA LLAMADA
+   ESTADÍSTICAS COMPLETAS
    ========================================== */
 
 function actualizarEstadisticasCompletas() {
@@ -3193,11 +3416,15 @@ function actualizarEstadisticasCompletas() {
     FILAS_MERCADO
   )
     .forEach(
-      (mercado) => {
+      (
+        mercado
+      ) => {
 
         renderFilaMercado(
           mercado,
-          resumenes[mercado]
+          resumenes[
+            mercado
+          ]
         );
 
       }
@@ -3211,13 +3438,17 @@ function actualizarEstadisticasCompletas() {
 
   renderComparador(
     "R_50",
-    comparaciones["R_50"]
+    comparaciones[
+      "R_50"
+    ]
   );
 
 
   renderComparador(
     "1HZ75V",
-    comparaciones["1HZ75V"]
+    comparaciones[
+      "1HZ75V"
+    ]
   );
 
 }
@@ -3309,6 +3540,7 @@ UI.botonEjecutarManual
           "aviso"
         );
 
+
         return;
 
       }
@@ -3349,6 +3581,7 @@ UI.botonEjecutarManual
 
 
           renderModoEjecucion();
+
 
           return;
 
@@ -3392,11 +3625,6 @@ UI.botonEjecutarManual
         );
 
 
-        /*
-          Solo aquí actualizamos
-          estadísticas pesadas.
-        */
-
         actualizarEstadisticasCompletas();
 
 
@@ -3417,7 +3645,9 @@ UI.botonEjecutarManual
         registrarActividad(
           `Error MANUAL · ${
             error?.message ||
-            String(error)
+            String(
+              error
+            )
           }`,
           "error"
         );
@@ -3467,15 +3697,13 @@ signalBridge.onSenal(
 
 
     const marcaPuente =
-      Number(
+      numeroSeguro(
         senal?.bridgeReceivedPerf
       );
 
 
     const senalRecibidaPerf =
-      Number.isFinite(
-        marcaPuente
-      )
+      marcaPuente !== null
         ? marcaPuente
         : ahoraPreciso();
 
@@ -3563,12 +3791,6 @@ signalBridge.onSenal(
 
         }
 
-
-        /*
-          En FIX13.7 el evento
-          bot:manual-ready ya puede haberse
-          emitido desde PREPARAR.
-        */
 
         renderModoEjecucion();
 
@@ -3700,7 +3922,9 @@ signalBridge.onSenal(
       registrarActividad(
         `Error ${BOT_VERSION} · fase ${fase} · ${
           error?.message ||
-          String(error)
+          String(
+            error
+          )
         }`,
         "error"
       );
@@ -3789,6 +4013,20 @@ window.addEventListener(
 
         UI.estadoBot.textContent =
           "BOT OFF";
+
+
+        UI.estadoBot
+          .classList
+          .remove(
+            "encendido"
+          );
+
+
+        UI.estadoBot
+          .classList
+          .add(
+            "apagado"
+          );
 
       }
 
@@ -3904,7 +4142,8 @@ UI.botonPausar
         !estado?.pausado
       ) {
 
-        botEngine.pausar();
+        botEngine
+          .pausar();
 
 
         UI.botonPausar.textContent =
@@ -3914,7 +4153,8 @@ UI.botonPausar
 
       else {
 
-        botEngine.reanudar();
+        botEngine
+          .reanudar();
 
 
         UI.botonPausar.textContent =
@@ -3981,7 +4221,7 @@ UI.botonDesactivarDemo
 
 
 /* ==========================================
-   PRUEBA INTERNA FIX13.7
+   PRUEBA INTERNA FIX13.7.1
    ========================================== */
 
 UI.botonProbar
@@ -4307,7 +4547,8 @@ derivConnection.on(
       ) {
 
         UI.derivConexion.textContent =
-          estado === "connecting"
+          estado ===
+            "connecting"
             ? "CONECTANDO"
             : "OFF";
 
@@ -4315,7 +4556,8 @@ derivConnection.on(
 
 
       if (
-        estado !== "connecting"
+        estado !==
+        "connecting"
       ) {
 
         if (
@@ -4404,6 +4646,7 @@ UI.botonConectarDeriv
           "aviso"
         );
 
+
         return;
 
       }
@@ -4417,6 +4660,7 @@ UI.botonConectarDeriv
           "Falta Token PAT.",
           "aviso"
         );
+
 
         return;
 
@@ -4552,7 +4796,8 @@ window.addEventListener(
       signalBridge.destruir
     ) {
 
-      signalBridge.destruir();
+      signalBridge
+        .destruir();
 
     }
 
@@ -4560,7 +4805,8 @@ window.addEventListener(
       signalBridge.desconectar
     ) {
 
-      signalBridge.desconectar();
+      signalBridge
+        .desconectar();
 
     }
 
@@ -4597,10 +4843,6 @@ renderModoEjecucion();
 
 recuperarResultadoEngine();
 
-
-/*
-  Una sola carga pesada inicial.
-*/
 
 actualizarEstadisticasCompletas();
 
@@ -4650,7 +4892,13 @@ registrarActividad(
 
 
 registrarActividad(
-  "FIX13.7 ESTABLE + RÁPIDA activo.",
+  "FIX13.7.1 ESTABLE + RÁPIDA activo.",
+  "correcto"
+);
+
+
+registrarActividad(
+  "Protección NULL/TARGET activa.",
   "correcto"
 );
 
@@ -4676,6 +4924,11 @@ registrarActividad(
 
 
 registrarActividad(
+  "Sin TARGET no se mostrará falsamente 0.00 ms."
+);
+
+
+registrarActividad(
   "GANADA / PERDIDA permanecerá visible."
 );
 
@@ -4687,5 +4940,5 @@ registrarActividad(
 
 /* ==========================================
    FIN BOT.JS
-   FIX13.7 ESTABLE + RÁPIDA
+   FIX13.7.1 ESTABLE + RÁPIDA
    ========================================== */
