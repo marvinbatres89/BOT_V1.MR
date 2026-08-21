@@ -7830,26 +7830,33 @@ class BotEngine {
       preparada.telemetria;
 
 
+        /* ====================================
+       FIX13.7.1
+       TARGET / PROGRAMACIÓN SEGURA
+
+       null NO puede convertirse en 0.
+       ==================================== */
+
     const targetExecutionAt =
-      Number(
+      this.numeroSeguro(
         telemetria
           .targetExecutionAt
       );
 
 
     const programmedAt =
-      Number(
+      this.numeroSeguro(
         telemetria
           .programmedExecutionAt
       );
 
 
     const calibracionMs =
-      Number(
+      this.numeroSeguro(
         telemetria
-          .calibracionMs ??
-        0
-      );
+          .calibracionMs
+      ) ??
+      0;
 
 
     if (
