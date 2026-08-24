@@ -925,7 +925,6 @@ class BotEngine {
      TARGET, tiempos y offsets inexistentes
      deben mantenerse como NULL.
      ======================================== */
-
   numeroValido(
     valor
   ) {
@@ -941,12 +940,15 @@ class BotEngine {
     }
 
 
-    return this.numeroValido(valor);
+    return Number.isFinite(
+      Number(
+        valor
+      )
+    );
 
-  }
+  } 
 
-
-  numeroSeguro(
+     numeroSeguro(
     valor
   ) {
 
@@ -966,6 +968,7 @@ class BotEngine {
     );
 
   }
+  
   /* ========================================
      CACHÉ
      ======================================== */
