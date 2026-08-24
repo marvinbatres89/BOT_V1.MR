@@ -116,7 +116,8 @@ const TIMING_COMPATIBLE_VERSIONS = [
   "FIX13.6",
   "FIX13.7",
   "FIX13.8",
-  "FIX13.9"
+  "FIX13.9",
+  "FIX14.0"
 ];
 
 
@@ -132,7 +133,8 @@ const SIGNAL_PROFILE_VERSIONS = [
   "FIX13.6",
   "FIX13.7",
   "FIX13.8",
-  "FIX13.9"
+  "FIX13.9",
+  "FIX14.0"
 ];
 
 
@@ -842,23 +844,19 @@ class BotEngine {
   ) {
 
     const a =
-      Number(
+      this.numeroSeguro(
         inicio
       );
 
     const b =
-      Number(
+      this.numeroSeguro(
         fin
       );
 
 
     if (
-      !Number.isFinite(
-        a
-      ) ||
-      !Number.isFinite(
-        b
-      )
+      a === null ||
+      b === null
     ) {
 
       return null;
@@ -943,11 +941,7 @@ class BotEngine {
     }
 
 
-    return Number.isFinite(
-      Number(
-        valor
-      )
-    );
+    return this.numeroValido(valor);
 
   }
 
@@ -1376,11 +1370,7 @@ class BotEngine {
 
 
     const scoreBucket =
-      Number.isFinite(
-        Number(
-          scoreBruto
-        )
-      )
+      this.numeroValido(scoreBruto)
         ? this.agruparNumero(
             scoreBruto,
             PATTERN_CONTROL
@@ -1390,11 +1380,7 @@ class BotEngine {
 
 
     const valorBucket =
-      Number.isFinite(
-        Number(
-          valorPatron
-        )
-      )
+      this.numeroValido(valorPatron)
         ? this.agruparNumero(
             valorPatron,
             PATTERN_CONTROL
@@ -2623,9 +2609,19 @@ class BotEngine {
             ...this.calibracion
           },
 
+        calibracionDireccion:
+          {
+            ...this.calibracionDireccion
+          },
+
         patternControl:
           {
             ...PATTERN_CONTROL
+          },
+
+        directionTimingControl:
+          {
+            ...DIRECTION_TIMING_CONTROL
           }
 
       },
@@ -2634,9 +2630,22 @@ class BotEngine {
         this
           .obtenerResumenMemoriaPatrones(),
 
+      resumenTimingDireccion:
+        this
+          .obtenerResumenTimingDireccion(),
+
+      auditoriaEstrategias:
+        this
+          .obtenerAuditoriaEstrategias(),
+
       patrones:
         this
           .obtenerPatronesOrdenados(),
+
+      memoriaTimingDireccion:
+        Object.values(
+          this.memoriaTimingDireccion || {}
+        ),
 
       telemetria:
         this.historialTelemetria
@@ -3457,7 +3466,7 @@ class BotEngine {
         true,
 
       mensaje:
-        "Bot iniciado FIX13.8."
+        "Bot iniciado FIX14.0."
 
     };
 
@@ -3882,13 +3891,7 @@ class BotEngine {
         item.targetReceivedAt,
 
       targetDisponible:
-        Number.isFinite(
-          Number(
-            item
-              .telemetria
-              ?.targetExecutionAt
-          )
-        ),
+        this.numeroValido(item.telemetria?.targetExecutionAt),
 
       patron:
         item
@@ -4777,16 +4780,8 @@ class BotEngine {
 
 
     if (
-      Number.isFinite(
-        Number(
-          t.targetExecutionAt
-        )
-      ) &&
-      Number.isFinite(
-        Number(
-          t.proposalRequestedEpoch
-        )
-      )
+      this.numeroValido(t.targetExecutionAt) &&
+      this.numeroValido(t.proposalRequestedEpoch)
     ) {
 
       t.targetToPullRequestMs =
@@ -4803,16 +4798,8 @@ class BotEngine {
 
 
     if (
-      Number.isFinite(
-        Number(
-          t.targetExecutionAt
-        )
-      ) &&
-      Number.isFinite(
-        Number(
-          t.proposalReceivedEpoch
-        )
-      )
+      this.numeroValido(t.targetExecutionAt) &&
+      this.numeroValido(t.proposalReceivedEpoch)
     ) {
 
       t.targetToPullReceivedMs =
@@ -4829,16 +4816,8 @@ class BotEngine {
 
 
     if (
-      Number.isFinite(
-        Number(
-          t.programmedExecutionAt
-        )
-      ) &&
-      Number.isFinite(
-        Number(
-          t.buyRequestedEpoch
-        )
-      )
+      this.numeroValido(t.programmedExecutionAt) &&
+      this.numeroValido(t.buyRequestedEpoch)
     ) {
 
       t.programmedToBuyMs =
@@ -4855,16 +4834,8 @@ class BotEngine {
 
 
     if (
-      Number.isFinite(
-        Number(
-          t.programmedExecutionAt
-        )
-      ) &&
-      Number.isFinite(
-        Number(
-          t.buyConfirmedEpoch
-        )
-      )
+      this.numeroValido(t.programmedExecutionAt) &&
+      this.numeroValido(t.buyConfirmedEpoch)
     ) {
 
       t.programmedToBuyConfirmMs =
@@ -4888,16 +4859,8 @@ class BotEngine {
 
 
     if (
-      Number.isFinite(
-        Number(
-          t.manualReadyEpoch
-        )
-      ) &&
-      Number.isFinite(
-        Number(
-          t.prepareReceivedEpoch
-        )
-      )
+      this.numeroValido(t.manualReadyEpoch) &&
+      this.numeroValido(t.prepareReceivedEpoch)
     ) {
 
       t.prepareToManualReadyMs =
@@ -4914,16 +4877,8 @@ class BotEngine {
 
 
     if (
-      Number.isFinite(
-        Number(
-          t.manualReadyEpoch
-        )
-      ) &&
-      Number.isFinite(
-        Number(
-          t.targetReceivedEpoch
-        )
-      )
+      this.numeroValido(t.manualReadyEpoch) &&
+      this.numeroValido(t.targetReceivedEpoch)
     ) {
 
       t.targetToManualReadyMs =
@@ -5007,16 +4962,8 @@ class BotEngine {
 
 
     if (
-      Number.isFinite(
-        Number(
-          t.targetExecutionAt
-        )
-      ) &&
-      Number.isFinite(
-        Number(
-          t.buyRequestedEpoch
-        )
-      )
+      this.numeroValido(t.targetExecutionAt) &&
+      this.numeroValido(t.buyRequestedEpoch)
     ) {
 
       t.targetToBuyMs =
@@ -5033,16 +4980,8 @@ class BotEngine {
 
 
     if (
-      Number.isFinite(
-        Number(
-          t.manualClickEpoch
-        )
-      ) &&
-      Number.isFinite(
-        Number(
-          t.targetExecutionAt
-        )
-      )
+      this.numeroValido(t.manualClickEpoch) &&
+      this.numeroValido(t.targetExecutionAt)
     ) {
 
       t.manualClickToTargetMs =
@@ -5059,16 +4998,8 @@ class BotEngine {
 
 
     if (
-      Number.isFinite(
-        Number(
-          t.manualClickEpoch
-        )
-      ) &&
-      Number.isFinite(
-        Number(
-          t.programmedExecutionAt
-        )
-      )
+      this.numeroValido(t.manualClickEpoch) &&
+      this.numeroValido(t.programmedExecutionAt)
     ) {
 
       t.manualClickToProgrammedMs =
@@ -5085,16 +5016,8 @@ class BotEngine {
 
 
     if (
-      Number.isFinite(
-        Number(
-          t.manualClickEpoch
-        )
-      ) &&
-      Number.isFinite(
-        Number(
-          t.buyRequestedEpoch
-        )
-      )
+      this.numeroValido(t.manualClickEpoch) &&
+      this.numeroValido(t.buyRequestedEpoch)
     ) {
 
       t.manualClickToBuyMs =
@@ -5113,16 +5036,8 @@ class BotEngine {
     if (
       t.modoEjecucion ===
         MODOS_EJECUCION.MANUAL &&
-      Number.isFinite(
-        Number(
-          t.targetExecutionAt
-        )
-      ) &&
-      Number.isFinite(
-        Number(
-          t.buyRequestedEpoch
-        )
-      )
+      this.numeroValido(t.targetExecutionAt) &&
+      this.numeroValido(t.buyRequestedEpoch)
     ) {
 
       t.manualBuyToTargetMs =
@@ -5141,16 +5056,8 @@ class BotEngine {
     if (
       t.modoEjecucion ===
         MODOS_EJECUCION.MANUAL &&
-      Number.isFinite(
-        Number(
-          t.targetExecutionAt
-        )
-      ) &&
-      Number.isFinite(
-        Number(
-          t.buyConfirmedEpoch
-        )
-      )
+      this.numeroValido(t.targetExecutionAt) &&
+      this.numeroValido(t.buyConfirmedEpoch)
     ) {
 
       t.manualBuyConfirmToTargetMs =
@@ -5226,11 +5133,7 @@ class BotEngine {
 
 
     if (
-      !Number.isFinite(
-        Number(
-          t.targetExecutionAt
-        )
-      ) &&
+      !this.numeroValido(t.targetExecutionAt) &&
       t.modoEjecucion !==
         MODOS_EJECUCION.MANUAL
     ) {
@@ -6208,11 +6111,7 @@ class BotEngine {
             !Number.isFinite(
               accuracy
             ) ||
-            !Number.isFinite(
-              Number(
-                accuracyGeneral
-              )
-            )
+            !this.numeroValido(accuracyGeneral)
           ) {
 
             continue;
@@ -8076,12 +7975,7 @@ class BotEngine {
 
 
     if (
-      Number.isFinite(
-        Number(
-          telemetria
-            .manualReadyEpoch
-        )
-      )
+      this.numeroValido(telemetria.manualReadyEpoch)
     ) {
 
       telemetria
@@ -8286,12 +8180,7 @@ class BotEngine {
     if (
       origen ===
         "MANUAL" &&
-      Number.isFinite(
-        Number(
-          telemetria
-            .manualClickEpoch
-        )
-      )
+      this.numeroValido(telemetria.manualClickEpoch)
     ) {
 
       telemetria
@@ -9076,12 +8965,7 @@ class BotEngine {
 
 
       if (
-        !Number.isFinite(
-          Number(
-            telemetria
-              .manualReadyEpoch
-          )
-        )
+        !this.numeroValido(telemetria.manualReadyEpoch)
       ) {
 
         telemetria
@@ -9777,12 +9661,7 @@ class BotEngine {
 
 
     if (
-      Number.isFinite(
-        Number(
-          telemetria
-            .targetExecutionAt
-        )
-      )
+      this.numeroValido(telemetria.targetExecutionAt)
     ) {
 
       telemetria
@@ -9799,12 +9678,7 @@ class BotEngine {
 
 
     if (
-      Number.isFinite(
-        Number(
-          telemetria
-            .programmedExecutionAt
-        )
-      )
+      this.numeroValido(telemetria.programmedExecutionAt)
     ) {
 
       telemetria
@@ -9866,12 +9740,7 @@ class BotEngine {
             .manualClickToProgrammedMs,
 
         targetDisponible:
-          Number.isFinite(
-            Number(
-              telemetria
-                .targetExecutionAt
-            )
-          ),
+          this.numeroValido(telemetria.targetExecutionAt),
 
         analisisPatron:
           preparada
@@ -10002,7 +9871,7 @@ class BotEngine {
       fase,
 
       motivo:
-        "Señal sin protocolo PREPARAR/EJECUTAR. FIX13.8 requiere las dos fases."
+        "Señal sin protocolo PREPARAR/EJECUTAR. FIX14.0 requiere las dos fases."
 
     };
 

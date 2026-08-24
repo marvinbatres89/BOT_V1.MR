@@ -68,7 +68,7 @@ const MODO_MANUAL =
 
 
 /* ==========================================
-   FIX13.9 · UNA SEÑAL = UNA EJECUCIÓN
+   FIX14.0 · UNA SEÑAL = UNA EJECUCIÓN
    ========================================== */
 
 let operacionManualConsumida =
@@ -121,7 +121,7 @@ function primerElemento(
 
 
 /* ==========================================
-   FIX13.9
+   FIX14.0
    CREAR PANEL MEMORIA SI NO EXISTE
    ========================================== */
 
@@ -661,7 +661,7 @@ const UI = {
 
 
   /* ======================================
-     FIX13.9 MEMORIA
+     FIX14.0 MEMORIA
      ====================================== */
 
   patronEstadoVisual:
@@ -1319,7 +1319,7 @@ function registrarActividad(
 
 
 /* ==========================================
-   FIX13.9
+   FIX14.0
    RENDER PATRÓN
    ========================================== */
 
@@ -1595,7 +1595,7 @@ function renderAnalisisPatron(
 
 
 /* ==========================================
-   FIX13.9
+   FIX14.0
    RENDER RESUMEN MEMORIA
    ========================================== */
 
@@ -2330,7 +2330,7 @@ UI.botonDescargarTestLog
 
 
         enlace.download =
-          `V13_8_TESTLOG_${fecha}.json`;
+          `V14_0_TESTLOG_${fecha}.json`;
 
 
         document.body
@@ -2358,7 +2358,7 @@ UI.botonDescargarTestLog
 
 
         registrarActividad(
-          "TESTLOG FIX13.9 generado correctamente.",
+          "TESTLOG FIX14.0 generado correctamente.",
           "correcto"
         );
 
@@ -4721,7 +4721,7 @@ function actualizarEstadisticasCompletas() {
 
 
 /* ==========================================
-   FIX13.9 · CUENTA DEMO / REAL SEGURA
+   FIX14.0 · CUENTA DEMO / REAL SEGURA
    ========================================== */
 
 function renderCuentaSegura() {
@@ -5556,7 +5556,7 @@ UI.botonConectar
         } · ${BOT_BUILD}`,
         estadoMotor
             ?.versionTelemetria ===
-          "FIX13.9"
+          "FIX14.0"
           ? "correcto"
           : "aviso"
       );
@@ -5700,7 +5700,7 @@ UI.botonDesactivarDemo
 
 
 /* ==========================================
-   PRUEBA INTERNA FIX13.9
+   PRUEBA INTERNA FIX14.0
    ========================================== */
 
 UI.botonProbar
@@ -5724,7 +5724,7 @@ UI.botonProbar
             "PREPARAR",
 
           protocolo:
-            "FIX13.9",
+            "FIX14.0",
 
           mercado:
             "R_50",
@@ -5779,7 +5779,7 @@ UI.botonProbar
               "PREPARAR",
 
             protocolo:
-              "FIX13.9",
+              "FIX14.0",
 
             rawScore:
               84.4,
@@ -5829,7 +5829,7 @@ UI.botonProbar
             "EJECUTAR",
 
           protocolo:
-            "FIX13.9",
+            "FIX14.0",
 
           mercado:
             "R_50",
@@ -5889,7 +5889,7 @@ UI.botonProbar
               "EJECUTAR",
 
             protocolo:
-              "FIX13.9",
+              "FIX14.0",
 
             rawScore:
               84.4,
@@ -6349,7 +6349,7 @@ registrarActividad(
   }.`,
   estadoInicialMotor
       ?.versionTelemetria ===
-    "FIX13.9"
+    "FIX14.0"
     ? "correcto"
     : "aviso"
 );
