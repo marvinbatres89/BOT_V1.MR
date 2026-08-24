@@ -3263,18 +3263,225 @@ class BotEngine {
 
 }
 
-  obtenerResumenTimingDireccion() {
-    const entradas = Object.values(this.memoriaTimingDireccion || {});
-    const resumir = (dir) => {
-      const d = entradas.filter(x => x?.direccion === dir);
-      const total = d.reduce((a,x)=>a+Number(x.total||0),0);
-      const ganadas = d.reduce((a,x)=>a+Number(x.ganadas||0),0);
-      const ordenadas = d.slice().sort((a,b)=> Number(b.accuracy||0)-Number(a.accuracy||0) || Number(b.total||0)-Number(a.total||0));
-      const mejor = ordenadas.find(x => Number(x.total||0) >= DIRECTION_TIMING_CONTROL.minimumDecisionSamples) || ordenadas[0] || null;
-      return {direccion:dir, total, ganadas, perdidas:total-ganadas, accuracy: total ? this.redondear(ganadas/total*100) : null, mejor};
+ obtenerResumenTimingDireccion() {
+
+  const entradas =
+    Object.values(
+      this.memoriaTimingDireccion || {}
+    );
+
+
+  const resumir = (
+    dir
+  ) => {
+
+    const d =
+      entradas.filter(
+        x =>
+          x?.direccion ===
+          dir
+      );
+
+
+    const total =
+      d.reduce(
+        (a, x) =>
+          a +
+          Number(
+            x?.total || 0
+          ),
+        0
+      );
+
+
+    const ganadas =
+      d.reduce(
+        (a, x) =>
+          a +
+          Number(
+            x?.ganadas || 0
+          ),
+        0
+      );
+
+
+    const perdidas =
+      Math.max(
+        0,
+        total -
+        ganadas
+      );
+
+
+    const ordenadas =
+      d
+        .slice()
+        .sort(
+          (a, b) => {
+
+            const accuracyA =
+              Number(
+                a?.accuracy || 0
+              );
+
+            const accuracyB =
+              Number(
+                b?.accuracy || 0
+              );
+
+
+            if (
+              accuracyB !==
+              accuracyA
+            ) {
+
+              return (
+                accuracyB -
+                accuracyA
+              );
+
+            }
+
+
+            return (
+              Number(
+                b?.total || 0
+              ) -
+              Number(
+                a?.total || 0
+              )
+            );
+
+          }
+        );
+
+
+    const conEvidencia =
+      ordenadas.filter(
+        x =>
+          Number(
+            x?.total || 0
+          ) >=
+          DIRECTION_TIMING_CONTROL
+            .minimumDecisionSamples
+      );
+
+
+    const mejor =
+      conEvidencia[0] ||
+      ordenadas[0] ||
+      null;
+
+
+    const mejorTimingMs =
+      mejor
+        ? Number(
+            mejor
+              .timingBucketMs || 0
+          )
+        : null;
+
+
+    const mejorAccuracy =
+      mejor
+        ? Number(
+            mejor
+              .accuracy || 0
+          )
+        : null;
+
+
+    const mejorMuestras =
+      mejor
+        ? Number(
+            mejor
+              .total || 0
+          )
+        : 0;
+
+
+    const clasificacion =
+      mejor
+        ? String(
+            mejor
+              .clasificacion ||
+            "SIN_EVIDENCIA"
+          )
+        : "SIN_EVIDENCIA";
+
+
+    return {
+
+      direccion:
+        dir,
+
+      total,
+
+      ganadas,
+
+      perdidas,
+
+      accuracy:
+        total
+          ? this.redondear(
+              (
+                ganadas /
+                total
+              ) *
+              100
+            )
+          : 0,
+
+      mejorTimingMs,
+
+      mejorTimingSeg:
+        mejorTimingMs !==
+        null
+          ? this.redondear(
+              mejorTimingMs /
+              1000
+            )
+          : null,
+
+      mejorAccuracy,
+
+      mejorMuestras,
+
+      clasificacion,
+
+      suficienteEvidencia:
+        mejorMuestras >=
+        DIRECTION_TIMING_CONTROL
+          .minimumDecisionSamples
+
     };
-    return {EVEN:resumir("EVEN"), ODD:resumir("ODD"), configuracion:{...this.calibracionDireccion}, control:{...DIRECTION_TIMING_CONTROL}};
-  }
+
+  };
+
+
+  return {
+
+    EVEN:
+      resumir(
+        "EVEN"
+      ),
+
+    ODD:
+      resumir(
+        "ODD"
+      ),
+
+    configuracion: {
+      ...this.calibracionDireccion
+    },
+
+    control: {
+      ...DIRECTION_TIMING_CONTROL
+    }
+
+  };
+
+}
 
   obtenerAuditoriaEstrategias() {
     const estrategias = ["even_odd","over_under","match","rise_fall"];
