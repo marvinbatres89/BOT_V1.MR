@@ -2975,29 +2975,293 @@ class BotEngine {
     return this.obtenerAjusteMercado(senal?.mercado);
   }
 
-  registrarTimingDireccion(telemetria) {
-    if (!telemetria || !["GANADA","PERDIDA"].includes(telemetria.resultado)) return null;
-    const estrategia = String(telemetria.estrategia || "").toLowerCase();
-    const direccion = this.normalizarTexto(telemetria.direccion);
-    if (!(estrategia === "even_odd" || estrategia === "even/odd") || !["EVEN","ODD"].includes(direccion)) return null;
-    const timing = this.numeroSeguro(telemetria.buyTargetDeviationMs ?? telemetria.manualClickToTargetMs);
-    if (timing === null) return null;
-    const bucket = Math.round(timing / DIRECTION_TIMING_CONTROL.timingBucketSizeMs) * DIRECTION_TIMING_CONTROL.timingBucketSizeMs;
-    const mercado = this.normalizarMercado(telemetria.mercado);
-    const key = [mercado,"EVEN_ODD",direccion,`T${bucket}`].join("|");
-    const e = this.memoriaTimingDireccion[key] || {key, mercado, estrategia:"even_odd", direccion, timingBucketMs:bucket, total:0, ganadas:0, perdidas:0, sumaTimingMs:0, createdAt:Date.now()};
-    e.total += 1;
-    if (telemetria.resultado === "GANADA") e.ganadas += 1; else e.perdidas += 1;
-    e.sumaTimingMs += timing;
-    e.promedioTimingMs = this.redondear(e.sumaTimingMs / e.total);
-    e.accuracy = this.redondear((e.ganadas / e.total) * 100);
-    e.clasificacion = e.total < DIRECTION_TIMING_CONTROL.minimumDecisionSamples ? "SIN_EVIDENCIA" : e.accuracy >= DIRECTION_TIMING_CONTROL.favorableAccuracy ? "FAVORABLE" : e.accuracy <= DIRECTION_TIMING_CONTROL.riskAccuracy ? "RIESGO" : "NEUTRO";
-    e.updatedAt = Date.now();
-    this.memoriaTimingDireccion[key] = e;
-    this.persistirMemoriaTimingDireccion();
-    this.emitirEvento("bot:direction-timing-updated", {...e});
-    return e;
+  registrarTimingDireccion(
+  telemetria
+) {
+
+  if (
+    !telemetria ||
+    ![
+      "GANADA",
+      "PERDIDA"
+    ].includes(
+      telemetria.resultado
+    )
+  ) {
+
+    return null;
+
   }
+
+
+  const estrategia =
+    String(
+      telemetria.estrategia ||
+      ""
+    )
+      .trim()
+      .toLowerCase();
+
+
+  const direccion =
+    this.normalizarTexto(
+      telemetria.direccion
+    );
+
+
+  if (
+    !(
+      estrategia ===
+        "even_odd" ||
+      estrategia ===
+        "even/odd"
+    ) ||
+    ![
+      "EVEN",
+      "ODD"
+    ].includes(
+      direccion
+    )
+  ) {
+
+    return null;
+
+  }
+
+
+  /*
+    FIX14.1
+
+    Para aprender el momento REAL
+    de entrada usamos como referencia
+    el TARGET visual/original.
+
+    AUTOMÁTICO:
+    targetToBuyMs =
+    BUY - TARGET original.
+
+    MANUAL:
+    manualClickToTargetMs =
+    CLIC - TARGET original.
+
+    NO usamos como primera referencia
+    buyTargetDeviationMs porque ese valor
+    ya está afectado por la calibración
+    programada del BOT.
+  */
+
+  let timing =
+    null;
+
+
+  if (
+    telemetria.modoEjecucion ===
+      MODOS_EJECUCION.MANUAL
+  ) {
+
+    timing =
+      this.numeroSeguro(
+        telemetria
+          .manualClickToTargetMs
+      );
+
+  }
+
+  else {
+
+    timing =
+      this.numeroSeguro(
+        telemetria
+          .targetToBuyMs
+      );
+
+  }
+
+
+  /*
+    Respaldo únicamente si el dato
+    principal no está disponible.
+  */
+
+  if (
+    timing ===
+    null
+  ) {
+
+    timing =
+      this.numeroSeguro(
+        telemetria
+          .buyTargetDeviationMs
+      );
+
+  }
+
+
+  if (
+    timing ===
+    null
+  ) {
+
+    return null;
+
+  }
+
+
+  const bucket =
+    Math.round(
+      timing /
+      DIRECTION_TIMING_CONTROL
+        .timingBucketSizeMs
+    ) *
+    DIRECTION_TIMING_CONTROL
+      .timingBucketSizeMs;
+
+
+  const mercado =
+    this.normalizarMercado(
+      telemetria.mercado
+    );
+
+
+  const key = [
+
+    mercado,
+
+    "EVEN_ODD",
+
+    direccion,
+
+    `T${bucket}`
+
+  ].join(
+    "|"
+  );
+
+
+  const e =
+    this.memoriaTimingDireccion[
+      key
+    ] || {
+
+      key,
+
+      mercado,
+
+      estrategia:
+        "even_odd",
+
+      direccion,
+
+      timingBucketMs:
+        bucket,
+
+      total:
+        0,
+
+      ganadas:
+        0,
+
+      perdidas:
+        0,
+
+      sumaTimingMs:
+        0,
+
+      createdAt:
+        Date.now()
+
+    };
+
+
+  e.total +=
+    1;
+
+
+  if (
+    telemetria.resultado ===
+    "GANADA"
+  ) {
+
+    e.ganadas +=
+      1;
+
+  }
+
+  else {
+
+    e.perdidas +=
+      1;
+
+  }
+
+
+  e.sumaTimingMs +=
+    timing;
+
+
+  e.promedioTimingMs =
+    this.redondear(
+      e.sumaTimingMs /
+      e.total
+    );
+
+
+  e.accuracy =
+    this.redondear(
+      (
+        e.ganadas /
+        e.total
+      ) *
+      100
+    );
+
+
+  e.clasificacion =
+    e.total <
+      DIRECTION_TIMING_CONTROL
+        .minimumDecisionSamples
+
+      ? "SIN_EVIDENCIA"
+
+      : e.accuracy >=
+          DIRECTION_TIMING_CONTROL
+            .favorableAccuracy
+
+        ? "FAVORABLE"
+
+        : e.accuracy <=
+            DIRECTION_TIMING_CONTROL
+              .riskAccuracy
+
+          ? "RIESGO"
+
+          : "NEUTRO";
+
+
+  e.updatedAt =
+    Date.now();
+
+
+  this.memoriaTimingDireccion[
+    key
+  ] =
+    e;
+
+
+  this.persistirMemoriaTimingDireccion();
+
+
+  this.emitirEvento(
+    "bot:direction-timing-updated",
+    {
+      ...e
+    }
+  );
+
+
+  return e;
+
+}
 
   obtenerResumenTimingDireccion() {
     const entradas = Object.values(this.memoriaTimingDireccion || {});
