@@ -10085,3 +10085,981 @@ class BotEngine {
     };
 
   }
+
+  /* ========================================
+     TARGET
+     ======================================== */
+
+  actualizarTargetPreparacion(
+    preparada,
+    senal
+  ) {
+
+    const telemetria =
+      preparada.telemetria;
+
+
+    telemetria
+      .targetReceivedEpoch =
+      Date.now();
+
+
+    const programacion =
+      this.calcularProgramacion(
+        senal
+      );
+
+
+    telemetria
+      .targetExecutionAt =
+      programacion
+        .targetExecutionAt;
+
+
+    telemetria
+      .programmedExecutionAt =
+      programacion
+        .programmedAt;
+
+
+    telemetria
+      .calibracionMs =
+      programacion
+        .ajusteMs;
+
+
+    telemetria
+      .calibracionSeg =
+      programacion
+        .ajusteSeg;
+
+
+    telemetria
+      .programacionDisponible =
+      programacion
+        .disponible;
+
+
+    telemetria
+      .puedeAnticipar =
+      programacion
+        .puedeAnticipar;
+
+
+    telemetria
+      .programacionMotivo =
+      programacion
+        .motivo;
+
+
+    telemetria
+      .esperaProgramadaInicialMs =
+      programacion
+        .esperaMs;
+
+
+    telemetria
+      .esperaProgramadaMs =
+      programacion
+        .esperaMs;
+
+
+    if (
+      this.numeroValido(
+        telemetria.manualReadyEpoch
+      )
+    ) {
+
+      telemetria
+        .targetToManualReadyMs =
+        this.redondear(
+          Number(
+            telemetria
+              .manualReadyEpoch
+          ) -
+          Number(
+            telemetria
+              .targetReceivedEpoch
+          )
+        );
+
+    }
+
+
+    return {
+
+      telemetria,
+
+      programacion
+
+    };
+
+  }
+
+
+  /* ========================================
+     COMPRA PREPARADA
+     ======================================== */
+
+  async ejecutarCompraPreparada(
+    preparada,
+    senal,
+    {
+      onOperacionUpdate =
+        null,
+
+      origen =
+        "AUTOMATICO"
+    } = {}
+  ) {
+
+    const operacionId =
+      preparada
+        ?.operacionId;
+
+
+    const cicloVigenteInicial =
+      this.validarCicloOperacion(
+        operacionId,
+        preparada
+      );
+
+
+    if (
+      !cicloVigenteInicial.ok
+    ) {
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "EJECUTAR",
+
+        estado:
+          "CICLO_OBSOLETO",
+
+        motivo:
+          cicloVigenteInicial
+            .motivo,
+
+        operacionId
+
+      };
+
+    }
+
+
+    if (
+      preparada.ejecutando
+    ) {
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "EJECUTAR",
+
+        motivo:
+          "Esta operación ya se está ejecutando."
+
+      };
+
+    }
+
+
+    preparada.ejecutando =
+      true;
+
+
+    const telemetria =
+      preparada.telemetria;
+
+
+    const targetExecutionAt =
+      this.numeroSeguro(
+        telemetria
+          .targetExecutionAt
+      );
+
+
+    const programmedAt =
+      this.numeroSeguro(
+        telemetria
+          .programmedExecutionAt
+      );
+
+
+    const calibracionMs =
+      this.numeroSeguro(
+        telemetria
+          .calibracionMs
+      ) ??
+      0;
+
+
+    if (
+      !derivTrade
+        .obtenerEstado()
+        .ejecucionActiva
+    ) {
+
+      preparada.ejecutando =
+        false;
+
+
+      telemetria.resultado =
+        "EJECUCION_DEMO_INACTIVA";
+
+
+      this.guardarTelemetria(
+        telemetria
+      );
+
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "EJECUTAR",
+
+        estado:
+          "EJECUCION_DEMO_INACTIVA",
+
+        motivo:
+          "La ejecución DERIV DEMO no está activa.",
+
+        telemetria
+
+      };
+
+    }
+
+
+    if (
+      programmedAt ===
+        null ||
+      targetExecutionAt ===
+        null
+    ) {
+
+      preparada.ejecutando =
+        false;
+
+
+      telemetria.resultado =
+        "TARGET_NO_DISPONIBLE";
+
+
+      this.guardarTelemetria(
+        telemetria
+      );
+
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "EJECUTAR",
+
+        estado:
+          "TARGET_NO_DISPONIBLE",
+
+        motivo:
+          "No existe un TARGET válido para ejecutar.",
+
+        telemetria
+
+      };
+
+    }
+
+
+    const ahoraAntesEspera =
+      Date.now();
+
+
+    const esperaMs =
+      Math.max(
+        0,
+        programmedAt -
+        ahoraAntesEspera
+      );
+
+
+    telemetria
+      .esperaProgramadaMs =
+      esperaMs;
+
+
+    if (
+      esperaMs >
+        0
+    ) {
+
+      await this.esperar(
+        esperaMs
+      );
+
+    }
+
+
+    const cicloVigenteAntesBuy =
+      this.validarCicloOperacion(
+        operacionId,
+        preparada
+      );
+
+
+    if (
+      !cicloVigenteAntesBuy.ok
+    ) {
+
+      preparada.ejecutando =
+        false;
+
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "EJECUTAR",
+
+        estado:
+          "CICLO_OBSOLETO",
+
+        motivo:
+          cicloVigenteAntesBuy
+            .motivo,
+
+        operacionId
+
+      };
+
+    }
+
+
+    telemetria
+      .buyRequestedEpoch =
+      Date.now();
+
+
+    telemetria
+      .targetToBuyRequestMs =
+      this.diferencia(
+        targetExecutionAt,
+        telemetria
+          .buyRequestedEpoch
+      );
+
+
+    telemetria
+      .programmedToBuyRequestMs =
+      this.diferencia(
+        programmedAt,
+        telemetria
+          .buyRequestedEpoch
+      );
+
+
+    telemetria
+      .calibracionMs =
+      calibracionMs;
+
+
+    try {
+
+      const compra =
+        await derivTrade
+          .comprar(
+            preparada
+              .propuestaDeriv
+          );
+
+
+      telemetria
+        .buyConfirmedEpoch =
+        Date.now();
+
+
+      telemetria
+        .buyRequestToConfirmationMs =
+        this.diferencia(
+          telemetria
+            .buyRequestedEpoch,
+          telemetria
+            .buyConfirmedEpoch
+        );
+
+
+      telemetria
+        .targetToBuyConfirmationMs =
+        this.diferencia(
+          targetExecutionAt,
+          telemetria
+            .buyConfirmedEpoch
+        );
+
+
+      telemetria
+        .programmedToBuyConfirmationMs =
+        this.diferencia(
+          programmedAt,
+          telemetria
+            .buyConfirmedEpoch
+        );
+
+
+      this.ultimaCompraDemo =
+        compra;
+
+
+      preparada.compraDemo =
+        compra;
+
+
+      if (
+        typeof onOperacionUpdate ===
+        "function"
+      ) {
+
+        try {
+
+          onOperacionUpdate(
+            {
+              tipo:
+                "COMPRA",
+              operacionId,
+              compra,
+              telemetria:
+                {
+                  ...telemetria
+                }
+            }
+          );
+
+        }
+
+        catch {
+
+          // callback externo
+
+        }
+
+      }
+
+
+      let resultadoDemo =
+        null;
+
+
+      try {
+
+        resultadoDemo =
+          await derivTrade
+            .esperarResultado(
+              compra
+            );
+
+      }
+
+      catch (
+        errorResultado
+      ) {
+
+        console.warn(
+          "No se pudo obtener resultado DERIV:",
+          errorResultado
+        );
+
+      }
+
+
+      this.ultimoResultadoDemo =
+        resultadoDemo;
+
+
+      preparada.resultadoDemo =
+        resultadoDemo;
+
+
+      telemetria
+        .resultadoDemo =
+        resultadoDemo ??
+        null;
+
+
+      telemetria
+        .resultado =
+        resultadoDemo
+          ?.ganada === true
+          ? "GANADA"
+          : resultadoDemo
+              ?.ganada === false
+            ? "PERDIDA"
+            : "FINALIZADA";
+
+
+      this.guardarTelemetria(
+        telemetria
+      );
+
+
+      if (
+        resultadoDemo
+      ) {
+
+        this.actualizarPatronConResultado(
+          preparada
+            .senalPreparacion ||
+          senal,
+          resultadoDemo,
+          telemetria
+        );
+
+
+        this.actualizarTimingDireccionConResultado(
+          preparada
+            .senalPreparacion ||
+          senal,
+          resultadoDemo,
+          telemetria
+        );
+
+
+        this.actualizarMovimientoParidadConResultado(
+          preparada
+            .senalPreparacion ||
+          senal,
+          resultadoDemo,
+          telemetria
+        );
+
+      }
+
+
+      if (
+        typeof onOperacionUpdate ===
+        "function"
+      ) {
+
+        try {
+
+          onOperacionUpdate(
+            {
+              tipo:
+                "RESULTADO",
+              operacionId,
+              compra,
+              resultado:
+                resultadoDemo,
+              telemetria:
+                {
+                  ...telemetria
+                }
+            }
+          );
+
+        }
+
+        catch {
+
+          // callback externo
+
+        }
+
+      }
+
+
+      preparada.ejecutando =
+        false;
+
+
+      preparada.buyConsumido =
+        true;
+
+
+      this.preparaciones
+        .delete(
+          operacionId
+        );
+
+
+      if (
+        this.operacionActivaId ===
+        operacionId
+      ) {
+
+        this.operacionActivaId =
+          null;
+
+      }
+
+
+      return {
+
+        aceptada:
+          true,
+
+        fase:
+          "EJECUTAR",
+
+        estado:
+          "OPERACION_FINALIZADA",
+
+        operacionId,
+
+        origen,
+
+        mercado:
+          senal.mercado,
+
+        estrategia:
+          senal.estrategia,
+
+        direccion:
+          senal.direccion,
+
+        confianza:
+          senal.confianza,
+
+        contrato:
+          preparada.contrato,
+
+        propuesta:
+          preparada.propuesta,
+
+        propuestaDeriv:
+          preparada.propuestaDeriv,
+
+        compraDemo:
+          compra,
+
+        resultadoDemo,
+
+        telemetria:
+          {
+            ...telemetria
+          }
+
+      };
+
+    }
+
+    catch (
+      error
+    ) {
+
+      preparada.ejecutando =
+        false;
+
+
+      telemetria
+        .resultado =
+        "ERROR_COMPRA";
+
+
+      telemetria
+        .errorCompra =
+        error
+          ?.message ||
+        String(
+          error
+        );
+
+
+      this.guardarTelemetria(
+        telemetria
+      );
+
+
+      return {
+
+        aceptada:
+          false,
+
+        fase:
+          "EJECUTAR",
+
+        estado:
+          "ERROR_COMPRA",
+
+        operacionId,
+
+        motivo:
+          telemetria
+            .errorCompra,
+
+        telemetria:
+          {
+            ...telemetria
+          }
+
+      };
+
+    }
+
+  }
+
+
+  /* ========================================
+     ESTADO RÁPIDO
+     ======================================== */
+
+  obtenerEstadoRapido() {
+
+    return {
+
+      activo:
+        this.activo,
+
+      pausado:
+        this.pausado,
+
+      modo:
+        this.modo,
+
+      modoEjecucion:
+        this.modoEjecucion,
+
+      versionTelemetria:
+        TELEMETRY_VERSION,
+
+      versionPatrones:
+        PATTERN_VERSION,
+
+      timingBase:
+        TIMING_BASE_VERSION,
+
+      sincronizacionVisual:
+        SYNC_VERSION,
+
+      protocolo:
+        "PREPARAR_EJECUTAR",
+
+      protocoloManual:
+        "PREPARAR_TARGET_CLICK_BUY",
+
+      preparacionesActivas:
+        this.preparaciones
+          .size,
+
+      operacionActivaId:
+        this.operacionActivaId,
+
+      ultimaSenalProcesada:
+        this.ultimaSenalProcesada,
+
+      ultimoContrato:
+        this.ultimoContrato,
+
+      ultimaPropuesta:
+        this.ultimaPropuesta,
+
+      ultimaPropuestaDeriv:
+        this.ultimaPropuestaDeriv,
+
+      ultimaCompraDemo:
+        this.ultimaCompraDemo,
+
+      ultimoResultadoDemo:
+        this.ultimoResultadoDemo,
+
+      ultimaTelemetria:
+        this.ultimaTelemetria,
+
+      ultimoAnalisisPatron:
+        this.ultimoAnalisisPatron,
+
+      resumenMemoriaPatrones:
+        this
+          .obtenerResumenMemoriaPatrones(),
+
+      resumenTimingDireccion:
+        this
+          .obtenerResumenTimingDireccion(),
+
+      auditoriaEstrategias:
+        this
+          .obtenerAuditoriaEstrategias(),
+
+      ultimoAnalisisRegimenRacha:
+        this.ultimoAnalisisRegimenRacha ??
+        null,
+
+      buyTimingDecisionControl:
+        {
+          ...BUY_TIMING_DECISION_CONTROL
+        },
+
+      regimeGuardControl:
+        {
+          ...REGIME_GUARD_CONTROL
+        },
+
+      favorableEvidenceControl:
+        {
+          ...FAVORABLE_EVIDENCE_CONTROL
+        },
+
+      calibracionDireccion:
+        {
+          ...this.calibracionDireccion
+        },
+
+      ajustesDireccionPermitidosMs:
+        [
+          ...DIRECTION_CALIBRATION_ALLOWED_MS
+        ],
+
+      calibracionActual:
+        {
+          ...this.calibracion
+        },
+
+      ajustesPermitidosMs:
+        [
+          ...AJUSTES_PERMITIDOS_MS
+        ],
+
+      trade:
+        derivTrade
+          .obtenerEstado(),
+
+      configuracion:
+        {
+          ...this.configuracion
+        }
+
+    };
+
+  }
+
+
+  /* ========================================
+     ESTADO COMPLETO
+     ======================================== */
+
+  obtenerEstado() {
+
+    const rapido =
+      this.obtenerEstadoRapido();
+
+
+    const analitica =
+      this.obtenerAnaliticaCache();
+
+
+    return {
+
+      ...rapido,
+
+      modosEjecucion:
+        {
+          ...MODOS_EJECUCION
+        },
+
+      filtroAutomaticoActivo:
+        PATTERN_CONTROL
+          .blockRiskInAutomatic,
+
+      modoAprendizajeActivo:
+        PATTERN_CONTROL
+          .learningMode,
+
+      controlPatrones:
+        {
+          ...PATTERN_CONTROL
+        },
+
+      versionesTimingCompatibles:
+        [
+          ...TIMING_COMPATIBLE_VERSIONS
+        ],
+
+      versionesPerfilCompatibles:
+        [
+          ...SIGNAL_PROFILE_VERSIONS
+        ],
+
+      limitesTiming:
+        {
+          ...TIMING_LIMITS
+        },
+
+      controlPerfil:
+        {
+          ...PROFILE_CONTROL
+        },
+
+      mercadosStandard:
+        [
+          ...MERCADOS_STANDARD
+        ],
+
+      mercados1S:
+        [
+          ...MERCADOS_1S
+        ],
+
+      mercadosControlados:
+        [
+          ...MERCADOS_CONTROLADOS
+        ],
+
+      resumenStandard:
+        analitica
+          .resumenStandard,
+
+      resumen1S:
+        analitica
+          .resumen1S,
+
+      resumenMercados:
+        analitica
+          .resumenMercados,
+
+      comparaciones:
+        analitica
+          .comparaciones,
+
+      calibraciones:
+        analitica
+          .calibraciones,
+
+      perfilesSenal:
+        analitica
+          .perfilesSenal,
+
+      analisisPerfiles:
+        analitica
+          .analisisPerfiles
+
+    };
+
+  }
+
+}
+
+
+/* ==========================================
+   INSTANCIA ÚNICA
+   ========================================== */
+
+export const botEngine =
+  new BotEngine();
+
+
+/* ==========================================
+   FIN BOT-ENGINE.JS
+   FIX14.5 FAVORABLE EVIDENCE GATE + LOSS PROTECTION
+   ========================================== */
