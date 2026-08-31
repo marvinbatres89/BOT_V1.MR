@@ -1,0 +1,13 @@
+CAMBIO ÚNICO EN BOT.JS
+
+Agregue esta línea junto a los demás import del inicio:
+
+import "./entry-authorizer-v3.8.js";
+
+No borre ni reemplace ningún otro import.
+
+Después:
+1. Guarde.
+2. Recargue el BOT.
+3. Confirme que aparece "V3.8 · AUTORIZADOR DE ENTRADA".
+4. Pruebe solo en DEMO.
