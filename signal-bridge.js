@@ -1,8 +1,7 @@
-import { executionRecorder } from "./execution-recorder.js";
 /* ==========================================
    BOT V1 MR
    SIGNAL BRIDGE
-   FIX11 - PUENTE REFORZADO
+   FIX14.2 · BRIDGE RECOVERY + SYNC V3.8.2
 
    TRADING ANALYZER -> BOT
 
@@ -16,12 +15,17 @@ import { executionRecorder } from "./execution-recorder.js";
    - protección contra señales antiguas
    - validación
    - marca de alta precisión
-
-   AGREGA:
    - targetExecutionAt
-   - metadata FIX11
-   - respaldo para pestañas Android
+   - PREPARAR / EJECUTAR
+   - respaldo Android
    - diagnóstico de origen
+
+   CORRIGE:
+   - elimina dependencia obligatoria
+     de execution-recorder.js
+   - el puente puede arrancar aunque
+     el registrador no exista
+   - compatible con SYNC-V3.8.2
    ========================================== */
 
 
@@ -33,12 +37,13 @@ const STORAGE_SIGNAL_KEY =
   "TA_BOT_SIGNAL_V1";
 
 
+const BRIDGE_VERSION =
+  "FIX14.2-BRIDGE-RECOVERY-SYNC-V3.8.2";
+
+
 /*
   Una señal de trading no debe
   recuperarse indefinidamente.
-
-  Dejamos 20 segundos para dar
-  margen adicional en Android.
 */
 
 const MAX_ANTIGUEDAD_SENAL =
@@ -47,10 +52,6 @@ const MAX_ANTIGUEDAD_SENAL =
 
 /*
   Respaldo localStorage.
-
-  Si Chrome suspende temporalmente
-  BroadcastChannel o el evento storage,
-  comprobamos la última señal guardada.
 */
 
 const INTERVALO_RESPALDO_MS =
@@ -86,6 +87,10 @@ class SignalBridge {
       null;
 
 
+    this.storageHandler =
+      null;
+
+
     this.iniciarReceptorReal();
 
   }
@@ -115,7 +120,7 @@ class SignalBridge {
 
 
   /* ========================================
-     OBTENER TARGET FIX11
+     OBTENER TARGET ABSOLUTO
      ======================================== */
 
   obtenerTargetExecutionAt(
@@ -124,8 +129,7 @@ class SignalBridge {
 
     const directo =
       Number(
-        datos
-          ?.targetExecutionAt
+        datos?.targetExecutionAt
       );
 
 
@@ -133,8 +137,7 @@ class SignalBridge {
       Number.isFinite(
         directo
       ) &&
-      directo >
-        0
+      directo > 0
     ) {
 
       return directo;
@@ -154,8 +157,109 @@ class SignalBridge {
       Number.isFinite(
         metadata
       ) &&
-      metadata >
-        0
+      metadata > 0
+    ) {
+
+      return metadata;
+
+    }
+
+
+    return null;
+
+  }
+
+
+  /* ========================================
+     OBTENER TARGET VISUAL
+     ======================================== */
+
+  obtenerTargetVisualAt(
+    datos
+  ) {
+
+    const directo =
+      Number(
+        datos?.targetVisualAt
+      );
+
+
+    if (
+      Number.isFinite(
+        directo
+      ) &&
+      directo > 0
+    ) {
+
+      return directo;
+
+    }
+
+
+    const metadata =
+      Number(
+        datos
+          ?.metadata
+          ?.targetVisualAt
+      );
+
+
+    if (
+      Number.isFinite(
+        metadata
+      ) &&
+      metadata > 0
+    ) {
+
+      return metadata;
+
+    }
+
+
+    return null;
+
+  }
+
+
+  /* ========================================
+     OBTENER COUNTDOWN START
+     ======================================== */
+
+  obtenerCountdownStartAt(
+    datos
+  ) {
+
+    const directo =
+      Number(
+        datos?.countdownStartAt
+      );
+
+
+    if (
+      Number.isFinite(
+        directo
+      ) &&
+      directo > 0
+    ) {
+
+      return directo;
+
+    }
+
+
+    const metadata =
+      Number(
+        datos
+          ?.metadata
+          ?.countdownStartAt
+      );
+
+
+    if (
+      Number.isFinite(
+        metadata
+      ) &&
+      metadata > 0
     ) {
 
       return metadata;
@@ -196,6 +300,74 @@ class SignalBridge {
 
 
   /* ========================================
+     OPERACIÓN ID
+     ======================================== */
+
+  obtenerOperacionId(
+    datos
+  ) {
+
+    const valor =
+      datos?.operacionId ??
+      datos?.metadata?.operacionId ??
+      null;
+
+
+    if (
+      valor === null ||
+      valor === undefined
+    ) {
+
+      return null;
+
+    }
+
+
+    return String(
+      valor
+    );
+
+  }
+
+
+  /* ========================================
+     FASE
+     ======================================== */
+
+  obtenerFase(
+    datos
+  ) {
+
+    return String(
+      datos?.fase ??
+      datos?.metadata?.fase ??
+      ""
+    )
+      .trim()
+      .toUpperCase();
+
+  }
+
+
+  /* ========================================
+     PROTOCOLO
+     ======================================== */
+
+  obtenerProtocolo(
+    datos
+  ) {
+
+    return String(
+      datos?.protocolo ??
+      datos?.metadata?.protocolo ??
+      ""
+    )
+      .trim();
+
+  }
+
+
+  /* ========================================
      INICIAR RECEPTORES
      ======================================== */
 
@@ -222,11 +394,25 @@ class SignalBridge {
     ) {
 
       console.warn(
-        "BroadcastChannel no disponible."
+        `${BRIDGE_VERSION} · BroadcastChannel no disponible.`
       );
 
 
-      return;
+      return false;
+
+    }
+
+
+    /*
+      Si ya existe un canal abierto,
+      no crear otro.
+    */
+
+    if (
+      this.channel
+    ) {
+
+      return true;
 
     }
 
@@ -249,7 +435,7 @@ class SignalBridge {
 
 
           console.log(
-            "FIX11 · señal detectada por BroadcastChannel",
+            `${BRIDGE_VERSION} · señal detectada por BroadcastChannel`,
             evento.data
           );
 
@@ -269,21 +455,47 @@ class SignalBridge {
         ) => {
 
           console.error(
-            "Error leyendo BroadcastChannel:",
+            `${BRIDGE_VERSION} · error leyendo BroadcastChannel:`,
             evento
+          );
+
+
+          window.dispatchEvent(
+            new CustomEvent(
+              "bot:error",
+              {
+                detail: {
+                  mensaje:
+                    "Error leyendo el canal de sincronización."
+                }
+              }
+            )
           );
 
         };
 
 
-    } catch (
+      console.log(
+        `${BRIDGE_VERSION} · BroadcastChannel preparado.`,
+        BOT_CHANNEL_NAME
+      );
+
+
+      return true;
+
+    }
+
+    catch (
       error
     ) {
 
       console.error(
-        "No se pudo iniciar BroadcastChannel:",
+        `${BRIDGE_VERSION} · no se pudo iniciar BroadcastChannel:`,
         error
       );
+
+
+      return false;
 
     }
 
@@ -296,8 +508,16 @@ class SignalBridge {
 
   iniciarStorageListener() {
 
-    window.addEventListener(
-      "storage",
+    if (
+      this.storageHandler
+    ) {
+
+      return;
+
+    }
+
+
+    this.storageHandler =
       (
         evento
       ) => {
@@ -326,7 +546,7 @@ class SignalBridge {
 
 
           console.log(
-            "FIX11 · señal detectada por evento storage",
+            `${BRIDGE_VERSION} · señal detectada por evento storage`,
             datos
           );
 
@@ -337,29 +557,32 @@ class SignalBridge {
             recibidoPerf
           );
 
+        }
 
-        } catch (
+        catch (
           error
         ) {
 
           console.error(
-            "Error leyendo señal de localStorage:",
+            `${BRIDGE_VERSION} · error leyendo señal de localStorage:`,
             error
           );
 
         }
 
-      }
+      };
+
+
+    window.addEventListener(
+      "storage",
+      this.storageHandler
     );
 
   }
 
 
   /* ========================================
-     RESPALDO POR SONDEO
-
-     ÚTIL CUANDO UNA PESTAÑA ESTÁ
-     EN SEGUNDO PLANO EN ANDROID.
+     RESPALDO LOCALSTORAGE
      ======================================== */
 
   iniciarRespaldoLocalStorage() {
@@ -438,7 +661,7 @@ class SignalBridge {
 
 
             console.log(
-              "FIX11 · señal recuperada por respaldo localStorage",
+              `${BRIDGE_VERSION} · señal recuperada por respaldo localStorage`,
               datos
             );
 
@@ -449,13 +672,14 @@ class SignalBridge {
               recibidoPerf
             );
 
+          }
 
-          } catch (
+          catch (
             error
           ) {
 
             console.warn(
-              "Error comprobando respaldo localStorage:",
+              `${BRIDGE_VERSION} · error comprobando respaldo localStorage:`,
               error
             );
 
@@ -470,9 +694,15 @@ class SignalBridge {
 
   detenerRespaldoLocalStorage() {
 
-    clearInterval(
+    if (
       this.temporizadorRespaldo
-    );
+    ) {
+
+      clearInterval(
+        this.temporizadorRespaldo
+      );
+
+    }
 
 
     this.temporizadorRespaldo =
@@ -487,17 +717,142 @@ class SignalBridge {
 
   conectar() {
 
-    this.conectado =
-      true;
+    try {
+
+      /*
+        Por seguridad, reabrir canal si fue
+        cerrado anteriormente.
+      */
+
+      if (
+        !this.channel
+      ) {
+
+        this.iniciarBroadcastChannel();
+
+      }
 
 
-    this.iniciarRespaldoLocalStorage();
+      this.conectado =
+        true;
 
 
-    /*
-      Al conectar, comprobar inmediatamente
-      si existe una señal reciente.
-    */
+      this.iniciarRespaldoLocalStorage();
+
+
+      console.log(
+        `${BRIDGE_VERSION} · puente conectado`,
+        {
+          canal:
+            BOT_CHANNEL_NAME,
+
+          storage:
+            STORAGE_SIGNAL_KEY,
+
+          broadcastDisponible:
+            Boolean(
+              this.channel
+            )
+        }
+      );
+
+
+      /*
+        IMPORTANTE:
+        Despachar el evento aunque no exista
+        todavía una señal del Analyzer.
+      */
+
+      window.dispatchEvent(
+        new CustomEvent(
+          "bot:estado",
+          {
+            detail: {
+
+              conectado:
+                true,
+
+              mensaje:
+                "BOT SYNC",
+
+              version:
+                BRIDGE_VERSION,
+
+              canal:
+                BOT_CHANNEL_NAME,
+
+              storageKey:
+                STORAGE_SIGNAL_KEY,
+
+              canalDisponible:
+                Boolean(
+                  this.channel
+                )
+
+            }
+          }
+        )
+      );
+
+
+      /*
+        Al conectar, comprobar inmediatamente
+        si existe una señal reciente.
+      */
+
+      this.recuperarUltimaSenal();
+
+
+      return true;
+
+    }
+
+    catch (
+      error
+    ) {
+
+      this.conectado =
+        false;
+
+
+      console.error(
+        `${BRIDGE_VERSION} · error conectando puente:`,
+        error
+      );
+
+
+      window.dispatchEvent(
+        new CustomEvent(
+          "bot:error",
+          {
+            detail: {
+
+              mensaje:
+                `No se pudo conectar el puente: ${
+                  error?.message ||
+                  String(
+                    error
+                  )
+                }`
+
+            }
+          }
+        )
+      );
+
+
+      return false;
+
+    }
+
+  }
+
+
+  /* ========================================
+     RECUPERAR ÚLTIMA SEÑAL
+     ======================================== */
+
+  recuperarUltimaSenal() {
 
     try {
 
@@ -508,95 +863,94 @@ class SignalBridge {
 
 
       if (
-        guardada
+        !guardada
       ) {
 
-        const datos =
-          JSON.parse(
-            guardada
-          );
-
-
-        if (
-          this.esSenalReciente(
-            datos
-          )
-        ) {
-
-          setTimeout(
-            () => {
-
-              if (
-                !this.conectado
-              ) {
-
-                return;
-
-              }
-
-
-              const recibidoPerf =
-                this.ahora();
-
-
-              this.recibirSenalExterna(
-                datos,
-                "localStorage-recuperada",
-                recibidoPerf
-              );
-
-            },
-            100
-          );
-
-        }
+        return false;
 
       }
 
 
-    } catch (
-      error
-    ) {
+      const datos =
+        JSON.parse(
+          guardada
+        );
 
-      console.error(
-        "No se pudo recuperar la última señal:",
-        error
+
+      if (
+        !this.esSenalReciente(
+          datos
+        )
+      ) {
+
+        return false;
+
+      }
+
+
+      const id =
+        this.obtenerId(
+          datos
+        );
+
+
+      if (
+        id &&
+        id ===
+          String(
+            this.ultimoIdRecibido
+          )
+      ) {
+
+        return false;
+
+      }
+
+
+      setTimeout(
+        () => {
+
+          if (
+            !this.conectado
+          ) {
+
+            return;
+
+          }
+
+
+          const recibidoPerf =
+            this.ahora();
+
+
+          this.recibirSenalExterna(
+            datos,
+            "localStorage-recuperada",
+            recibidoPerf
+          );
+
+        },
+        100
       );
+
+
+      return true;
 
     }
 
+    catch (
+      error
+    ) {
 
-    window.dispatchEvent(
-      new CustomEvent(
-        "bot:estado",
-        {
-          detail: {
-
-            conectado:
-              true,
-
-            mensaje:
-              "BOT V1 MR FIX11 escuchando Trading Analyzer"
-
-          }
-        }
-      )
-    );
+      console.warn(
+        `${BRIDGE_VERSION} · no se pudo recuperar la última señal:`,
+        error
+      );
 
 
-    console.log(
-      "FIX11 · puente conectado",
-      {
-        canal:
-          BOT_CHANNEL_NAME,
+      return false;
 
-        storage:
-          STORAGE_SIGNAL_KEY
-      }
-    );
-
-
-    return true;
+    }
 
   }
 
@@ -624,11 +978,19 @@ class SignalBridge {
               false,
 
             mensaje:
-              "BOT desconectado"
+              "BOT OFF",
+
+            version:
+              BRIDGE_VERSION
 
           }
         }
       )
+    );
+
+
+    console.log(
+      `${BRIDGE_VERSION} · puente desconectado`
     );
 
 
@@ -667,8 +1029,7 @@ class SignalBridge {
       !Number.isFinite(
         timestamp
       ) ||
-      timestamp <=
-        0
+      timestamp <= 0
     ) {
 
       return false;
@@ -681,9 +1042,13 @@ class SignalBridge {
       timestamp;
 
 
+    /*
+      Permitimos un pequeño margen futuro
+      por diferencias mínimas de reloj.
+    */
+
     return (
-      antiguedad >=
-        0 &&
+      antiguedad >= -2000 &&
       antiguedad <=
         MAX_ANTIGUEDAD_SENAL
     );
@@ -755,10 +1120,8 @@ class SignalBridge {
 
 
     if (
-      confianza <
-        0 ||
-      confianza >
-        100
+      confianza < 0 ||
+      confianza > 100
     ) {
 
       return false;
@@ -767,11 +1130,9 @@ class SignalBridge {
 
 
     /*
-      targetExecutionAt es opcional
-      para mantener compatibilidad
-      con señales antiguas.
+      PREPARAR puede funcionar sin TARGET.
 
-      Si existe, debe ser válido.
+      EJECUTAR sí puede traer TARGET absoluto.
     */
 
     if (
@@ -791,8 +1152,7 @@ class SignalBridge {
         !Number.isFinite(
           target
         ) ||
-        target <=
-          0
+        target <= 0
       ) {
 
         return false;
@@ -855,7 +1215,7 @@ class SignalBridge {
     ) {
 
       console.log(
-        `Señal detectada por ${origen}, pero BOT desconectado.`
+        `${BRIDGE_VERSION} · señal detectada por ${origen}, pero BOT desconectado.`
       );
 
 
@@ -871,7 +1231,7 @@ class SignalBridge {
     ) {
 
       console.warn(
-        "Señal ignorada: formato inválido."
+        `${BRIDGE_VERSION} · señal ignorada: formato inválido.`
       );
 
 
@@ -887,11 +1247,13 @@ class SignalBridge {
     ) {
 
       console.warn(
-        "Señal antigua ignorada.",
+        `${BRIDGE_VERSION} · señal antigua ignorada.`,
         {
           origen,
+
           id:
             datos?.id,
+
           timestamp:
             datos?.timestamp
         }
@@ -911,7 +1273,7 @@ class SignalBridge {
 
       /*
         Es normal recibir la misma señal
-        por BroadcastChannel y localStorage.
+        por varias rutas.
       */
 
       return false;
@@ -960,8 +1322,45 @@ class SignalBridge {
                 datos?.id ??
                 null,
 
+              operacionId:
+                this.obtenerOperacionId(
+                  datos
+                ),
+
+              fase:
+                this.obtenerFase(
+                  datos
+                ),
+
+              protocolo:
+                this.obtenerProtocolo(
+                  datos
+                ),
+
+              mercado:
+                datos?.mercado ??
+                null,
+
+              estrategia:
+                datos?.estrategia ??
+                null,
+
+              direccion:
+                datos?.direccion ??
+                null,
+
               targetExecutionAt:
                 this.obtenerTargetExecutionAt(
+                  datos
+                ),
+
+              targetVisualAt:
+                this.obtenerTargetVisualAt(
+                  datos
+                ),
+
+              countdownStartAt:
+                this.obtenerCountdownStartAt(
                   datos
                 )
 
@@ -972,15 +1371,33 @@ class SignalBridge {
 
 
       console.log(
-        "FIX11 · señal aceptada por el puente",
+        `${BRIDGE_VERSION} · señal aceptada por el puente`,
         {
           origen,
 
           id:
             datos?.id,
 
+          operacionId:
+            this.obtenerOperacionId(
+              datos
+            ),
+
+          fase:
+            this.obtenerFase(
+              datos
+            ),
+
+          protocolo:
+            this.obtenerProtocolo(
+              datos
+            ),
+
           mercado:
             datos?.mercado,
+
+          direccion:
+            datos?.direccion,
 
           targetExecutionAt:
             this.obtenerTargetExecutionAt(
@@ -1035,6 +1452,18 @@ class SignalBridge {
       );
 
 
+    const targetVisualAt =
+      this.obtenerTargetVisualAt(
+        datos
+      );
+
+
+    const countdownStartAt =
+      this.obtenerCountdownStartAt(
+        datos
+      );
+
+
     const metadata =
       datos.metadata &&
       typeof datos.metadata ===
@@ -1046,8 +1475,8 @@ class SignalBridge {
 
 
     /*
-      Mantener target tanto arriba
-      como dentro de metadata.
+      Mantener las referencias absolutas
+      tanto arriba como dentro de metadata.
     */
 
     if (
@@ -1061,11 +1490,103 @@ class SignalBridge {
     }
 
 
+    if (
+      targetVisualAt !==
+        null
+    ) {
+
+      metadata.targetVisualAt =
+        targetVisualAt;
+
+    }
+
+
+    if (
+      countdownStartAt !==
+        null
+    ) {
+
+      metadata.countdownStartAt =
+        countdownStartAt;
+
+    }
+
+
+    const fase =
+      this.obtenerFase(
+        datos
+      );
+
+
+    const protocolo =
+      this.obtenerProtocolo(
+        datos
+      );
+
+
+    const operacionId =
+      this.obtenerOperacionId(
+        datos
+      );
+
+
+    if (
+      fase
+    ) {
+
+      metadata.fase =
+        fase;
+
+    }
+
+
+    if (
+      protocolo
+    ) {
+
+      metadata.protocolo =
+        protocolo;
+
+    }
+
+
+    if (
+      operacionId
+    ) {
+
+      metadata.operacionId =
+        operacionId;
+
+    }
+
+
+    const confianzaBase =
+      datos.visibleScore ??
+      datos.confianza;
+
+
+    const confianza =
+      Number(
+        confianzaBase
+      );
+
+
     const senal = {
 
       id:
         datos.id ??
         `${Date.now()}-${Math.random()}`,
+
+      operacionId:
+        operacionId,
+
+      fase:
+        fase ||
+        null,
+
+      protocolo:
+        protocolo ||
+        null,
 
       mercado:
         String(
@@ -1081,27 +1602,54 @@ class SignalBridge {
       direccion:
         datos.direccion,
 
-      // SYNC 1:1: si el Analyzer envía visibleScore, ese valor manda.
-      // No recalculamos ni sustituimos la confianza visible.
+      /*
+        SYNC 1:1:
+        si Analyzer envía visibleScore,
+        ese valor manda.
+      */
+
       confianza:
-        Number(
-          datos.visibleScore ??
-          datos.confianza
-        ),
+        confianza,
 
       visibleScore:
-        Number.isFinite(Number(datos.visibleScore))
-          ? Number(datos.visibleScore)
-          : Number(datos.confianza),
+        Number.isFinite(
+          Number(
+            datos.visibleScore
+          )
+        )
+          ? Number(
+              datos.visibleScore
+            )
+          : confianza,
 
       rawScore:
-        Number.isFinite(Number(datos.rawScore))
-          ? Number(datos.rawScore)
-          : null,
+        Number.isFinite(
+          Number(
+            datos.rawScore
+          )
+        )
+          ? Number(
+              datos.rawScore
+            )
+          : Number.isFinite(
+              Number(
+                datos.metadata?.rawScore
+              )
+            )
+            ? Number(
+                datos.metadata.rawScore
+              )
+            : null,
 
       qualityScore:
-        Number.isFinite(Number(datos.qualityScore))
-          ? Number(datos.qualityScore)
+        Number.isFinite(
+          Number(
+            datos.qualityScore
+          )
+        )
+          ? Number(
+              datos.qualityScore
+            )
           : null,
 
       precio:
@@ -1164,22 +1712,21 @@ class SignalBridge {
         datos.origen ??
         null,
 
-
-      /* ====================================
-         FIX11
-         ==================================== */
+      countdownStartAt:
+        countdownStartAt,
 
       targetExecutionAt:
         targetExecutionAt,
 
+      targetVisualAt:
+        targetVisualAt,
+
       metadata:
         metadata,
-
 
       timestamp:
         datos.timestamp ??
         Date.now(),
-
 
       /*
         Marca de entrada al puente.
@@ -1198,7 +1745,7 @@ class SignalBridge {
     ) {
 
       console.error(
-        "FIX11 · señal rechazada",
+        `${BRIDGE_VERSION} · señal rechazada`,
         senal
       );
 
@@ -1225,92 +1772,19 @@ class SignalBridge {
 
     this.ultimaSenal =
       senal;
-        /* ========================================
-       EXECUTION RECORDER
-       MODO OBSERVADOR
 
-       Registra la señal aceptada por el puente.
-       NO compra.
-       NO modifica contratos.
-       NO altera la entrega normal al bot.js.
-       ======================================== */
-
-    try {
-
-      const registroEjecucion =
-        executionRecorder.createRecord({
-          operationId:
-            senal.id,
-
-          signalReceivedAt:
-            Date.now(),
-
-          market:
-            senal.mercado,
-
-          strategy:
-            senal.estrategia,
-
-          direction:
-            senal.direccion,
-
-          confidence:
-            senal.confianza,
-
-          targetSecond:
-            senal.segundosEntrada,
-
-          targetExecutionAt:
-            senal.targetExecutionAt,
-
-          targetVisualAt:
-            senal.metadata?.targetVisualAt ??
-            senal.targetExecutionAt,
-
-          metadata: {
-            ...(senal.metadata || {}),
-
-            signalId:
-              senal.id,
-
-            bridgeReceivedPerf:
-              senal.bridgeReceivedPerf,
-
-            source:
-              senal.origen,
-
-            recorderMode:
-              "OBSERVER"
-          }
-        });
-
-
-      console.log(
-        "EXECUTION RECORDER · señal registrada",
-        registroEjecucion
-      );
-
-
-    } catch (
-      error
-    ) {
-
-      /*
-        El registrador es únicamente observador.
-        Si falla, NO debe bloquear la señal
-        ni afectar el funcionamiento del BOT.
-      */
-
-      console.warn(
-        "EXECUTION RECORDER · no se pudo registrar la señal:",
-        error
-      );
-
-    }
 
     /*
-      Entregar al bot.js
+      IMPORTANTE:
+
+      En esta versión NO existe
+      dependencia obligatoria de
+      execution-recorder.js.
+
+      El puente entrega directamente
+      la señal al BOT.
     */
+
 
     for (
       const callback
@@ -1323,13 +1797,14 @@ class SignalBridge {
           senal
         );
 
+      }
 
-      } catch (
+      catch (
         error
       ) {
 
         console.error(
-          "Error entregando señal al BOT:",
+          `${BRIDGE_VERSION} · error entregando señal al BOT:`,
           error
         );
 
@@ -1415,6 +1890,9 @@ class SignalBridge {
 
     return {
 
+      version:
+        BRIDGE_VERSION,
+
       conectado:
         this.conectado,
 
@@ -1446,7 +1924,7 @@ class SignalBridge {
 
 
   /* ========================================
-     CERRAR
+     CERRAR COMPLETAMENTE
      ======================================== */
 
   destruir() {
@@ -1454,12 +1932,36 @@ class SignalBridge {
     this.detenerRespaldoLocalStorage();
 
 
+    if (
+      this.storageHandler
+    ) {
+
+      try {
+
+        window.removeEventListener(
+          "storage",
+          this.storageHandler
+        );
+
+      }
+
+      catch {}
+
+    }
+
+
+    this.storageHandler =
+      null;
+
+
     try {
 
       this.channel
         ?.close();
 
-    } catch {}
+    }
+
+    catch {}
 
 
     this.channel =
@@ -1468,6 +1970,11 @@ class SignalBridge {
 
     this.conectado =
       false;
+
+
+    console.log(
+      `${BRIDGE_VERSION} · puente destruido`
+    );
 
   }
 
