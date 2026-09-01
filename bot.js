@@ -30,22 +30,21 @@
    - TELEMETRÍA
    - GANADA / PERDIDA
    ========================================== */
-
-
 import {
   signalBridge
 } from "./signal-bridge.js?v=FIX14-0-DIRECTION-MEMORY";
-
 
 import {
   botEngine
 } from "./bot-engine.js?v=FIX14-1-DIRECTION-TIMING";
 
-
 import {
   derivConnection
 } from "./deriv-connection.js";
 
+import {
+  derivTrade
+} from "./deriv-trade.js";
 
 /* ==========================================
    VERSIONES
@@ -4958,33 +4957,47 @@ function renderCuentaSegura() {
 
 }
 
-
-/* ==========================================
-   EJECUCIÓN DEMO
-   ========================================== */
-
 function renderEjecucionDemo() {
 
-  const estado =
-    obtenerEstadoRapido();
+  let trade = {};
 
+  try {
 
-  const trade =
-    estado?.trade ||
-    {};
+    trade =
+      derivTrade.obtenerEstado() ||
+      {};
 
+  } catch (
+    error
+  ) {
 
-  const conectado =
-    Boolean(
-      derivConnection
-        .obtenerEstado()
-        ?.connected
+    console.warn(
+      "No se pudo leer estado Deriv Trade:",
+      error
     );
+
+  }
+
+
+  let conectado =
+    false;
+
+
+  try {
+
+    conectado =
+      Boolean(
+        derivConnection
+          .obtenerEstado()
+          ?.connected
+      );
+
+  } catch {}
 
 
   const activa =
     Boolean(
-      trade.ejecucionActiva
+      trade?.ejecucionActiva
     );
 
 
@@ -4996,6 +5009,18 @@ function renderEjecucionDemo() {
       activa
         ? "EJECUCIÓN DEMO ON"
         : "EJECUCIÓN DEMO OFF";
+
+
+    UI.estadoEjecucion.classList.toggle(
+      "apagado-ejecucion",
+      !activa
+    );
+
+
+    UI.estadoEjecucion.classList.toggle(
+      "encendido-ejecucion",
+      activa
+    );
 
   }
 
@@ -5022,6 +5047,7 @@ function renderEjecucionDemo() {
 
 
   renderModoEjecucion();
+
   renderCuentaSegura();
 
 }
